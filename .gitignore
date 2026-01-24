@@ -1,0 +1,21 @@
+ 
+# Dependencies
+node_modules/
+.target/
+npm-debug.log*
+
+# Production builds
+/dist/
+build/
+
+# Environment variables
+.env*.local
+Dockerfile.*
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+logs
+*.log
