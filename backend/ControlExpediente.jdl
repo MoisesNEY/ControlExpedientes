@@ -127,9 +127,9 @@ relationship ManyToOne {
 }
 
 relationship ManyToOne {
-  ConsultaMedica to User
-  CitaMedica to User
-  AuditoriaAcciones to User
+  ConsultaMedica to User with builtInEntity
+  CitaMedica to User with builtInEntity
+  AuditoriaAcciones to User with builtInEntity
 }
 
 relationship OneToMany {
@@ -140,7 +140,7 @@ relationship OneToMany {
 // OPCIONES JHIPSTER
 // =====================
 
-paginate Paciente, ConsultaMedica, CitaMedica, Medicamento with pagination
+paginate * with pagination
 service all with serviceClass
 dto all with mapstruct
 filter all
