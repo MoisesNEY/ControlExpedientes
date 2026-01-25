@@ -1,0 +1,146 @@
+// =====================
+// ENUMS
+// =====================
+
+enum Sexo {
+  MASCULINO,
+  FEMENINO,
+  OTRO
+}
+
+enum EstadoCivil {
+  SOLTERO,
+  CASADO,
+  DIVORCIADO,
+  VIUDO
+}
+
+enum EstadoCita {
+  PROGRAMADA,
+  ATENDIDA,
+  CANCELADA
+}
+
+enum TipoUsuario {
+  ADMIN,
+  MEDICO,
+  RECEPCIONISTA
+}
+
+// =====================
+// ENTIDADES
+// =====================
+
+entity Paciente {
+  codigo String required unique
+  nombres String required
+  apellidos String required
+  sexo Sexo required
+  fechaNacimiento LocalDate required
+  cedula String unique
+  telefono String
+  direccion String
+  estadoCivil EstadoCivil
+  email String
+  activo Boolean required
+}
+
+entity ExpedienteClinico {
+  numeroExpediente String required unique
+  fechaApertura LocalDate required
+  observaciones String
+}
+
+entity ConsultaMedica {
+  fechaConsulta LocalDate required
+  motivoConsulta String required
+  notasMedicas String
+}
+
+entity Diagnostico {
+  descripcion String required
+  codigoCIE String
+}
+
+entity Tratamiento {
+  indicaciones String required
+  duracionDias Integer
+}
+
+entity Medicamento {
+  nombre String required
+  descripcion String
+  stock Integer required
+}
+
+entity Receta {
+  dosis String required
+  frecuencia String required
+  duracion String required
+}
+
+entity CitaMedica {
+  fechaHora ZonedDateTime required
+  estado EstadoCita required
+  observaciones String
+}
+
+entity SignosVitales {
+  peso Double
+  altura Double
+  presionArterial String
+  temperatura Double
+  frecuenciaCardiaca Integer
+}
+
+entity HistorialClinico {
+  fechaRegistro ZonedDateTime required
+  descripcion String required
+}
+
+entity AuditoriaAcciones {
+  entidad String required
+  accion String required
+  fecha ZonedDateTime required
+  descripcion String
+}
+
+// =====================
+// RELACIONES
+// =====================
+
+relationship OneToOne {
+  Paciente to ExpedienteClinico
+}
+
+relationship OneToMany {
+  ExpedienteClinico to ConsultaMedica
+  ConsultaMedica to Diagnostico
+  ConsultaMedica to Tratamiento
+  ConsultaMedica to SignosVitales
+  ConsultaMedica to Receta
+  Paciente to CitaMedica
+}
+
+relationship ManyToOne {
+  Receta to Medicamento
+}
+
+relationship ManyToOne {
+  ConsultaMedica to User
+  CitaMedica to User
+  AuditoriaAcciones to User
+}
+
+relationship OneToMany {
+  ExpedienteClinico to HistorialClinico
+}
+
+// =====================
+// OPCIONES JHIPSTER
+// =====================
+
+paginate Paciente, ConsultaMedica, CitaMedica, Medicamento with pagination
+service all with serviceClass
+dto all with mapstruct
+filter all
