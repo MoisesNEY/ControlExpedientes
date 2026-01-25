@@ -21,12 +21,6 @@ enum EstadoCita {
   CANCELADA
 }
 
-enum TipoUsuario {
-  ADMIN,
-  MEDICO,
-  RECEPCIONISTA
-}
-
 // =====================
 // ENTIDADES
 // =====================
@@ -110,37 +104,32 @@ entity AuditoriaAcciones {
 // =====================
 
 relationship OneToOne {
-  Paciente to ExpedienteClinico
+  Paciente{expediente} to ExpedienteClinico{paciente}
 }
 
 relationship OneToMany {
-  ExpedienteClinico to ConsultaMedica
-  ConsultaMedica to Diagnostico
-  ConsultaMedica to Tratamiento
-  ConsultaMedica to SignosVitales
-  ConsultaMedica to Receta
-  Paciente to CitaMedica
+  ExpedienteClinico{consulta} to ConsultaMedica{expediente}
+  ConsultaMedica{diagnostico} to Diagnostico{consulta}
+  ConsultaMedica{tratamiento} to Tratamiento{consulta}
+  ConsultaMedica{signosVitales} to SignosVitales{consulta}
+  ConsultaMedica{receta} to Receta{consulta}
+  Paciente{cita} to CitaMedica{paciente}
+  ExpedienteClinico{historial} to HistorialClinico{expediente}
 }
 
 relationship ManyToOne {
-  Receta to Medicamento
-}
-
-relationship ManyToOne {
-  ConsultaMedica to User with builtInEntity
-  CitaMedica to User with builtInEntity
-  AuditoriaAcciones to User with builtInEntity
-}
-
-relationship OneToMany {
-  ExpedienteClinico to HistorialClinico
+  Receta{medicamento} to Medicamento
+  
+  ConsultaMedica{user(login)} to User with builtInEntity
+  CitaMedica{user(login)} to User with builtInEntity
+  AuditoriaAcciones{user(login)} to User with builtInEntity
 }
 
 // =====================
 // OPCIONES JHIPSTER
 // =====================
 
-paginate * with pagination
+paginate all with pagination
 service all with serviceClass
 dto all with mapstruct
 filter all
