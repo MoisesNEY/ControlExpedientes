@@ -1,0 +1,32 @@
+{
+  "annotations": {
+    "changelogDate": "20260125005534"
+  },
+  "applications": "*",
+  "dto": "mapstruct",
+  "fields": [
+    {
+      "fieldName": "indicaciones",
+      "fieldType": "String",
+      "fieldValidateRules": ["required"]
+    },
+    {
+      "fieldName": "duracionDias",
+      "fieldType": "Integer"
+    }
+  ],
+  "jpaMetamodelFiltering": true,
+  "name": "Tratamiento",
+  "pagination": "pagination",
+  "relationships": [
+    {
+      "otherEntityName": "consultaMedica",
+      "otherEntityRelationshipName": "tratamiento",
+      "relationshipName": "consulta",
+      "relationshipSide": "right",
+      "relationshipType": "many-to-one"
+    }
+  ],
+  "searchEngine": "no",
+  "service": "serviceClass"
+}

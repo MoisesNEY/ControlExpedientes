@@ -1,0 +1,51 @@
+{
+  "annotations": {
+    "changelogDate": "20260125005531"
+  },
+  "applications": "*",
+  "dto": "mapstruct",
+  "fields": [
+    {
+      "fieldName": "numeroExpediente",
+      "fieldType": "String",
+      "fieldValidateRules": ["required", "unique"]
+    },
+    {
+      "fieldName": "fechaApertura",
+      "fieldType": "LocalDate",
+      "fieldValidateRules": ["required"]
+    },
+    {
+      "fieldName": "observaciones",
+      "fieldType": "String"
+    }
+  ],
+  "jpaMetamodelFiltering": true,
+  "name": "ExpedienteClinico",
+  "pagination": "pagination",
+  "relationships": [
+    {
+      "otherEntityName": "consultaMedica",
+      "otherEntityRelationshipName": "expediente",
+      "relationshipName": "consulta",
+      "relationshipSide": "left",
+      "relationshipType": "one-to-many"
+    },
+    {
+      "otherEntityName": "historialClinico",
+      "otherEntityRelationshipName": "expediente",
+      "relationshipName": "historial",
+      "relationshipSide": "left",
+      "relationshipType": "one-to-many"
+    },
+    {
+      "otherEntityName": "paciente",
+      "otherEntityRelationshipName": "expediente",
+      "relationshipName": "paciente",
+      "relationshipSide": "right",
+      "relationshipType": "one-to-one"
+    }
+  ],
+  "searchEngine": "no",
+  "service": "serviceClass"
+}

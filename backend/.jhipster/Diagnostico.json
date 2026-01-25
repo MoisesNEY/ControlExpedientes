@@ -1,0 +1,32 @@
+{
+  "annotations": {
+    "changelogDate": "20260125005533"
+  },
+  "applications": "*",
+  "dto": "mapstruct",
+  "fields": [
+    {
+      "fieldName": "descripcion",
+      "fieldType": "String",
+      "fieldValidateRules": ["required"]
+    },
+    {
+      "fieldName": "codigoCIE",
+      "fieldType": "String"
+    }
+  ],
+  "jpaMetamodelFiltering": true,
+  "name": "Diagnostico",
+  "pagination": "pagination",
+  "relationships": [
+    {
+      "otherEntityName": "consultaMedica",
+      "otherEntityRelationshipName": "diagnostico",
+      "relationshipName": "consulta",
+      "relationshipSide": "right",
+      "relationshipType": "many-to-one"
+    }
+  ],
+  "searchEngine": "no",
+  "service": "serviceClass"
+}

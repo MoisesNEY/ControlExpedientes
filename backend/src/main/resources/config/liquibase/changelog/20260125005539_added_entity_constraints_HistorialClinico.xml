@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:ext="http://www.liquibase.org/xml/ns/dbchangelog-ext"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd
+                        http://www.liquibase.org/xml/ns/dbchangelog-ext http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd">
+    <!--
+        Added the constraints for entity HistorialClinico.
+    -->
+    <changeSet id="20260125005539-2" author="jhipster">
+
+        <addForeignKeyConstraint baseColumnNames="expediente_id"
+                                 baseTableName="historial_clinico"
+                                 constraintName="fk_historial_clinico__expediente_id"
+                                 referencedColumnNames="id"
+                                 referencedTableName="expediente_clinico"
+                                 />
+    </changeSet>
+</databaseChangeLog>

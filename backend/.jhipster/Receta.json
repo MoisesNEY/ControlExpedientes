@@ -1,0 +1,44 @@
+{
+  "annotations": {
+    "changelogDate": "20260125005536"
+  },
+  "applications": "*",
+  "dto": "mapstruct",
+  "fields": [
+    {
+      "fieldName": "dosis",
+      "fieldType": "String",
+      "fieldValidateRules": ["required"]
+    },
+    {
+      "fieldName": "frecuencia",
+      "fieldType": "String",
+      "fieldValidateRules": ["required"]
+    },
+    {
+      "fieldName": "duracion",
+      "fieldType": "String",
+      "fieldValidateRules": ["required"]
+    }
+  ],
+  "jpaMetamodelFiltering": true,
+  "name": "Receta",
+  "pagination": "pagination",
+  "relationships": [
+    {
+      "otherEntityName": "medicamento",
+      "relationshipName": "medicamento",
+      "relationshipSide": "left",
+      "relationshipType": "many-to-one"
+    },
+    {
+      "otherEntityName": "consultaMedica",
+      "otherEntityRelationshipName": "receta",
+      "relationshipName": "consulta",
+      "relationshipSide": "right",
+      "relationshipType": "many-to-one"
+    }
+  ],
+  "searchEngine": "no",
+  "service": "serviceClass"
+}

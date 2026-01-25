@@ -1,0 +1,33 @@
+{
+  "annotations": {
+    "changelogDate": "20260125005539"
+  },
+  "applications": "*",
+  "dto": "mapstruct",
+  "fields": [
+    {
+      "fieldName": "fechaRegistro",
+      "fieldType": "ZonedDateTime",
+      "fieldValidateRules": ["required"]
+    },
+    {
+      "fieldName": "descripcion",
+      "fieldType": "String",
+      "fieldValidateRules": ["required"]
+    }
+  ],
+  "jpaMetamodelFiltering": true,
+  "name": "HistorialClinico",
+  "pagination": "pagination",
+  "relationships": [
+    {
+      "otherEntityName": "expedienteClinico",
+      "otherEntityRelationshipName": "historial",
+      "relationshipName": "expediente",
+      "relationshipSide": "right",
+      "relationshipType": "many-to-one"
+    }
+  ],
+  "searchEngine": "no",
+  "service": "serviceClass"
+}

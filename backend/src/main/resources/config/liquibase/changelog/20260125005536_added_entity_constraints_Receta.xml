@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:ext="http://www.liquibase.org/xml/ns/dbchangelog-ext"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd
+                        http://www.liquibase.org/xml/ns/dbchangelog-ext http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd">
+    <!--
+        Added the constraints for entity Receta.
+    -->
+    <changeSet id="20260125005536-2" author="jhipster">
+
+        <addForeignKeyConstraint baseColumnNames="medicamento_id"
+                                 baseTableName="receta"
+                                 constraintName="fk_receta__medicamento_id"
+                                 referencedColumnNames="id"
+                                 referencedTableName="medicamento"
+                                 />
+
+        <addForeignKeyConstraint baseColumnNames="consulta_id"
+                                 baseTableName="receta"
+                                 constraintName="fk_receta__consulta_id"
+                                 referencedColumnNames="id"
+                                 referencedTableName="consulta_medica"
+                                 />
+    </changeSet>
+</databaseChangeLog>

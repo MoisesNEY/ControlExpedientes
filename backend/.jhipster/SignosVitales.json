@@ -1,0 +1,43 @@
+{
+  "annotations": {
+    "changelogDate": "20260125005538"
+  },
+  "applications": "*",
+  "dto": "mapstruct",
+  "fields": [
+    {
+      "fieldName": "peso",
+      "fieldType": "Double"
+    },
+    {
+      "fieldName": "altura",
+      "fieldType": "Double"
+    },
+    {
+      "fieldName": "presionArterial",
+      "fieldType": "String"
+    },
+    {
+      "fieldName": "temperatura",
+      "fieldType": "Double"
+    },
+    {
+      "fieldName": "frecuenciaCardiaca",
+      "fieldType": "Integer"
+    }
+  ],
+  "jpaMetamodelFiltering": true,
+  "name": "SignosVitales",
+  "pagination": "pagination",
+  "relationships": [
+    {
+      "otherEntityName": "consultaMedica",
+      "otherEntityRelationshipName": "signosVitales",
+      "relationshipName": "consulta",
+      "relationshipSide": "right",
+      "relationshipType": "many-to-one"
+    }
+  ],
+  "searchEngine": "no",
+  "service": "serviceClass"
+}

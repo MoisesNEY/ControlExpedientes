@@ -1,0 +1,73 @@
+{
+  "annotations": {
+    "changelogDate": "20260125005532"
+  },
+  "applications": "*",
+  "dto": "mapstruct",
+  "fields": [
+    {
+      "fieldName": "fechaConsulta",
+      "fieldType": "LocalDate",
+      "fieldValidateRules": ["required"]
+    },
+    {
+      "fieldName": "motivoConsulta",
+      "fieldType": "String",
+      "fieldValidateRules": ["required"]
+    },
+    {
+      "fieldName": "notasMedicas",
+      "fieldType": "String"
+    }
+  ],
+  "jpaMetamodelFiltering": true,
+  "name": "ConsultaMedica",
+  "pagination": "pagination",
+  "relationships": [
+    {
+      "otherEntityName": "diagnostico",
+      "otherEntityRelationshipName": "consulta",
+      "relationshipName": "diagnostico",
+      "relationshipSide": "left",
+      "relationshipType": "one-to-many"
+    },
+    {
+      "otherEntityName": "tratamiento",
+      "otherEntityRelationshipName": "consulta",
+      "relationshipName": "tratamiento",
+      "relationshipSide": "left",
+      "relationshipType": "one-to-many"
+    },
+    {
+      "otherEntityName": "signosVitales",
+      "otherEntityRelationshipName": "consulta",
+      "relationshipName": "signosVitales",
+      "relationshipSide": "left",
+      "relationshipType": "one-to-many"
+    },
+    {
+      "otherEntityName": "receta",
+      "otherEntityRelationshipName": "consulta",
+      "relationshipName": "receta",
+      "relationshipSide": "left",
+      "relationshipType": "one-to-many"
+    },
+    {
+      "otherEntityField": "login",
+      "otherEntityName": "user",
+      "relationshipName": "user",
+      "relationshipSide": "left",
+      "relationshipType": "many-to-one",
+      "relationshipWithBuiltInEntity": true
+    },
+    {
+      "otherEntityName": "expedienteClinico",
+      "otherEntityRelationshipName": "consulta",
+      "relationshipName": "expediente",
+      "relationshipSide": "right",
+      "relationshipType": "many-to-one"
+    }
+  ],
+  "searchEngine": "no",
+  "service": "serviceClass"
+}
