@@ -18,14 +18,13 @@ public class CacheConfiguration {
         JHipsterProperties.Cache.Ehcache ehcache = jHipsterProperties.getCache().getEhcache();
 
         jcacheConfiguration = Eh107Configuration.fromEhcacheCacheConfiguration(
-            CacheConfigurationBuilder.newCacheConfigurationBuilder(
-                Object.class,
-                Object.class,
-                ResourcePoolsBuilder.heap(ehcache.getMaxEntries())
-            )
-                .withExpiry(ExpiryPolicyBuilder.timeToLiveExpiration(Duration.ofSeconds(ehcache.getTimeToLiveSeconds())))
-                .build()
-        );
+                CacheConfigurationBuilder.newCacheConfigurationBuilder(
+                        Object.class,
+                        Object.class,
+                        ResourcePoolsBuilder.heap(ehcache.getMaxEntries()))
+                        .withExpiry(ExpiryPolicyBuilder
+                                .timeToLiveExpiration(Duration.ofSeconds(ehcache.getTimeToLiveSeconds())))
+                        .build());
     }
 
     @Bean
@@ -49,6 +48,8 @@ public class CacheConfiguration {
             createCache(cm, ni.edu.mney.domain.SignosVitales.class.getName());
             createCache(cm, ni.edu.mney.domain.HistorialClinico.class.getName());
             createCache(cm, ni.edu.mney.domain.AuditoriaAcciones.class.getName());
+            createCache(cm, ni.edu.mney.repository.UserRepository.USERS_BY_LOGIN_CACHE);
+            createCache(cm, ni.edu.mney.repository.UserRepository.USERS_BY_EMAIL_CACHE);
             // jhipster-needle-ehcache-add-entry
         };
     }
