@@ -7,6 +7,8 @@ import ni.edu.mney.service.dto.DiagnosticoDTO;
 import ni.edu.mney.service.mapper.DiagnosticoMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -64,14 +66,14 @@ public class DiagnosticoService {
         LOG.debug("Request to partially update Diagnostico : {}", diagnosticoDTO);
 
         return diagnosticoRepository
-            .findById(diagnosticoDTO.getId())
-            .map(existingDiagnostico -> {
-                diagnosticoMapper.partialUpdate(existingDiagnostico, diagnosticoDTO);
+                .findById(diagnosticoDTO.getId())
+                .map(existingDiagnostico -> {
+                    diagnosticoMapper.partialUpdate(existingDiagnostico, diagnosticoDTO);
 
-                return existingDiagnostico;
-            })
-            .map(diagnosticoRepository::save)
-            .map(diagnosticoMapper::toDto);
+                    return existingDiagnostico;
+                })
+                .map(diagnosticoRepository::save)
+                .map(diagnosticoMapper::toDto);
     }
 
     /**
@@ -94,5 +96,18 @@ public class DiagnosticoService {
     public void delete(Long id) {
         LOG.debug("Request to delete Diagnostico : {}", id);
         diagnosticoRepository.deleteById(id);
+    }
+
+    /**
+     * Search for the diagnostico matching the query.
+     *
+     * @param query    the query of the search.
+     * @param pageable the pagination information.
+     * @return the list of entities.
+     */
+    @Transactional(readOnly = true)
+    public Page<DiagnosticoDTO> search(String query, Pageable pageable) {
+        LOG.debug("Request to search Diagnosticos for query {}", query);
+        return diagnosticoRepository.search(query, pageable).map(diagnosticoMapper::toDto);
     }
 }

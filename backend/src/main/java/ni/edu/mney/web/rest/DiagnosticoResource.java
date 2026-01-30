@@ -202,4 +202,22 @@ public class DiagnosticoResource {
             .headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id.toString()))
             .build();
     }
+
+    /**
+     * {@code GET  /diagnosticos/search} : search for the diagnostico matching the query.
+     *
+     * @param query the query of the diagnostico search.
+     * @param pageable the pagination information.
+     * @return the result of the search.
+     */
+    @GetMapping("/search")
+    public ResponseEntity<List<DiagnosticoDTO>> searchDiagnostico(
+        @RequestParam("query") String query,
+        @org.springdoc.core.annotations.ParameterObject Pageable pageable
+    ) {
+        LOG.debug("REST request to search Diagnosticos for query {}", query);
+        Page<DiagnosticoDTO> page = diagnosticoService.search(query, pageable);
+        HttpHeaders headers = PaginationUtil.generatePaginationHttpHeaders(ServletUriComponentsBuilder.fromCurrentRequest(), page);
+        return ResponseEntity.ok().headers(headers).body(page.getContent());
+    }
 }
