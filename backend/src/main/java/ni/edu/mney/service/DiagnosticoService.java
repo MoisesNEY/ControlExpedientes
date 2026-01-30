@@ -7,6 +7,8 @@ import ni.edu.mney.service.dto.DiagnosticoDTO;
 import ni.edu.mney.service.mapper.DiagnosticoMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -36,6 +38,7 @@ public class DiagnosticoService {
      * @param diagnosticoDTO the entity to save.
      * @return the persisted entity.
      */
+    @CacheEvict(value = "ni.edu.mney.service.DiagnosticoService.search", allEntries = true)
     public DiagnosticoDTO save(DiagnosticoDTO diagnosticoDTO) {
         LOG.debug("Request to save Diagnostico : {}", diagnosticoDTO);
         Diagnostico diagnostico = diagnosticoMapper.toEntity(diagnosticoDTO);
@@ -49,6 +52,7 @@ public class DiagnosticoService {
      * @param diagnosticoDTO the entity to save.
      * @return the persisted entity.
      */
+    @CacheEvict(value = "ni.edu.mney.service.DiagnosticoService.search", allEntries = true)
     public DiagnosticoDTO update(DiagnosticoDTO diagnosticoDTO) {
         LOG.debug("Request to update Diagnostico : {}", diagnosticoDTO);
         Diagnostico diagnostico = diagnosticoMapper.toEntity(diagnosticoDTO);
@@ -62,6 +66,7 @@ public class DiagnosticoService {
      * @param diagnosticoDTO the entity to update partially.
      * @return the persisted entity.
      */
+    @CacheEvict(value = "ni.edu.mney.service.DiagnosticoService.search", allEntries = true)
     public Optional<DiagnosticoDTO> partialUpdate(DiagnosticoDTO diagnosticoDTO) {
         LOG.debug("Request to partially update Diagnostico : {}", diagnosticoDTO);
 
@@ -93,6 +98,7 @@ public class DiagnosticoService {
      *
      * @param id the id of the entity.
      */
+    @CacheEvict(value = "ni.edu.mney.service.DiagnosticoService.search", allEntries = true)
     public void delete(Long id) {
         LOG.debug("Request to delete Diagnostico : {}", id);
         diagnosticoRepository.deleteById(id);
@@ -106,6 +112,7 @@ public class DiagnosticoService {
      * @return the list of entities.
      */
     @Transactional(readOnly = true)
+    @Cacheable(cacheNames = "ni.edu.mney.service.DiagnosticoService.search")
     public Page<DiagnosticoDTO> search(String query, Pageable pageable) {
         LOG.debug("Request to search Diagnosticos for query {}", query);
         return diagnosticoRepository.search(query, pageable).map(diagnosticoMapper::toDto);
