@@ -6,7 +6,7 @@ import ni.edu.mney.repository.MedicamentoRepository;
 import ni.edu.mney.repository.RecetaRepository;
 import ni.edu.mney.service.dto.RecetaDTO;
 import ni.edu.mney.service.mapper.RecetaMapper;
-import ni.edu.mney.web.rest.errors.BadRequestAlertException;
+import ni.edu.mney.web.rest.errors.InsufficientStockException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -41,15 +41,18 @@ public class RecetaService {
     public RecetaDTO save(RecetaDTO recetaDTO) {
         LOG.debug("Request to save Receta : {}", recetaDTO);
 
-        // Stock Validation
+        // Stock Validation and Deduction
         if (recetaDTO.getMedicamento() != null && recetaDTO.getMedicamento().getId() != null) {
-            medicamentoRepository.findById(recetaDTO.getMedicamento().getId()).ifPresent(medicamento -> {
-                if (medicamento.getStock() < recetaDTO.getCantidad()) {
-                    throw new BadRequestAlertException(
-                            "Stock insuficiente para el medicamento: " + medicamento.getNombre(), "Medicamento",
-                            "insufficientstock");
-                }
-            });
+            medicamentoRepository
+                    .findById(recetaDTO.getMedicamento().getId())
+                    .ifPresent(medicamento -> {
+                        if (medicamento.getStock() < recetaDTO.getCantidad()) {
+                            throw new InsufficientStockException(medicamento.getNombre());
+                        }
+                        // Subtract from stock
+                        medicamento.setStock(medicamento.getStock() - recetaDTO.getCantidad());
+                        medicamentoRepository.save(medicamento);
+                    });
         }
 
         Receta receta = recetaMapper.toEntity(recetaDTO);
