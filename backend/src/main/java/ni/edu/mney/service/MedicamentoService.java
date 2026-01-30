@@ -1,6 +1,8 @@
 package ni.edu.mney.service;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import ni.edu.mney.domain.Medicamento;
 import ni.edu.mney.repository.MedicamentoRepository;
 import ni.edu.mney.service.dto.MedicamentoDTO;
@@ -64,14 +66,14 @@ public class MedicamentoService {
         LOG.debug("Request to partially update Medicamento : {}", medicamentoDTO);
 
         return medicamentoRepository
-            .findById(medicamentoDTO.getId())
-            .map(existingMedicamento -> {
-                medicamentoMapper.partialUpdate(existingMedicamento, medicamentoDTO);
+                .findById(medicamentoDTO.getId())
+                .map(existingMedicamento -> {
+                    medicamentoMapper.partialUpdate(existingMedicamento, medicamentoDTO);
 
-                return existingMedicamento;
-            })
-            .map(medicamentoRepository::save)
-            .map(medicamentoMapper::toDto);
+                    return existingMedicamento;
+                })
+                .map(medicamentoRepository::save)
+                .map(medicamentoMapper::toDto);
     }
 
     /**
@@ -84,6 +86,19 @@ public class MedicamentoService {
     public Optional<MedicamentoDTO> findOne(Long id) {
         LOG.debug("Request to get Medicamento : {}", id);
         return medicamentoRepository.findById(id).map(medicamentoMapper::toDto);
+    }
+
+    /**
+     * Get all medicamentos with stock less than threshold.
+     *
+     * @param threshold the stock threshold.
+     * @return the list of entities.
+     */
+    @Transactional(readOnly = true)
+    public List<MedicamentoDTO> findAllLowStock(Integer threshold) {
+        LOG.debug("Request to get all Medicamentos with stock less than : {}", threshold);
+        return medicamentoRepository.findByStockLessThan(threshold).stream().map(medicamentoMapper::toDto)
+                .collect(Collectors.toList());
     }
 
     /**

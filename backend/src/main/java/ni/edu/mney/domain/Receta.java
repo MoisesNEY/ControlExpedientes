@@ -36,11 +36,17 @@ public class Receta implements Serializable {
     @Column(name = "duracion", nullable = false)
     private String duracion;
 
+    @NotNull
+    @Min(value = 1)
+    @Column(name = "cantidad", nullable = false)
+    private Integer cantidad;
+
     @ManyToOne(fetch = FetchType.LAZY)
     private Medicamento medicamento;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JsonIgnoreProperties(value = { "diagnosticos", "tratamientos", "signosVitales", "recetas", "user", "expediente" }, allowSetters = true)
+    @JsonIgnoreProperties(value = { "diagnosticos", "tratamientos", "signosVitales", "recetas", "user",
+            "expediente" }, allowSetters = true)
     private ConsultaMedica consulta;
 
     // jhipster-needle-entity-add-field - JHipster will add fields here
@@ -97,6 +103,19 @@ public class Receta implements Serializable {
         this.duracion = duracion;
     }
 
+    public Integer getCantidad() {
+        return this.cantidad;
+    }
+
+    public void setCantidad(Integer cantidad) {
+        this.cantidad = cantidad;
+    }
+
+    public Receta cantidad(Integer cantidad) {
+        this.setCantidad(cantidad);
+        return this;
+    }
+
     public Medicamento getMedicamento() {
         return this.medicamento;
     }
@@ -123,7 +142,8 @@ public class Receta implements Serializable {
         return this;
     }
 
-    // jhipster-needle-entity-add-getters-setters - JHipster will add getters and setters here
+    // jhipster-needle-entity-add-getters-setters - JHipster will add getters and
+    // setters here
 
     @Override
     public boolean equals(Object o) {
@@ -138,7 +158,8 @@ public class Receta implements Serializable {
 
     @Override
     public int hashCode() {
-        // see https://vladmihalcea.com/how-to-implement-equals-and-hashcode-using-the-jpa-entity-identifier/
+        // see
+        // https://vladmihalcea.com/how-to-implement-equals-and-hashcode-using-the-jpa-entity-identifier/
         return getClass().hashCode();
     }
 
@@ -146,10 +167,11 @@ public class Receta implements Serializable {
     @Override
     public String toString() {
         return "Receta{" +
-            "id=" + getId() +
-            ", dosis='" + getDosis() + "'" +
-            ", frecuencia='" + getFrecuencia() + "'" +
-            ", duracion='" + getDuracion() + "'" +
-            "}";
+                "id=" + getId() +
+                ", dosis='" + getDosis() + "'" +
+                ", frecuencia='" + getFrecuencia() + "'" +
+                ", duracion='" + getDuracion() + "'" +
+                ", cantidad=" + getCantidad() +
+                "}";
     }
 }

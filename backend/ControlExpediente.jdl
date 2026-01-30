@@ -71,6 +71,7 @@ entity Receta {
   dosis String required
   frecuencia String required
   duracion String required
+  cantidad Integer required
 }
 
 entity CitaMedica {

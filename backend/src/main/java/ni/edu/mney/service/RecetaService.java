@@ -2,9 +2,11 @@ package ni.edu.mney.service;
 
 import java.util.Optional;
 import ni.edu.mney.domain.Receta;
+import ni.edu.mney.repository.MedicamentoRepository;
 import ni.edu.mney.repository.RecetaRepository;
 import ni.edu.mney.service.dto.RecetaDTO;
 import ni.edu.mney.service.mapper.RecetaMapper;
+import ni.edu.mney.web.rest.errors.InsufficientStockException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -20,12 +22,14 @@ public class RecetaService {
     private static final Logger LOG = LoggerFactory.getLogger(RecetaService.class);
 
     private final RecetaRepository recetaRepository;
-
     private final RecetaMapper recetaMapper;
+    private final MedicamentoRepository medicamentoRepository;
 
-    public RecetaService(RecetaRepository recetaRepository, RecetaMapper recetaMapper) {
+    public RecetaService(RecetaRepository recetaRepository, RecetaMapper recetaMapper,
+            MedicamentoRepository medicamentoRepository) {
         this.recetaRepository = recetaRepository;
         this.recetaMapper = recetaMapper;
+        this.medicamentoRepository = medicamentoRepository;
     }
 
     /**
@@ -36,6 +40,21 @@ public class RecetaService {
      */
     public RecetaDTO save(RecetaDTO recetaDTO) {
         LOG.debug("Request to save Receta : {}", recetaDTO);
+
+        // Stock Validation and Deduction
+        if (recetaDTO.getMedicamento() != null && recetaDTO.getMedicamento().getId() != null) {
+            medicamentoRepository
+                    .findById(recetaDTO.getMedicamento().getId())
+                    .ifPresent(medicamento -> {
+                        if (medicamento.getStock() < recetaDTO.getCantidad()) {
+                            throw new InsufficientStockException(medicamento.getNombre());
+                        }
+                        // Subtract from stock
+                        medicamento.setStock(medicamento.getStock() - recetaDTO.getCantidad());
+                        medicamentoRepository.save(medicamento);
+                    });
+        }
+
         Receta receta = recetaMapper.toEntity(recetaDTO);
         receta = recetaRepository.save(receta);
         return recetaMapper.toDto(receta);
@@ -64,14 +83,14 @@ public class RecetaService {
         LOG.debug("Request to partially update Receta : {}", recetaDTO);
 
         return recetaRepository
-            .findById(recetaDTO.getId())
-            .map(existingReceta -> {
-                recetaMapper.partialUpdate(existingReceta, recetaDTO);
+                .findById(recetaDTO.getId())
+                .map(existingReceta -> {
+                    recetaMapper.partialUpdate(existingReceta, recetaDTO);
 
-                return existingReceta;
-            })
-            .map(recetaRepository::save)
-            .map(recetaMapper::toDto);
+                    return existingReceta;
+                })
+                .map(recetaRepository::save)
+                .map(recetaMapper::toDto);
     }
 
     /**
