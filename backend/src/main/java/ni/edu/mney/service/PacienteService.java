@@ -6,6 +6,7 @@ import ni.edu.mney.domain.Paciente;
 import ni.edu.mney.repository.PacienteRepository;
 import ni.edu.mney.service.dto.ExpedienteClinicoDTO;
 import ni.edu.mney.service.dto.PacienteDTO;
+import ni.edu.mney.service.dto.PacientePublicDTO;
 import ni.edu.mney.service.mapper.PacienteMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -105,6 +106,18 @@ public class PacienteService {
     public Optional<PacienteDTO> findOne(Long id) {
         LOG.debug("Request to get Paciente : {}", id);
         return pacienteRepository.findById(id).map(pacienteMapper::toDto);
+    }
+
+    /**
+     * Get one public paciente by id.
+     *
+     * @param id the id of the entity.
+     * @return the entity.
+     */
+    @Transactional(readOnly = true)
+    public Optional<PacientePublicDTO> findOnePublic(Long id) {
+        LOG.debug("Request to get public Paciente : {}", id);
+        return pacienteRepository.findById(id).map(pacienteMapper::toPublicDto);
     }
 
     /**

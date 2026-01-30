@@ -4,7 +4,6 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import ni.edu.mney.repository.PacienteRepository;
@@ -12,6 +11,8 @@ import ni.edu.mney.service.PacienteQueryService;
 import ni.edu.mney.service.PacienteService;
 import ni.edu.mney.service.criteria.PacienteCriteria;
 import ni.edu.mney.service.dto.PacienteDTO;
+import ni.edu.mney.security.SecurityUtils;
+import ni.edu.mney.service.dto.PacientePublicDTO;
 import ni.edu.mney.web.rest.errors.BadRequestAlertException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -171,15 +172,23 @@ public class PacienteResource {
     @GetMapping("")
     @PreAuthorize("hasAnyAuthority('" + AuthoritiesConstants.ADMIN + "', '" + AuthoritiesConstants.RECEPCION + "', '"
             + AuthoritiesConstants.MEDICO + "', '" + AuthoritiesConstants.ENFERMERO + "')")
-    public ResponseEntity<List<PacienteDTO>> getAllPacientes(
+    public ResponseEntity<?> getAllPacientes(
             PacienteCriteria criteria,
             @org.springdoc.core.annotations.ParameterObject Pageable pageable) {
         LOG.debug("REST request to get Pacientes by criteria: {}", criteria);
 
-        Page<PacienteDTO> page = pacienteQueryService.findByCriteria(criteria, pageable);
-        HttpHeaders headers = PaginationUtil
-                .generatePaginationHttpHeaders(ServletUriComponentsBuilder.fromCurrentRequest(), page);
-        return ResponseEntity.ok().headers(headers).body(page.getContent());
+        if (SecurityUtils.hasCurrentUserAnyOfAuthorities(AuthoritiesConstants.ADMIN, AuthoritiesConstants.MEDICO,
+                AuthoritiesConstants.ENFERMERO)) {
+            Page<PacienteDTO> page = pacienteQueryService.findByCriteria(criteria, pageable);
+            HttpHeaders headers = PaginationUtil
+                    .generatePaginationHttpHeaders(ServletUriComponentsBuilder.fromCurrentRequest(), page);
+            return ResponseEntity.ok().headers(headers).body(page.getContent());
+        } else {
+            Page<PacientePublicDTO> page = pacienteQueryService.findPublicByCriteria(criteria, pageable);
+            HttpHeaders headers = PaginationUtil
+                    .generatePaginationHttpHeaders(ServletUriComponentsBuilder.fromCurrentRequest(), page);
+            return ResponseEntity.ok().headers(headers).body(page.getContent());
+        }
     }
 
     /**
@@ -205,10 +214,16 @@ public class PacienteResource {
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('" + AuthoritiesConstants.ADMIN + "', '" + AuthoritiesConstants.RECEPCION + "', '"
             + AuthoritiesConstants.MEDICO + "', '" + AuthoritiesConstants.ENFERMERO + "')")
-    public ResponseEntity<PacienteDTO> getPaciente(@PathVariable("id") Long id) {
+    public ResponseEntity<?> getPaciente(@PathVariable("id") Long id) {
         LOG.debug("REST request to get Paciente : {}", id);
-        Optional<PacienteDTO> pacienteDTO = pacienteService.findOne(id);
-        return ResponseUtil.wrapOrNotFound(pacienteDTO);
+        if (SecurityUtils.hasCurrentUserAnyOfAuthorities(AuthoritiesConstants.ADMIN, AuthoritiesConstants.MEDICO,
+                AuthoritiesConstants.ENFERMERO)) {
+            Optional<PacienteDTO> pacienteDTO = pacienteService.findOne(id);
+            return ResponseUtil.wrapOrNotFound(pacienteDTO);
+        } else {
+            Optional<PacientePublicDTO> pacienteDTO = pacienteService.findOnePublic(id);
+            return ResponseUtil.wrapOrNotFound(pacienteDTO);
+        }
     }
 
     /**
