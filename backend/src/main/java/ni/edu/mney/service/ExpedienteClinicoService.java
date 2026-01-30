@@ -135,6 +135,18 @@ public class ExpedienteClinicoService {
     }
 
     /**
+     * Get one expedienteClinico by paciente id.
+     *
+     * @param pacienteId the id of the paciente.
+     * @return the entity.
+     */
+    @Transactional(readOnly = true)
+    public Optional<ExpedienteClinicoDTO> findByPacienteId(Long pacienteId) {
+        LOG.debug("Request to get ExpedienteClinico by paciente id : {}", pacienteId);
+        return expedienteClinicoRepository.findByPacienteId(pacienteId).map(expedienteClinicoMapper::toDto);
+    }
+
+    /**
      * Delete the expedienteClinico by id.
      *
      * @param id the id of the entity.

@@ -12,4 +12,6 @@ import org.springframework.stereotype.Repository;
 public interface ExpedienteClinicoRepository
         extends JpaRepository<ExpedienteClinico, Long>, JpaSpecificationExecutor<ExpedienteClinico> {
     java.util.Optional<ExpedienteClinico> findTopByOrderByIdDesc();
+
+    java.util.Optional<ExpedienteClinico> findByPacienteId(Long pacienteId);
 }
