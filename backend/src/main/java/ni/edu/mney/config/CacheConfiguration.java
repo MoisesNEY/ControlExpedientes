@@ -50,6 +50,7 @@ public class CacheConfiguration {
             createCache(cm, ni.edu.mney.domain.AuditoriaAcciones.class.getName());
             createCache(cm, ni.edu.mney.repository.UserRepository.USERS_BY_LOGIN_CACHE);
             createCache(cm, ni.edu.mney.repository.UserRepository.USERS_BY_EMAIL_CACHE);
+            createCache(cm, "ni.edu.mney.service.DiagnosticoService.search");
             // jhipster-needle-ehcache-add-entry
         };
     }
