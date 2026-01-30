@@ -20,6 +20,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
+import ni.edu.mney.security.AuthoritiesConstants;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import tech.jhipster.web.util.HeaderUtil;
@@ -65,6 +67,7 @@ public class MedicamentoResource {
      * @throws URISyntaxException if the Location URI syntax is incorrect.
      */
     @PostMapping("")
+    @PreAuthorize("hasAnyAuthority('" + AuthoritiesConstants.ADMIN + "')")
     public ResponseEntity<MedicamentoDTO> createMedicamento(@Valid @RequestBody MedicamentoDTO medicamentoDTO)
             throws URISyntaxException {
         LOG.debug("REST request to save Medicamento : {}", medicamentoDTO);
@@ -92,6 +95,7 @@ public class MedicamentoResource {
      * @throws URISyntaxException if the Location URI syntax is incorrect.
      */
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('" + AuthoritiesConstants.ADMIN + "')")
     public ResponseEntity<MedicamentoDTO> updateMedicamento(
             @PathVariable(value = "id", required = false) final Long id,
             @Valid @RequestBody MedicamentoDTO medicamentoDTO) throws URISyntaxException {
@@ -131,6 +135,7 @@ public class MedicamentoResource {
      * @throws URISyntaxException if the Location URI syntax is incorrect.
      */
     @PatchMapping(value = "/{id}", consumes = { "application/json", "application/merge-patch+json" })
+    @PreAuthorize("hasAnyAuthority('" + AuthoritiesConstants.ADMIN + "')")
     public ResponseEntity<MedicamentoDTO> partialUpdateMedicamento(
             @PathVariable(value = "id", required = false) final Long id,
             @NotNull @RequestBody MedicamentoDTO medicamentoDTO) throws URISyntaxException {
@@ -163,6 +168,8 @@ public class MedicamentoResource {
      *         of medicamentos in body.
      */
     @GetMapping("")
+    @PreAuthorize("hasAnyAuthority('" + AuthoritiesConstants.ADMIN + "', '" + AuthoritiesConstants.MEDICO + "', '"
+            + AuthoritiesConstants.ENFERMERO + "')")
     public ResponseEntity<List<MedicamentoDTO>> getAllMedicamentos(
             MedicamentoCriteria criteria,
             @org.springdoc.core.annotations.ParameterObject Pageable pageable) {
@@ -188,6 +195,8 @@ public class MedicamentoResource {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('" + AuthoritiesConstants.ADMIN + "', '" + AuthoritiesConstants.MEDICO + "', '"
+            + AuthoritiesConstants.ENFERMERO + "')")
     public ResponseEntity<MedicamentoDTO> getMedicamento(@PathVariable("id") Long id) {
         LOG.debug("REST request to get Medicamento : {}", id);
         Optional<MedicamentoDTO> medicamentoDTO = medicamentoService.findOne(id);
@@ -202,6 +211,8 @@ public class MedicamentoResource {
      *         of medicamentos in body.
      */
     @GetMapping("/low-stock")
+    @PreAuthorize("hasAnyAuthority('" + AuthoritiesConstants.ADMIN + "', '" + AuthoritiesConstants.MEDICO + "', '"
+            + AuthoritiesConstants.ENFERMERO + "')")
     public List<MedicamentoDTO> getLowStockMedicamentos() {
         LOG.debug("REST request to get Medicamentos with low stock");
         return medicamentoService.findAllLowStock(10); // Threshold of 10 units
@@ -214,6 +225,7 @@ public class MedicamentoResource {
      * @return the {@link ResponseEntity} with status {@code 204 (NO_CONTENT)}.
      */
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('" + AuthoritiesConstants.ADMIN + "')")
     public ResponseEntity<Void> deleteMedicamento(@PathVariable("id") Long id) {
         LOG.debug("REST request to delete Medicamento : {}", id);
         medicamentoService.delete(id);

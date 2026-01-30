@@ -20,6 +20,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
+import ni.edu.mney.security.AuthoritiesConstants;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import tech.jhipster.web.util.HeaderUtil;
@@ -47,10 +49,9 @@ public class ConsultaMedicaResource {
     private final ConsultaMedicaQueryService consultaMedicaQueryService;
 
     public ConsultaMedicaResource(
-        ConsultaMedicaService consultaMedicaService,
-        ConsultaMedicaRepository consultaMedicaRepository,
-        ConsultaMedicaQueryService consultaMedicaQueryService
-    ) {
+            ConsultaMedicaService consultaMedicaService,
+            ConsultaMedicaRepository consultaMedicaRepository,
+            ConsultaMedicaQueryService consultaMedicaQueryService) {
         this.consultaMedicaService = consultaMedicaService;
         this.consultaMedicaRepository = consultaMedicaRepository;
         this.consultaMedicaQueryService = consultaMedicaQueryService;
@@ -60,37 +61,46 @@ public class ConsultaMedicaResource {
      * {@code POST  /consulta-medicas} : Create a new consultaMedica.
      *
      * @param consultaMedicaDTO the consultaMedicaDTO to create.
-     * @return the {@link ResponseEntity} with status {@code 201 (Created)} and with body the new consultaMedicaDTO, or with status {@code 400 (Bad Request)} if the consultaMedica has already an ID.
+     * @return the {@link ResponseEntity} with status {@code 201 (Created)} and with
+     *         body the new consultaMedicaDTO, or with status
+     *         {@code 400 (Bad Request)} if the consultaMedica has already an ID.
      * @throws URISyntaxException if the Location URI syntax is incorrect.
      */
     @PostMapping("")
-    public ResponseEntity<ConsultaMedicaDTO> createConsultaMedica(@Valid @RequestBody ConsultaMedicaDTO consultaMedicaDTO)
-        throws URISyntaxException {
+    @PreAuthorize("hasAnyAuthority('" + AuthoritiesConstants.ADMIN + "', '" + AuthoritiesConstants.MEDICO + "')")
+    public ResponseEntity<ConsultaMedicaDTO> createConsultaMedica(
+            @Valid @RequestBody ConsultaMedicaDTO consultaMedicaDTO)
+            throws URISyntaxException {
         LOG.debug("REST request to save ConsultaMedica : {}", consultaMedicaDTO);
         if (consultaMedicaDTO.getId() != null) {
-            throw new BadRequestAlertException("A new consultaMedica cannot already have an ID", ENTITY_NAME, "idexists");
+            throw new BadRequestAlertException("A new consultaMedica cannot already have an ID", ENTITY_NAME,
+                    "idexists");
         }
         consultaMedicaDTO = consultaMedicaService.save(consultaMedicaDTO);
         return ResponseEntity.created(new URI("/api/consulta-medicas/" + consultaMedicaDTO.getId()))
-            .headers(HeaderUtil.createEntityCreationAlert(applicationName, true, ENTITY_NAME, consultaMedicaDTO.getId().toString()))
-            .body(consultaMedicaDTO);
+                .headers(HeaderUtil.createEntityCreationAlert(applicationName, true, ENTITY_NAME,
+                        consultaMedicaDTO.getId().toString()))
+                .body(consultaMedicaDTO);
     }
 
     /**
      * {@code PUT  /consulta-medicas/:id} : Updates an existing consultaMedica.
      *
-     * @param id the id of the consultaMedicaDTO to save.
+     * @param id                the id of the consultaMedicaDTO to save.
      * @param consultaMedicaDTO the consultaMedicaDTO to update.
-     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body the updated consultaMedicaDTO,
-     * or with status {@code 400 (Bad Request)} if the consultaMedicaDTO is not valid,
-     * or with status {@code 500 (Internal Server Error)} if the consultaMedicaDTO couldn't be updated.
+     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body
+     *         the updated consultaMedicaDTO,
+     *         or with status {@code 400 (Bad Request)} if the consultaMedicaDTO is
+     *         not valid,
+     *         or with status {@code 500 (Internal Server Error)} if the
+     *         consultaMedicaDTO couldn't be updated.
      * @throws URISyntaxException if the Location URI syntax is incorrect.
      */
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('" + AuthoritiesConstants.ADMIN + "', '" + AuthoritiesConstants.MEDICO + "')")
     public ResponseEntity<ConsultaMedicaDTO> updateConsultaMedica(
-        @PathVariable(value = "id", required = false) final Long id,
-        @Valid @RequestBody ConsultaMedicaDTO consultaMedicaDTO
-    ) throws URISyntaxException {
+            @PathVariable(value = "id", required = false) final Long id,
+            @Valid @RequestBody ConsultaMedicaDTO consultaMedicaDTO) throws URISyntaxException {
         LOG.debug("REST request to update ConsultaMedica : {}, {}", id, consultaMedicaDTO);
         if (consultaMedicaDTO.getId() == null) {
             throw new BadRequestAlertException("Invalid id", ENTITY_NAME, "idnull");
@@ -105,26 +115,32 @@ public class ConsultaMedicaResource {
 
         consultaMedicaDTO = consultaMedicaService.update(consultaMedicaDTO);
         return ResponseEntity.ok()
-            .headers(HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME, consultaMedicaDTO.getId().toString()))
-            .body(consultaMedicaDTO);
+                .headers(HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME,
+                        consultaMedicaDTO.getId().toString()))
+                .body(consultaMedicaDTO);
     }
 
     /**
-     * {@code PATCH  /consulta-medicas/:id} : Partial updates given fields of an existing consultaMedica, field will ignore if it is null
+     * {@code PATCH  /consulta-medicas/:id} : Partial updates given fields of an
+     * existing consultaMedica, field will ignore if it is null
      *
-     * @param id the id of the consultaMedicaDTO to save.
+     * @param id                the id of the consultaMedicaDTO to save.
      * @param consultaMedicaDTO the consultaMedicaDTO to update.
-     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body the updated consultaMedicaDTO,
-     * or with status {@code 400 (Bad Request)} if the consultaMedicaDTO is not valid,
-     * or with status {@code 404 (Not Found)} if the consultaMedicaDTO is not found,
-     * or with status {@code 500 (Internal Server Error)} if the consultaMedicaDTO couldn't be updated.
+     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body
+     *         the updated consultaMedicaDTO,
+     *         or with status {@code 400 (Bad Request)} if the consultaMedicaDTO is
+     *         not valid,
+     *         or with status {@code 404 (Not Found)} if the consultaMedicaDTO is
+     *         not found,
+     *         or with status {@code 500 (Internal Server Error)} if the
+     *         consultaMedicaDTO couldn't be updated.
      * @throws URISyntaxException if the Location URI syntax is incorrect.
      */
     @PatchMapping(value = "/{id}", consumes = { "application/json", "application/merge-patch+json" })
+    @PreAuthorize("hasAnyAuthority('" + AuthoritiesConstants.ADMIN + "', '" + AuthoritiesConstants.MEDICO + "')")
     public ResponseEntity<ConsultaMedicaDTO> partialUpdateConsultaMedica(
-        @PathVariable(value = "id", required = false) final Long id,
-        @NotNull @RequestBody ConsultaMedicaDTO consultaMedicaDTO
-    ) throws URISyntaxException {
+            @PathVariable(value = "id", required = false) final Long id,
+            @NotNull @RequestBody ConsultaMedicaDTO consultaMedicaDTO) throws URISyntaxException {
         LOG.debug("REST request to partial update ConsultaMedica partially : {}, {}", id, consultaMedicaDTO);
         if (consultaMedicaDTO.getId() == null) {
             throw new BadRequestAlertException("Invalid id", ENTITY_NAME, "idnull");
@@ -140,9 +156,9 @@ public class ConsultaMedicaResource {
         Optional<ConsultaMedicaDTO> result = consultaMedicaService.partialUpdate(consultaMedicaDTO);
 
         return ResponseUtil.wrapOrNotFound(
-            result,
-            HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME, consultaMedicaDTO.getId().toString())
-        );
+                result,
+                HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME,
+                        consultaMedicaDTO.getId().toString()));
     }
 
     /**
@@ -150,17 +166,20 @@ public class ConsultaMedicaResource {
      *
      * @param pageable the pagination information.
      * @param criteria the criteria which the requested entities should match.
-     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and the list of consultaMedicas in body.
+     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and the list
+     *         of consultaMedicas in body.
      */
     @GetMapping("")
+    @PreAuthorize("hasAnyAuthority('" + AuthoritiesConstants.ADMIN + "', '" + AuthoritiesConstants.MEDICO + "', '"
+            + AuthoritiesConstants.ENFERMERO + "')")
     public ResponseEntity<List<ConsultaMedicaDTO>> getAllConsultaMedicas(
-        ConsultaMedicaCriteria criteria,
-        @org.springdoc.core.annotations.ParameterObject Pageable pageable
-    ) {
+            ConsultaMedicaCriteria criteria,
+            @org.springdoc.core.annotations.ParameterObject Pageable pageable) {
         LOG.debug("REST request to get ConsultaMedicas by criteria: {}", criteria);
 
         Page<ConsultaMedicaDTO> page = consultaMedicaQueryService.findByCriteria(criteria, pageable);
-        HttpHeaders headers = PaginationUtil.generatePaginationHttpHeaders(ServletUriComponentsBuilder.fromCurrentRequest(), page);
+        HttpHeaders headers = PaginationUtil
+                .generatePaginationHttpHeaders(ServletUriComponentsBuilder.fromCurrentRequest(), page);
         return ResponseEntity.ok().headers(headers).body(page.getContent());
     }
 
@@ -168,7 +187,8 @@ public class ConsultaMedicaResource {
      * {@code GET  /consulta-medicas/count} : count all the consultaMedicas.
      *
      * @param criteria the criteria which the requested entities should match.
-     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and the count in body.
+     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and the count
+     *         in body.
      */
     @GetMapping("/count")
     public ResponseEntity<Long> countConsultaMedicas(ConsultaMedicaCriteria criteria) {
@@ -180,9 +200,12 @@ public class ConsultaMedicaResource {
      * {@code GET  /consulta-medicas/:id} : get the "id" consultaMedica.
      *
      * @param id the id of the consultaMedicaDTO to retrieve.
-     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body the consultaMedicaDTO, or with status {@code 404 (Not Found)}.
+     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body
+     *         the consultaMedicaDTO, or with status {@code 404 (Not Found)}.
      */
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('" + AuthoritiesConstants.ADMIN + "', '" + AuthoritiesConstants.MEDICO + "', '"
+            + AuthoritiesConstants.ENFERMERO + "')")
     public ResponseEntity<ConsultaMedicaDTO> getConsultaMedica(@PathVariable("id") Long id) {
         LOG.debug("REST request to get ConsultaMedica : {}", id);
         Optional<ConsultaMedicaDTO> consultaMedicaDTO = consultaMedicaService.findOne(id);
@@ -196,11 +219,12 @@ public class ConsultaMedicaResource {
      * @return the {@link ResponseEntity} with status {@code 204 (NO_CONTENT)}.
      */
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('" + AuthoritiesConstants.ADMIN + "')")
     public ResponseEntity<Void> deleteConsultaMedica(@PathVariable("id") Long id) {
         LOG.debug("REST request to delete ConsultaMedica : {}", id);
         consultaMedicaService.delete(id);
         return ResponseEntity.noContent()
-            .headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id.toString()))
-            .build();
+                .headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id.toString()))
+                .build();
     }
 }
