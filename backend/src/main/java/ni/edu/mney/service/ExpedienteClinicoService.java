@@ -10,7 +10,9 @@ import java.util.stream.StreamSupport;
 import ni.edu.mney.domain.ExpedienteClinico;
 import ni.edu.mney.repository.ExpedienteClinicoRepository;
 import ni.edu.mney.service.dto.ExpedienteClinicoDTO;
+import ni.edu.mney.service.dto.TimelineEntryDTO;
 import ni.edu.mney.service.mapper.ExpedienteClinicoMapper;
+import ni.edu.mney.service.mapper.SignosVitalesMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -30,11 +32,15 @@ public class ExpedienteClinicoService {
 
     private final ExpedienteClinicoMapper expedienteClinicoMapper;
 
+    private final SignosVitalesMapper signosVitalesMapper;
+
     public ExpedienteClinicoService(
             ExpedienteClinicoRepository expedienteClinicoRepository,
-            ExpedienteClinicoMapper expedienteClinicoMapper) {
+            ExpedienteClinicoMapper expedienteClinicoMapper,
+            SignosVitalesMapper signosVitalesMapper) {
         this.expedienteClinicoRepository = expedienteClinicoRepository;
         this.expedienteClinicoMapper = expedienteClinicoMapper;
+        this.signosVitalesMapper = signosVitalesMapper;
     }
 
     /**
@@ -154,5 +160,52 @@ public class ExpedienteClinicoService {
     public void delete(Long id) {
         LOG.debug("Request to delete ExpedienteClinico : {}", id);
         expedienteClinicoRepository.deleteById(id);
+    }
+
+    /**
+     * Get the chronological clinical timeline for an expediente.
+     * 
+     * @param id the id of the expediente.
+     * @return a list of timeline entries.
+     */
+    @Transactional(readOnly = true)
+    public List<TimelineEntryDTO> getTimeline(Long id) {
+        LOG.debug("Request to get clinical timeline for expediente : {}", id);
+        return expedienteClinicoRepository.findOneWithTimelineData(id)
+                .map(expediente -> expediente.getConsultas().stream()
+                        .sorted((c1, c2) -> c2.getFechaConsulta().compareTo(c1.getFechaConsulta()))
+                        .map(consulta -> {
+                            TimelineEntryDTO entry = new TimelineEntryDTO();
+                            entry.setFecha(consulta.getFechaConsulta());
+                            entry.setMotivo(consulta.getMotivoConsulta());
+
+                            // Doctor Info
+                            if (consulta.getUser() != null) {
+                                String name = (consulta.getUser().getFirstName() + " "
+                                        + consulta.getUser().getLastName()).trim();
+                                entry.setProfesional(name.isEmpty() ? consulta.getUser().getLogin() : name);
+                            }
+
+                            // Signos Vitales
+                            if (!consulta.getSignosVitales().isEmpty()) {
+                                entry.setSignosVitales(
+                                        signosVitalesMapper.toDto(consulta.getSignosVitales().iterator().next()));
+                            }
+
+                            // Diagnósticos
+                            entry.setDiagnosticos(consulta.getDiagnosticos().stream()
+                                    .map(d -> (d.getCodigoCIE() != null ? d.getCodigoCIE() + " - " : "")
+                                            + d.getDescripcion())
+                                    .collect(Collectors.toList()));
+
+                            // Recetas
+                            entry.setRecetas(consulta.getRecetas().stream()
+                                    .map(r -> r.getMedicamento().getNombre() + " (" + r.getCantidad() + ") - "
+                                            + r.getInstrucciones())
+                                    .collect(Collectors.toList()));
+
+                            return entry;
+                        }).collect(Collectors.toList()))
+                .orElse(new LinkedList<>());
     }
 }
