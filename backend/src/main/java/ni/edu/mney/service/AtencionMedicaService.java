@@ -1,6 +1,5 @@
 package ni.edu.mney.service;
 
-import java.util.List;
 import ni.edu.mney.service.dto.ConsultaMedicaDTO;
 import ni.edu.mney.service.dto.DiagnosticoDTO;
 import ni.edu.mney.service.dto.RecetaDTO;

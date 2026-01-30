@@ -12,6 +12,7 @@ import ni.edu.mney.service.ExpedienteClinicoQueryService;
 import ni.edu.mney.service.ExpedienteClinicoService;
 import ni.edu.mney.service.criteria.ExpedienteClinicoCriteria;
 import ni.edu.mney.service.dto.ExpedienteClinicoDTO;
+import ni.edu.mney.service.dto.TimelineEntryDTO;
 import ni.edu.mney.web.rest.errors.BadRequestAlertException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -228,5 +229,20 @@ public class ExpedienteClinicoResource {
         return ResponseEntity.noContent()
                 .headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id.toString()))
                 .build();
+    }
+
+    /**
+     * {@code GET  /expediente-clinicos/:id/timeline} : get the clinical timeline
+     * for the "id" expedienteClinico.
+     *
+     * @param id the id of the expedienteClinico to retrieve the timeline for.
+     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body
+     *         the list of timeline entries.
+     */
+    @GetMapping("/{id}/timeline")
+    public ResponseEntity<List<TimelineEntryDTO>> getTimeline(@PathVariable("id") Long id) {
+        LOG.debug("REST request to get clinical timeline for expediente : {}", id);
+        List<TimelineEntryDTO> timeline = expedienteClinicoService.getTimeline(id);
+        return ResponseEntity.ok().body(timeline);
     }
 }

@@ -14,4 +14,10 @@ public interface ExpedienteClinicoRepository
     java.util.Optional<ExpedienteClinico> findTopByOrderByIdDesc();
 
     java.util.Optional<ExpedienteClinico> findByPacienteId(Long pacienteId);
+
+    @EntityGraph(attributePaths = { "consultas", "consultas.signosVitales", "consultas.diagnosticos",
+            "consultas.recetas", "consultas.recetas.medicamento" })
+    @Query("SELECT e FROM ExpedienteClinico e WHERE e.id = :id")
+    java.util.Optional<ExpedienteClinico> findOneWithTimelineData(
+            @org.springframework.data.repository.query.Param("id") Long id);
 }
