@@ -9,6 +9,8 @@ import ni.edu.mney.service.dto.MedicamentoDTO;
 import ni.edu.mney.service.mapper.MedicamentoMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,6 +38,7 @@ public class MedicamentoService {
      * @param medicamentoDTO the entity to save.
      * @return the persisted entity.
      */
+    @CacheEvict(value = "ni.edu.mney.service.MedicamentoService.lowStock", allEntries = true)
     public MedicamentoDTO save(MedicamentoDTO medicamentoDTO) {
         LOG.debug("Request to save Medicamento : {}", medicamentoDTO);
         Medicamento medicamento = medicamentoMapper.toEntity(medicamentoDTO);
@@ -49,6 +52,7 @@ public class MedicamentoService {
      * @param medicamentoDTO the entity to save.
      * @return the persisted entity.
      */
+    @CacheEvict(value = "ni.edu.mney.service.MedicamentoService.lowStock", allEntries = true)
     public MedicamentoDTO update(MedicamentoDTO medicamentoDTO) {
         LOG.debug("Request to update Medicamento : {}", medicamentoDTO);
         Medicamento medicamento = medicamentoMapper.toEntity(medicamentoDTO);
@@ -62,6 +66,7 @@ public class MedicamentoService {
      * @param medicamentoDTO the entity to update partially.
      * @return the persisted entity.
      */
+    @CacheEvict(value = "ni.edu.mney.service.MedicamentoService.lowStock", allEntries = true)
     public Optional<MedicamentoDTO> partialUpdate(MedicamentoDTO medicamentoDTO) {
         LOG.debug("Request to partially update Medicamento : {}", medicamentoDTO);
 
@@ -95,6 +100,7 @@ public class MedicamentoService {
      * @return the list of entities.
      */
     @Transactional(readOnly = true)
+    @Cacheable(cacheNames = "ni.edu.mney.service.MedicamentoService.lowStock")
     public List<MedicamentoDTO> findAllLowStock(Integer threshold) {
         LOG.debug("Request to get all Medicamentos with stock less than : {}", threshold);
         return medicamentoRepository.findByStockLessThan(threshold).stream().map(medicamentoMapper::toDto)
@@ -106,6 +112,7 @@ public class MedicamentoService {
      *
      * @param id the id of the entity.
      */
+    @CacheEvict(value = "ni.edu.mney.service.MedicamentoService.lowStock", allEntries = true)
     public void delete(Long id) {
         LOG.debug("Request to delete Medicamento : {}", id);
         medicamentoRepository.deleteById(id);

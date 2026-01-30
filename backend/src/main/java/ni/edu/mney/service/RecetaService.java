@@ -9,6 +9,7 @@ import ni.edu.mney.service.mapper.RecetaMapper;
 import ni.edu.mney.web.rest.errors.InsufficientStockException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,6 +39,7 @@ public class RecetaService {
      * @param recetaDTO the entity to save.
      * @return the persisted entity.
      */
+    @CacheEvict(value = "ni.edu.mney.service.MedicamentoService.lowStock", allEntries = true)
     public RecetaDTO save(RecetaDTO recetaDTO) {
         LOG.debug("Request to save Receta : {}", recetaDTO);
 
