@@ -200,8 +200,12 @@ public class ExpedienteClinicoService {
 
                             // Recetas
                             entry.setRecetas(consulta.getRecetas().stream()
-                                    .map(r -> r.getMedicamento().getNombre() + " (" + r.getCantidad() + ") - "
-                                            + r.getInstrucciones())
+                                    .map(r -> {
+                                        String med = r.getMedicamento() != null ? r.getMedicamento().getNombre()
+                                                : "Medicamento desconocido";
+                                        return String.format("%s (%d) - %s, %s por %s",
+                                                med, r.getCantidad(), r.getDosis(), r.getFrecuencia(), r.getDuracion());
+                                    })
                                     .collect(Collectors.toList()));
 
                             return entry;
