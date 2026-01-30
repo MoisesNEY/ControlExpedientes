@@ -204,7 +204,7 @@ public class PacienteResource {
      */
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('" + AuthoritiesConstants.ADMIN + "', '" + AuthoritiesConstants.RECEPCION + "', '"
-            + AuthoritiesConstants.MEDICO + "', '" + AuthoritiesConstants.ENFERMERA + "')")
+            + AuthoritiesConstants.MEDICO + "', '" + AuthoritiesConstants.ENFERMERO + "')")
     public ResponseEntity<PacienteDTO> getPaciente(@PathVariable("id") Long id) {
         LOG.debug("REST request to get Paciente : {}", id);
         Optional<PacienteDTO> pacienteDTO = pacienteService.findOne(id);

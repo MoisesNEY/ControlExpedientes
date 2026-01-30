@@ -198,7 +198,7 @@ public class RecetaResource {
      */
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('" + AuthoritiesConstants.ADMIN + "', '" + AuthoritiesConstants.MEDICO + "', '"
-            + AuthoritiesConstants.ENFERMERA + "')")
+            + AuthoritiesConstants.ENFERMERO + "')")
     public ResponseEntity<RecetaDTO> getReceta(@PathVariable("id") Long id) {
         LOG.debug("REST request to get Receta : {}", id);
         Optional<RecetaDTO> recetaDTO = recetaService.findOne(id);

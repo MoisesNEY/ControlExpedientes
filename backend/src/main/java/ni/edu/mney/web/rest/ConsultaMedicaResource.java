@@ -205,7 +205,7 @@ public class ConsultaMedicaResource {
      */
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('" + AuthoritiesConstants.ADMIN + "', '" + AuthoritiesConstants.MEDICO + "', '"
-            + AuthoritiesConstants.ENFERMERA + "')")
+            + AuthoritiesConstants.ENFERMERO + "')")
     public ResponseEntity<ConsultaMedicaDTO> getConsultaMedica(@PathVariable("id") Long id) {
         LOG.debug("REST request to get ConsultaMedica : {}", id);
         Optional<ConsultaMedicaDTO> consultaMedicaDTO = consultaMedicaService.findOne(id);
