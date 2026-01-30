@@ -23,7 +23,7 @@
             <column name="fecha" type="${datetimeType}">
                 <constraints nullable="false" />
             </column>
-            <column name="descripcion" type="varchar(255)">
+            <column name="descripcion" type="varchar(1000)">
                 <constraints nullable="true" />
             </column>
             <column name="user_id" type="varchar(100)">

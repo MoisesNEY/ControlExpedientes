@@ -27,6 +27,12 @@
         </createTable>
     </changeSet>
 
+    <changeSet id="20260125005533-index" author="antigravity">
+        <createIndex indexName="idx_diagnostico_codigo_cie" tableName="diagnostico">
+            <column name="codigo_cie"/>
+        </createIndex>
+    </changeSet>
+
     <!-- jhipster-needle-liquibase-add-changeset - JHipster will add changesets here -->
 
     <!--

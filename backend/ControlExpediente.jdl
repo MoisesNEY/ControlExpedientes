@@ -97,7 +97,7 @@ entity AuditoriaAcciones {
   entidad String required
   accion String required
   fecha ZonedDateTime required
-  descripcion String
+  descripcion String maxlength(1000)
 }
 
 // =====================

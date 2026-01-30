@@ -36,6 +36,7 @@ public class AuditoriaAcciones implements Serializable {
     @Column(name = "fecha", nullable = false)
     private ZonedDateTime fecha;
 
+    @Size(max = 1000)
     @Column(name = "descripcion")
     private String descripcion;
 
@@ -122,7 +123,8 @@ public class AuditoriaAcciones implements Serializable {
         return this;
     }
 
-    // jhipster-needle-entity-add-getters-setters - JHipster will add getters and setters here
+    // jhipster-needle-entity-add-getters-setters - JHipster will add getters and
+    // setters here
 
     @Override
     public boolean equals(Object o) {
@@ -137,7 +139,8 @@ public class AuditoriaAcciones implements Serializable {
 
     @Override
     public int hashCode() {
-        // see https://vladmihalcea.com/how-to-implement-equals-and-hashcode-using-the-jpa-entity-identifier/
+        // see
+        // https://vladmihalcea.com/how-to-implement-equals-and-hashcode-using-the-jpa-entity-identifier/
         return getClass().hashCode();
     }
 
@@ -145,11 +148,11 @@ public class AuditoriaAcciones implements Serializable {
     @Override
     public String toString() {
         return "AuditoriaAcciones{" +
-            "id=" + getId() +
-            ", entidad='" + getEntidad() + "'" +
-            ", accion='" + getAccion() + "'" +
-            ", fecha='" + getFecha() + "'" +
-            ", descripcion='" + getDescripcion() + "'" +
-            "}";
+                "id=" + getId() +
+                ", entidad='" + getEntidad() + "'" +
+                ", accion='" + getAccion() + "'" +
+                ", fecha='" + getFecha() + "'" +
+                ", descripcion='" + getDescripcion() + "'" +
+                "}";
     }
 }
