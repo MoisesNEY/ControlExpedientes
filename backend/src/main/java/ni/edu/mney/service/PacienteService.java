@@ -105,7 +105,7 @@ public class PacienteService {
     @Transactional(readOnly = true)
     public Optional<PacienteDTO> findOne(Long id) {
         LOG.debug("Request to get Paciente : {}", id);
-        return pacienteRepository.findOneWithEagerRelationshipsById(id).map(pacienteMapper::toDto);
+        return pacienteRepository.findOneWithEagerRelationships(id).map(pacienteMapper::toDto);
     }
 
     /**

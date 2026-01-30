@@ -18,8 +18,9 @@ public interface PacienteRepository extends JpaRepository<Paciente, Long>, JpaSp
     Optional<Paciente> findByExpedienteId(@Param("expedienteId") Long expedienteId);
 
     @EntityGraph(attributePaths = { "expediente" })
-    Page<Paciente> findAllWithEagerRelationships(org.springframework.data.domain.Pageable pageable);
+    Page<Paciente> findAll(Pageable pageable);
 
     @EntityGraph(attributePaths = { "expediente" })
-    Optional<Paciente> findOneWithEagerRelationshipsById(Long id);
+    @Query("select paciente from Paciente paciente where paciente.id = :id")
+    Optional<Paciente> findOneWithEagerRelationships(@Param("id") Long id);
 }
