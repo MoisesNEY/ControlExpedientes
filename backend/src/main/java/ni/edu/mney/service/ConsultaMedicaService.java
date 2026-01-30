@@ -13,7 +13,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Service Implementation for managing {@link ni.edu.mney.domain.ConsultaMedica}.
+ * Service Implementation for managing
+ * {@link ni.edu.mney.domain.ConsultaMedica}.
  */
 @Service
 @Transactional
@@ -25,7 +26,8 @@ public class ConsultaMedicaService {
 
     private final ConsultaMedicaMapper consultaMedicaMapper;
 
-    public ConsultaMedicaService(ConsultaMedicaRepository consultaMedicaRepository, ConsultaMedicaMapper consultaMedicaMapper) {
+    public ConsultaMedicaService(ConsultaMedicaRepository consultaMedicaRepository,
+            ConsultaMedicaMapper consultaMedicaMapper) {
         this.consultaMedicaRepository = consultaMedicaRepository;
         this.consultaMedicaMapper = consultaMedicaMapper;
     }
@@ -66,14 +68,14 @@ public class ConsultaMedicaService {
         LOG.debug("Request to partially update ConsultaMedica : {}", consultaMedicaDTO);
 
         return consultaMedicaRepository
-            .findById(consultaMedicaDTO.getId())
-            .map(existingConsultaMedica -> {
-                consultaMedicaMapper.partialUpdate(existingConsultaMedica, consultaMedicaDTO);
+                .findById(consultaMedicaDTO.getId())
+                .map(existingConsultaMedica -> {
+                    consultaMedicaMapper.partialUpdate(existingConsultaMedica, consultaMedicaDTO);
 
-                return existingConsultaMedica;
-            })
-            .map(consultaMedicaRepository::save)
-            .map(consultaMedicaMapper::toDto);
+                    return existingConsultaMedica;
+                })
+                .map(consultaMedicaRepository::save)
+                .map(consultaMedicaMapper::toDto);
     }
 
     /**
@@ -94,7 +96,7 @@ public class ConsultaMedicaService {
     @Transactional(readOnly = true)
     public Optional<ConsultaMedicaDTO> findOne(Long id) {
         LOG.debug("Request to get ConsultaMedica : {}", id);
-        return consultaMedicaRepository.findOneWithEagerRelationships(id).map(consultaMedicaMapper::toDto);
+        return consultaMedicaRepository.findOneWithDetailsById(id).map(consultaMedicaMapper::toDto);
     }
 
     /**
