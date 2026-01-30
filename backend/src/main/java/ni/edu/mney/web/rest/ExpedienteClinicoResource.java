@@ -47,10 +47,9 @@ public class ExpedienteClinicoResource {
     private final ExpedienteClinicoQueryService expedienteClinicoQueryService;
 
     public ExpedienteClinicoResource(
-        ExpedienteClinicoService expedienteClinicoService,
-        ExpedienteClinicoRepository expedienteClinicoRepository,
-        ExpedienteClinicoQueryService expedienteClinicoQueryService
-    ) {
+            ExpedienteClinicoService expedienteClinicoService,
+            ExpedienteClinicoRepository expedienteClinicoRepository,
+            ExpedienteClinicoQueryService expedienteClinicoQueryService) {
         this.expedienteClinicoService = expedienteClinicoService;
         this.expedienteClinicoRepository = expedienteClinicoRepository;
         this.expedienteClinicoQueryService = expedienteClinicoQueryService;
@@ -60,37 +59,45 @@ public class ExpedienteClinicoResource {
      * {@code POST  /expediente-clinicos} : Create a new expedienteClinico.
      *
      * @param expedienteClinicoDTO the expedienteClinicoDTO to create.
-     * @return the {@link ResponseEntity} with status {@code 201 (Created)} and with body the new expedienteClinicoDTO, or with status {@code 400 (Bad Request)} if the expedienteClinico has already an ID.
+     * @return the {@link ResponseEntity} with status {@code 201 (Created)} and with
+     *         body the new expedienteClinicoDTO, or with status
+     *         {@code 400 (Bad Request)} if the expedienteClinico has already an ID.
      * @throws URISyntaxException if the Location URI syntax is incorrect.
      */
     @PostMapping("")
-    public ResponseEntity<ExpedienteClinicoDTO> createExpedienteClinico(@Valid @RequestBody ExpedienteClinicoDTO expedienteClinicoDTO)
-        throws URISyntaxException {
+    public ResponseEntity<ExpedienteClinicoDTO> createExpedienteClinico(
+            @Valid @RequestBody ExpedienteClinicoDTO expedienteClinicoDTO)
+            throws URISyntaxException {
         LOG.debug("REST request to save ExpedienteClinico : {}", expedienteClinicoDTO);
         if (expedienteClinicoDTO.getId() != null) {
-            throw new BadRequestAlertException("A new expedienteClinico cannot already have an ID", ENTITY_NAME, "idexists");
+            throw new BadRequestAlertException("A new expedienteClinico cannot already have an ID", ENTITY_NAME,
+                    "idexists");
         }
         expedienteClinicoDTO = expedienteClinicoService.save(expedienteClinicoDTO);
         return ResponseEntity.created(new URI("/api/expediente-clinicos/" + expedienteClinicoDTO.getId()))
-            .headers(HeaderUtil.createEntityCreationAlert(applicationName, true, ENTITY_NAME, expedienteClinicoDTO.getId().toString()))
-            .body(expedienteClinicoDTO);
+                .headers(HeaderUtil.createEntityCreationAlert(applicationName, true, ENTITY_NAME,
+                        expedienteClinicoDTO.getId().toString()))
+                .body(expedienteClinicoDTO);
     }
 
     /**
-     * {@code PUT  /expediente-clinicos/:id} : Updates an existing expedienteClinico.
+     * {@code PUT  /expediente-clinicos/:id} : Updates an existing
+     * expedienteClinico.
      *
-     * @param id the id of the expedienteClinicoDTO to save.
+     * @param id                   the id of the expedienteClinicoDTO to save.
      * @param expedienteClinicoDTO the expedienteClinicoDTO to update.
-     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body the updated expedienteClinicoDTO,
-     * or with status {@code 400 (Bad Request)} if the expedienteClinicoDTO is not valid,
-     * or with status {@code 500 (Internal Server Error)} if the expedienteClinicoDTO couldn't be updated.
+     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body
+     *         the updated expedienteClinicoDTO,
+     *         or with status {@code 400 (Bad Request)} if the expedienteClinicoDTO
+     *         is not valid,
+     *         or with status {@code 500 (Internal Server Error)} if the
+     *         expedienteClinicoDTO couldn't be updated.
      * @throws URISyntaxException if the Location URI syntax is incorrect.
      */
     @PutMapping("/{id}")
     public ResponseEntity<ExpedienteClinicoDTO> updateExpedienteClinico(
-        @PathVariable(value = "id", required = false) final Long id,
-        @Valid @RequestBody ExpedienteClinicoDTO expedienteClinicoDTO
-    ) throws URISyntaxException {
+            @PathVariable(value = "id", required = false) final Long id,
+            @Valid @RequestBody ExpedienteClinicoDTO expedienteClinicoDTO) throws URISyntaxException {
         LOG.debug("REST request to update ExpedienteClinico : {}, {}", id, expedienteClinicoDTO);
         if (expedienteClinicoDTO.getId() == null) {
             throw new BadRequestAlertException("Invalid id", ENTITY_NAME, "idnull");
@@ -105,26 +112,31 @@ public class ExpedienteClinicoResource {
 
         expedienteClinicoDTO = expedienteClinicoService.update(expedienteClinicoDTO);
         return ResponseEntity.ok()
-            .headers(HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME, expedienteClinicoDTO.getId().toString()))
-            .body(expedienteClinicoDTO);
+                .headers(HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME,
+                        expedienteClinicoDTO.getId().toString()))
+                .body(expedienteClinicoDTO);
     }
 
     /**
-     * {@code PATCH  /expediente-clinicos/:id} : Partial updates given fields of an existing expedienteClinico, field will ignore if it is null
+     * {@code PATCH  /expediente-clinicos/:id} : Partial updates given fields of an
+     * existing expedienteClinico, field will ignore if it is null
      *
-     * @param id the id of the expedienteClinicoDTO to save.
+     * @param id                   the id of the expedienteClinicoDTO to save.
      * @param expedienteClinicoDTO the expedienteClinicoDTO to update.
-     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body the updated expedienteClinicoDTO,
-     * or with status {@code 400 (Bad Request)} if the expedienteClinicoDTO is not valid,
-     * or with status {@code 404 (Not Found)} if the expedienteClinicoDTO is not found,
-     * or with status {@code 500 (Internal Server Error)} if the expedienteClinicoDTO couldn't be updated.
+     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body
+     *         the updated expedienteClinicoDTO,
+     *         or with status {@code 400 (Bad Request)} if the expedienteClinicoDTO
+     *         is not valid,
+     *         or with status {@code 404 (Not Found)} if the expedienteClinicoDTO is
+     *         not found,
+     *         or with status {@code 500 (Internal Server Error)} if the
+     *         expedienteClinicoDTO couldn't be updated.
      * @throws URISyntaxException if the Location URI syntax is incorrect.
      */
     @PatchMapping(value = "/{id}", consumes = { "application/json", "application/merge-patch+json" })
     public ResponseEntity<ExpedienteClinicoDTO> partialUpdateExpedienteClinico(
-        @PathVariable(value = "id", required = false) final Long id,
-        @NotNull @RequestBody ExpedienteClinicoDTO expedienteClinicoDTO
-    ) throws URISyntaxException {
+            @PathVariable(value = "id", required = false) final Long id,
+            @NotNull @RequestBody ExpedienteClinicoDTO expedienteClinicoDTO) throws URISyntaxException {
         LOG.debug("REST request to partial update ExpedienteClinico partially : {}, {}", id, expedienteClinicoDTO);
         if (expedienteClinicoDTO.getId() == null) {
             throw new BadRequestAlertException("Invalid id", ENTITY_NAME, "idnull");
@@ -140,9 +152,9 @@ public class ExpedienteClinicoResource {
         Optional<ExpedienteClinicoDTO> result = expedienteClinicoService.partialUpdate(expedienteClinicoDTO);
 
         return ResponseUtil.wrapOrNotFound(
-            result,
-            HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME, expedienteClinicoDTO.getId().toString())
-        );
+                result,
+                HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME,
+                        expedienteClinicoDTO.getId().toString()));
     }
 
     /**
@@ -150,17 +162,18 @@ public class ExpedienteClinicoResource {
      *
      * @param pageable the pagination information.
      * @param criteria the criteria which the requested entities should match.
-     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and the list of expedienteClinicos in body.
+     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and the list
+     *         of expedienteClinicos in body.
      */
     @GetMapping("")
     public ResponseEntity<List<ExpedienteClinicoDTO>> getAllExpedienteClinicos(
-        ExpedienteClinicoCriteria criteria,
-        @org.springdoc.core.annotations.ParameterObject Pageable pageable
-    ) {
+            ExpedienteClinicoCriteria criteria,
+            @org.springdoc.core.annotations.ParameterObject Pageable pageable) {
         LOG.debug("REST request to get ExpedienteClinicos by criteria: {}", criteria);
 
         Page<ExpedienteClinicoDTO> page = expedienteClinicoQueryService.findByCriteria(criteria, pageable);
-        HttpHeaders headers = PaginationUtil.generatePaginationHttpHeaders(ServletUriComponentsBuilder.fromCurrentRequest(), page);
+        HttpHeaders headers = PaginationUtil
+                .generatePaginationHttpHeaders(ServletUriComponentsBuilder.fromCurrentRequest(), page);
         return ResponseEntity.ok().headers(headers).body(page.getContent());
     }
 
@@ -168,7 +181,8 @@ public class ExpedienteClinicoResource {
      * {@code GET  /expediente-clinicos/count} : count all the expedienteClinicos.
      *
      * @param criteria the criteria which the requested entities should match.
-     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and the count in body.
+     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and the count
+     *         in body.
      */
     @GetMapping("/count")
     public ResponseEntity<Long> countExpedienteClinicos(ExpedienteClinicoCriteria criteria) {
@@ -176,16 +190,25 @@ public class ExpedienteClinicoResource {
         return ResponseEntity.ok().body(expedienteClinicoQueryService.countByCriteria(criteria));
     }
 
-    /**
-     * {@code GET  /expediente-clinicos/:id} : get the "id" expedienteClinico.
-     *
-     * @param id the id of the expedienteClinicoDTO to retrieve.
-     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body the expedienteClinicoDTO, or with status {@code 404 (Not Found)}.
-     */
     @GetMapping("/{id}")
     public ResponseEntity<ExpedienteClinicoDTO> getExpedienteClinico(@PathVariable("id") Long id) {
         LOG.debug("REST request to get ExpedienteClinico : {}", id);
         Optional<ExpedienteClinicoDTO> expedienteClinicoDTO = expedienteClinicoService.findOne(id);
+        return ResponseUtil.wrapOrNotFound(expedienteClinicoDTO);
+    }
+
+    /**
+     * {@code GET  /expediente-clinicos/paciente/:id} : get the expedienteClinico by
+     * paciente "id".
+     *
+     * @param id the id of the paciente to retrieve the expediente for.
+     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body
+     *         the expedienteClinicoDTO, or with status {@code 404 (Not Found)}.
+     */
+    @GetMapping("/paciente/{id}")
+    public ResponseEntity<ExpedienteClinicoDTO> getExpedienteByPaciente(@PathVariable("id") Long id) {
+        LOG.debug("REST request to get ExpedienteClinico by paciente id : {}", id);
+        Optional<ExpedienteClinicoDTO> expedienteClinicoDTO = expedienteClinicoService.findByPacienteId(id);
         return ResponseUtil.wrapOrNotFound(expedienteClinicoDTO);
     }
 
@@ -200,7 +223,7 @@ public class ExpedienteClinicoResource {
         LOG.debug("REST request to delete ExpedienteClinico : {}", id);
         expedienteClinicoService.delete(id);
         return ResponseEntity.noContent()
-            .headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id.toString()))
-            .build();
+                .headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id.toString()))
+                .build();
     }
 }

@@ -9,4 +9,9 @@ import org.springframework.stereotype.Repository;
  */
 @SuppressWarnings("unused")
 @Repository
-public interface ExpedienteClinicoRepository extends JpaRepository<ExpedienteClinico, Long>, JpaSpecificationExecutor<ExpedienteClinico> {}
+public interface ExpedienteClinicoRepository
+        extends JpaRepository<ExpedienteClinico, Long>, JpaSpecificationExecutor<ExpedienteClinico> {
+    java.util.Optional<ExpedienteClinico> findTopByOrderByIdDesc();
+
+    java.util.Optional<ExpedienteClinico> findByPacienteId(Long pacienteId);
+}
