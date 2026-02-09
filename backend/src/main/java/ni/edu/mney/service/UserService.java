@@ -38,14 +38,16 @@ public class UserService {
 
     private final CacheManager cacheManager;
 
-    public UserService(UserRepository userRepository, AuthorityRepository authorityRepository, CacheManager cacheManager) {
+    public UserService(UserRepository userRepository, AuthorityRepository authorityRepository,
+            CacheManager cacheManager) {
         this.userRepository = userRepository;
         this.authorityRepository = authorityRepository;
         this.cacheManager = cacheManager;
     }
 
     /**
-     * Update basic information (first name, last name, email, language) for the current user.
+     * Update basic information (first name, last name, email, language) for the
+     * current user.
      *
      * @param firstName first name of user.
      * @param lastName  last name of user.
@@ -55,19 +57,19 @@ public class UserService {
      */
     public void updateUser(String firstName, String lastName, String email, String langKey, String imageUrl) {
         SecurityUtils.getCurrentUserLogin()
-            .flatMap(userRepository::findOneByLogin)
-            .ifPresent(user -> {
-                user.setFirstName(firstName);
-                user.setLastName(lastName);
-                if (email != null) {
-                    user.setEmail(email.toLowerCase());
-                }
-                user.setLangKey(langKey);
-                user.setImageUrl(imageUrl);
-                userRepository.save(user);
-                this.clearUserCaches(user);
-                LOG.debug("Changed Information for User: {}", user);
-            });
+                .flatMap(userRepository::findOneByLogin)
+                .ifPresent(user -> {
+                    user.setFirstName(firstName);
+                    user.setLastName(lastName);
+                    if (email != null) {
+                        user.setEmail(email.toLowerCase());
+                    }
+                    user.setLangKey(langKey);
+                    user.setImageUrl(imageUrl);
+                    userRepository.save(user);
+                    this.clearUserCaches(user);
+                    LOG.debug("Changed Information for User: {}", user);
+                });
     }
 
     @Transactional(readOnly = true)
@@ -87,6 +89,7 @@ public class UserService {
 
     /**
      * Gets a list of all the authorities.
+     * 
      * @return a list of all the authorities.
      */
     @Transactional(readOnly = true)
@@ -95,7 +98,8 @@ public class UserService {
     }
 
     private User syncUserWithIdP(Map<String, Object> details, User user) {
-        // save authorities in to sync user roles/groups between IdP and JHipster's local database
+        // save authorities in to sync user roles/groups between IdP and JHipster's
+        // local database
         Collection<String> dbAuthorities = getAuthorities();
         Collection<String> userAuthorities = user.getAuthorities().stream().map(Authority::getName).toList();
         for (String authority : userAuthorities) {
@@ -109,7 +113,8 @@ public class UserService {
         // save account in to sync users between IdP and JHipster's local database
         Optional<User> existingUser = userRepository.findOneByLogin(user.getLogin());
         if (existingUser.isPresent()) {
-            // if IdP sends last updated information, use it to determine if an update should happen
+            // if IdP sends last updated information, use it to determine if an update
+            // should happen
             if (details.get("updated_at") != null) {
                 Instant dbModifiedDate = existingUser.orElseThrow().getLastModifiedDate();
                 Instant idpModifiedDate;
@@ -120,12 +125,14 @@ public class UserService {
                 }
                 if (idpModifiedDate.isAfter(dbModifiedDate)) {
                     LOG.debug("Updating user '{}' in local database", user.getLogin());
-                    updateUser(user.getFirstName(), user.getLastName(), user.getEmail(), user.getLangKey(), user.getImageUrl());
+                    updateUser(user.getFirstName(), user.getLastName(), user.getEmail(), user.getLangKey(),
+                            user.getImageUrl());
                 }
                 // no last updated info, blindly update
             } else {
                 LOG.debug("Updating user '{}' in local database", user.getLogin());
-                updateUser(user.getFirstName(), user.getLastName(), user.getEmail(), user.getLangKey(), user.getImageUrl());
+                updateUser(user.getFirstName(), user.getLastName(), user.getEmail(), user.getLangKey(),
+                        user.getImageUrl());
             }
         } else {
             LOG.debug("Saving user '{}' in local database", user.getLogin());
@@ -154,17 +161,16 @@ public class UserService {
         }
         User user = getUser(attributes);
         user.setAuthorities(
-            authToken
-                .getAuthorities()
-                .stream()
-                .map(GrantedAuthority::getAuthority)
-                .map(authority -> {
-                    Authority auth = new Authority();
-                    auth.setName(authority);
-                    return auth;
-                })
-                .collect(Collectors.toSet())
-        );
+                authToken
+                        .getAuthorities()
+                        .stream()
+                        .map(GrantedAuthority::getAuthority)
+                        .map(authority -> {
+                            Authority auth = new Authority();
+                            auth.setName(authority);
+                            return auth;
+                        })
+                        .collect(Collectors.toSet()));
 
         return new AdminUserDTO(syncUserWithIdP(attributes, user));
     }
@@ -206,7 +212,7 @@ public class UserService {
             // special handling for Auth0
             user.setEmail(username);
         } else {
-            user.setEmail(sub);
+            user.setEmail(user.getLogin() + "@localhost");
         }
         if (details.get("langKey") != null) {
             user.setLangKey((String) details.get("langKey"));
@@ -231,9 +237,11 @@ public class UserService {
     }
 
     private void clearUserCaches(User user) {
-        Objects.requireNonNull(cacheManager.getCache(UserRepository.USERS_BY_LOGIN_CACHE)).evictIfPresent(user.getLogin());
+        Objects.requireNonNull(cacheManager.getCache(UserRepository.USERS_BY_LOGIN_CACHE))
+                .evictIfPresent(user.getLogin());
         if (user.getEmail() != null) {
-            Objects.requireNonNull(cacheManager.getCache(UserRepository.USERS_BY_EMAIL_CACHE)).evictIfPresent(user.getEmail());
+            Objects.requireNonNull(cacheManager.getCache(UserRepository.USERS_BY_EMAIL_CACHE))
+                    .evictIfPresent(user.getEmail());
         }
     }
 }

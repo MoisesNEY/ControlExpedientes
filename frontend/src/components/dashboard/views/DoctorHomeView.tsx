@@ -1,5 +1,7 @@
-import React from 'react';
+import { useEffect, useState } from 'react';
 import { usePatient } from '../../../context/PatientContext';
+import { AppointmentService, type Appointment } from '../../../services/appointment.service';
+import { useAuth } from '../../../context/AuthContext';
 
 const StatCard = ({ label, value, icon, color }: any) => (
     <div className="bg-white dark:bg-slate-900 p-5 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 flex items-center gap-4 transition-colors">
@@ -15,38 +17,71 @@ const StatCard = ({ label, value, icon, color }: any) => (
 
 const DoctorHomeView = () => {
     const { selectPatient } = usePatient();
+    const { user } = useAuth();
+    const [stats, setStats] = useState({ totalToday: 0, attendedToday: 0 });
+    const [appointments, setAppointments] = useState<Appointment[]>([]);
+    const [loading, setLoading] = useState(true);
 
-    const handleAttend = (pacienteName: string) => {
+    useEffect(() => {
+        const fetchData = async () => {
+            if (!user?.sub) return;
+            setLoading(true);
+            try {
+                const [statData, appointmentData] = await Promise.all([
+                    AppointmentService.getAppointmentStats(user.sub),
+                    AppointmentService.getTodayAppointments(user.sub)
+                ]);
+                setStats(statData);
+                setAppointments(appointmentData);
+            } catch (error) {
+                console.error("Error fetching dashboard data:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchData();
+    }, [user?.sub]);
+
+    const handleAttend = (appointment: Appointment) => {
+        const paciente = appointment.paciente;
+        // Map backend patient to frontend PatientContext structure
         selectPatient({
-            id: 'PX-9928',
-            name: pacienteName,
-            age: '45 años',
-            gender: 'Masculino',
+            id: `PX-${paciente.id}`,
+            name: paciente.nombre,
+            age: paciente.fechaNacimiento ? `${new Date().getFullYear() - new Date(paciente.fechaNacimiento).getFullYear()} años` : 'N/A',
+            gender: paciente.sexo || 'N/A',
             status: 'Activo',
-            image: `https://i.pravatar.cc/150?u=${pacienteName}`
+            image: `https://i.pravatar.cc/150?u=${paciente.nombre}`,
+            appointmentId: appointment.id
         });
     };
 
-    const agenda = [
-        { time: '09:00 AM', patient: 'Maria Garcia', reason: 'Control Hipertensión', status: 'Completado' },
-        { time: '10:30 AM', patient: 'Juan Pérez', reason: 'Dolor Lumbar', status: 'En Espera', active: true },
-        { time: '11:15 AM', patient: 'Ana Martínez', reason: 'Seguimiento Post-operatorio', status: 'Confirmado' },
-        { time: '12:00 PM', patient: 'Roberto Smith', reason: 'Chequeo General', status: 'Confirmado' },
-    ];
+    const formatDate = (dateString: string) => {
+        return new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    };
+
+    if (loading) {
+        return (
+            <div className="p-8 flex items-center justify-center h-full">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            </div>
+        );
+    }
 
     return (
         <div className="p-8 max-w-5xl mx-auto w-full flex flex-col gap-8 transition-colors duration-300">
             {/* Bienvenida */}
             <div className="flex flex-col gap-1">
-                <h2 className="text-slate-900 dark:text-white text-3xl font-black tracking-tight">¡Buen día, Dr. Morales!</h2>
-                <p className="text-slate-500 font-medium tracking-tight">Aquí tienes el resumen de tu jornada para hoy, 09 de febrero.</p>
+                <h2 className="text-slate-900 dark:text-white text-3xl font-black tracking-tight">¡Buen día, {user?.given_name || 'Doctor'}!</h2>
+                <p className="text-slate-500 font-medium tracking-tight">Aquí tienes el resumen de tu jornada para hoy, {new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long' })}.</p>
             </div>
 
             {/* Estadísticas Rápidas */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <StatCard label="Citas Hoy" value="12" icon="calendar_month" color="bg-primary" />
-                <StatCard label="Pacientes Atendidos" value="5" icon="check_circle" color="bg-success" />
-                <StatCard label="Nuevos Expedientes" value="2" icon="person_add" color="bg-orange-500" />
+                <StatCard label="Citas Hoy" value={stats.totalToday.toString()} icon="calendar_month" color="bg-primary" />
+                <StatCard label="Pacientes Atendidos" value={stats.attendedToday.toString()} icon="check_circle" color="bg-success" />
+                <StatCard label="Nuevos Expedientes" value="-" icon="person_add" color="bg-orange-500" />
             </div>
 
             {/* Agenda Detallada */}
@@ -70,37 +105,42 @@ const DoctorHomeView = () => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                            {agenda.map((item, idx) => (
-                                <tr key={idx} className={`group hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors ${item.active ? 'bg-primary/5' : ''}`}>
-                                    <td className="px-6 py-4 text-sm font-bold text-slate-900 dark:text-white">{item.time}</td>
+                            {appointments.map((item) => (
+                                <tr key={item.id} className={`group hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors ${item.estado === 'PROGRAMADA' ? 'bg-primary/5' : ''}`}>
+                                    <td className="px-6 py-4 text-sm font-bold text-slate-900 dark:text-white">{formatDate(item.fechaHora)}</td>
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-2">
                                             <div className="size-8 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden shadow-inner">
-                                                <img src={`https://i.pravatar.cc/150?u=${item.patient}`} alt="" />
+                                                <img src={`https://i.pravatar.cc/150?u=${item.paciente.nombre}`} alt="" />
                                             </div>
-                                            <span className="text-sm font-semibold text-slate-700 dark:text-slate-300 transition-colors">{item.patient}</span>
+                                            <span className="text-sm font-semibold text-slate-700 dark:text-slate-300 transition-colors">{item.paciente.nombre}</span>
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4 text-sm text-slate-500 dark:text-slate-400 transition-colors">{item.reason}</td>
+                                    <td className="px-6 py-4 text-sm text-slate-500 dark:text-slate-400 transition-colors truncate max-w-[200px]">{item.observaciones || 'Sin observaciones'}</td>
                                     <td className="px-6 py-4">
-                                        <span className={`px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-tight ${item.status === 'Completado' ? 'bg-success/10 text-success' :
-                                                item.status === 'En Espera' ? 'bg-primary/20 text-primary animate-pulse' :
-                                                    'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                                        <span className={`px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-tight ${item.estado === 'ATENDIDA' ? 'bg-success/10 text-success' :
+                                            item.estado === 'PROGRAMADA' ? 'bg-primary/20 text-primary animate-pulse' :
+                                                'bg-slate-100 dark:bg-slate-800 text-slate-500'
                                             }`}>
-                                            {item.status}
+                                            {item.estado.replace('_', ' ')}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 text-right">
                                         <button
-                                            onClick={() => handleAttend(item.patient)}
-                                            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${item.active ? 'bg-primary text-white shadow-lg shadow-primary/30 hover:scale-105' : 'text-primary hover:bg-primary/10'
+                                            onClick={() => handleAttend(item)}
+                                            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${item.estado === 'PROGRAMADA' ? 'bg-primary text-white shadow-lg shadow-primary/30 hover:scale-105' : 'text-primary hover:bg-primary/10'
                                                 }`}
                                         >
-                                            {item.status === 'En Espera' ? 'Atender' : 'Ver Detalles'}
+                                            {item.estado === 'PROGRAMADA' ? 'Atender' : 'Ver Detalles'}
                                         </button>
                                     </td>
                                 </tr>
                             ))}
+                            {appointments.length === 0 && (
+                                <tr>
+                                    <td colSpan={5} className="px-6 py-10 text-center text-slate-400 italic">No hay citas programadas para hoy.</td>
+                                </tr>
+                            )}
                         </tbody>
                     </table>
                 </div>

@@ -3,6 +3,9 @@ import Sidebar from '../components/layout/Sidebar';
 import DoctorHomeView from '../components/dashboard/views/DoctorHomeView';
 import ConsultationView from '../components/dashboard/views/ConsultationView';
 import PatientListView from '../components/dashboard/views/PatientListView';
+import AppointmentView from '../components/dashboard/views/AppointmentView';
+import InventoryView from '../components/dashboard/views/InventoryView';
+import RecordsView from '../components/dashboard/views/RecordsView';
 import { usePatient } from '../context/PatientContext';
 import VitalsPanel from '../components/dashboard/VitalsPanel';
 import AppointmentList from '../components/dashboard/AppointmentList';
@@ -22,6 +25,12 @@ const DoctorDashboard = () => {
                 return <DoctorHomeView />;
             case 'Pacientes':
                 return <PatientListView />;
+            case 'Citas':
+                return <AppointmentView />;
+            case 'Inventario':
+                return <InventoryView />;
+            case 'Registros':
+                return <RecordsView />;
             default:
                 return (
                     <div className="flex-1 flex flex-col items-center justify-center text-slate-400 bg-slate-50 dark:bg-slate-950 transition-colors">
@@ -45,11 +54,11 @@ const DoctorDashboard = () => {
                     <>
                         <VitalsPanel />
                         <div className="mt-auto">
-                            <AppointmentList />
+                            <AppointmentList onNavigate={setActiveTab} />
                         </div>
                     </>
                 ) : (
-                    <AppointmentList />
+                    <AppointmentList onNavigate={setActiveTab} />
                 )}
             </aside>
         </div>

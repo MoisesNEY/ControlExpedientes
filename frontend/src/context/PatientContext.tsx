@@ -7,6 +7,7 @@ interface Patient {
     gender: string;
     status: string;
     image: string;
+    appointmentId?: number;
 }
 
 interface PatientContextType {

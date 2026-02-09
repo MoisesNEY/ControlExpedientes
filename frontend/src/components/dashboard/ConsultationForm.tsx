@@ -86,12 +86,15 @@ const ConsultationForm = () => {
         setShowMedResults(false);
     };
 
+    const [isSaving, setIsSaving] = useState(false);
+
     const handleSave = async () => {
         if (!selectedPatient || !diagnosticoSeleccionado) {
             alert('Por favor seleccione un diagnóstico antes de finalizar la consulta.');
             return;
         }
 
+        setIsSaving(true);
         const patientId = selectedPatient.id.includes('-')
             ? selectedPatient.id.split('-')[1]
             : selectedPatient.id;
@@ -100,26 +103,52 @@ const ConsultationForm = () => {
             consulta: {
                 motivoConsulta: motivo,
                 notasMedicas: notas,
-                fechaConsulta: new Date().toISOString().split('T')[0],
+                fechaConsulta: new Date().toISOString(),
                 expediente: { id: parseInt(patientId) || 1 }
             },
-            signosVitales: vitals,
+            signosVitales: {
+                ...vitals,
+                peso: parseFloat(vitals.peso.toString()),
+                altura: parseFloat(vitals.altura.toString()),
+                temperatura: parseFloat(vitals.temperatura.toString()),
+                frecuenciaCardiaca: parseInt(vitals.frecuenciaCardiaca.toString())
+            },
             diagnostico: { id: diagnosticoSeleccionado.id },
             recetas: prescripciones.map(p => ({
                 dosis: p.dosis,
                 frecuencia: p.frecuencia,
                 duracion: p.duracion,
+                cantidad: 1, // Default value as required by DTO
                 medicamento: { id: p.medicamento.id }
             }))
         };
 
         try {
             await ConsultationService.saveConsultation(payload as any);
+
+            // If there's an active appointment, mark it as completed
+            if (selectedPatient.appointmentId) {
+                try {
+                    const { AppointmentService } = await import('../../services/appointment.service');
+                    await AppointmentService.updateAppointmentStatus(selectedPatient.appointmentId, 'ATENDIDA');
+                } catch (err) {
+                    console.error('Error updating appointment status:', err);
+                }
+            }
+
             alert('¡Atención Médica guardada con éxito!');
+
+            // Reset Form
+            setMotivo('');
+            setNotas('');
+            setDiagnosticoSeleccionado(null);
+            setPrescripciones([]);
             selectPatient(null);
         } catch (error) {
             console.error('Error al guardar consulta:', error);
             alert('Error en el servidor al intentar guardar el acto clínico.');
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -206,10 +235,13 @@ const ConsultationForm = () => {
                         Plan de Tratamiento y Recetas
                     </h3>
                     <div className="relative">
+                        <span className={`absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400 ${isSearchingMed ? 'animate-spin' : ''}`}>
+                            {isSearchingMed ? 'sync' : 'search'}
+                        </span>
                         <input
                             value={medQuery}
                             onChange={(e) => setMedQuery(e.target.value)}
-                            className="text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 outline-none focus:ring-1 focus:ring-primary w-48"
+                            className="text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg pl-8 pr-3 py-1.5 outline-none focus:ring-1 focus:ring-primary w-48"
                             placeholder="Añadir medicamento..."
                         />
                         {showMedResults && medResults.length > 0 && (
@@ -285,10 +317,13 @@ const ConsultationForm = () => {
             <div className="fixed bottom-8 right-[352px] z-20">
                 <button
                     onClick={handleSave}
-                    className="flex items-center gap-3 px-10 py-4 bg-primary text-white rounded-full font-black shadow-2xl shadow-primary/40 hover:bg-primary/95 hover:scale-105 active:scale-95 transition-all text-xs uppercase tracking-widest"
+                    disabled={isSaving}
+                    className={`flex items-center gap-3 px-10 py-4 bg-primary text-white rounded-full font-black shadow-2xl shadow-primary/40 hover:bg-primary/95 hover:scale-105 active:scale-95 transition-all text-xs uppercase tracking-widest ${isSaving ? 'opacity-70 cursor-not-allowed' : ''}`}
                 >
-                    <span className="material-symbols-outlined text-[20px]">task_alt</span>
-                    Finalizar Acto Clínico
+                    <span className={`material-symbols-outlined text-[20px] ${isSaving ? 'animate-spin' : ''}`}>
+                        {isSaving ? 'sync' : 'task_alt'}
+                    </span>
+                    {isSaving ? 'Guardando...' : 'Finalizar Acto Clínico'}
                 </button>
             </div>
         </div>

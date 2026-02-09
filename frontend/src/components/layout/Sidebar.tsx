@@ -9,7 +9,7 @@ interface SidebarProps {
 
 const Sidebar = ({ onNavigate, currentTab }: SidebarProps) => {
     const { selectPatient, selectedPatient } = usePatient();
-    const { logout } = useAuth();
+    const { logout, account, user } = useAuth();
     const { theme, toggleTheme } = useTheme();
 
     const handleNavClick = (label: string) => {
@@ -29,6 +29,33 @@ const Sidebar = ({ onNavigate, currentTab }: SidebarProps) => {
         { icon: 'inventory_2', label: 'Inventario' },
         { icon: 'history_edu', label: 'Registros' },
     ];
+
+    const getSafeName = () => {
+        // 1. Try account fields
+        if (account?.firstName || account?.lastName) {
+            return `${account.firstName || ''} ${account.lastName || ''}`.trim();
+        }
+        // 2. Try token name
+        if (user?.name) return user.name;
+        // 3. Try token components
+        if (user?.given_name || user?.family_name) {
+            return `${user.given_name || ''} ${user.family_name || ''}`.trim();
+        }
+        // 4. Try username
+        if (user?.preferred_username) return user.preferred_username;
+        // 5. Default
+        return 'Doctor';
+    };
+
+    const fullName = getSafeName();
+
+    const initials = fullName
+        .split(' ')
+        .filter(Boolean)
+        .map((n: string) => n[0])
+        .slice(0, 2)
+        .join('')
+        .toUpperCase() || 'DR';
 
     return (
         <div className="w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col h-full transition-colors duration-300">
@@ -51,8 +78,8 @@ const Sidebar = ({ onNavigate, currentTab }: SidebarProps) => {
                                 key={item.label}
                                 onClick={() => handleNavClick(item.label)}
                                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group ${isActive
-                                        ? 'bg-primary text-white shadow-lg shadow-primary/20'
-                                        : 'text-slate-500 hover:bg-primary/5 hover:text-primary'
+                                    ? 'bg-primary text-white shadow-lg shadow-primary/20'
+                                    : 'text-slate-500 hover:bg-primary/5 hover:text-primary'
                                     }`}
                             >
                                 <span className={`material-symbols-outlined ${isActive ? 'fill-1' : 'opacity-80 group-hover:opacity-100'}`}>
@@ -80,12 +107,18 @@ const Sidebar = ({ onNavigate, currentTab }: SidebarProps) => {
                 {/* User Info */}
                 <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800 transition-colors">
                     <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                            <img src="https://i.pravatar.cc/150?u=doctor" alt="Dr. Profile" className="w-full h-full object-cover" />
+                        <div className="w-10 h-10 bg-primary/10 text-primary border border-primary/20 rounded-full flex items-center justify-center font-black text-xs shadow-inner">
+                            {initials}
                         </div>
                         <div className="flex-1 min-w-0">
-                            <p className="text-xs font-black text-slate-900 dark:text-white truncate">Dr. Ricardo Ney</p>
-                            <p className="text-[10px] text-slate-400 font-bold truncate">Médico General</p>
+                            <p className="text-xs font-black text-slate-900 dark:text-white truncate">
+                                {fullName}
+                            </p>
+                            <p className="text-[10px] text-slate-400 font-bold truncate uppercase tracking-tight">
+                                {account?.authorities?.find(r => r.startsWith('ROLE_'))?.replace('ROLE_', '').replace('_', ' ') ||
+                                    user?.realm_access?.roles?.find((r: string) => r.startsWith('ROLE_'))?.replace('ROLE_', '').replace('_', ' ') ||
+                                    'Médico'}
+                            </p>
                         </div>
                     </div>
                     <button

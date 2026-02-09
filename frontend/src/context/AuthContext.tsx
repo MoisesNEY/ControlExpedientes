@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import keycloak from '../keycloak';
+import { UserService, type UserAccount } from '../services/userService';
 
 interface AuthContextType {
     isAuthenticated: boolean;
@@ -7,6 +8,7 @@ interface AuthContextType {
     logout: () => void;
     token: string | undefined;
     user: any;
+    account: UserAccount | null;
     loading: boolean;
 }
 
@@ -16,6 +18,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [loading, setLoading] = useState(true);
     const [user, setUser] = useState<any>(null);
+    const [account, setAccount] = useState<UserAccount | null>(null);
 
     const isRun = React.useRef(false);
 
@@ -33,8 +36,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setIsAuthenticated(authenticated);
                 if (authenticated) {
                     setUser(keycloak.tokenParsed);
+                    // No bloqueamos el estado 'loading' esperando al backend
+                    setLoading(false);
+
+                    // Cargamos los detalles de la cuenta en segundo plano
+                    UserService.getAccount()
+                        .then(setAccount)
+                        .catch(error => {
+                            console.error('Error fetching account data:', error);
+                            // No pasamos error a loading ya que ya está en false
+                        });
+                } else {
+                    setLoading(false);
                 }
-                setLoading(false);
             })
             .catch((err) => {
                 console.error('Keycloak init error:', err);
@@ -52,6 +66,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             logout,
             token: keycloak.token,
             user,
+            account,
             loading
         }}>
             {children}
