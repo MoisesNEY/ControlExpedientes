@@ -10,6 +10,7 @@ import java.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.http.*;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -60,7 +61,7 @@ public class SessionAuthFilter extends OncePerRequestFilter {
 
     private final RestTemplate restTemplate = new RestTemplate();
 
-    public SessionAuthFilter(JwtDecoder jwtDecoder) {
+    public SessionAuthFilter(@Lazy JwtDecoder jwtDecoder) {
         this.jwtDecoder = jwtDecoder;
     }
 
