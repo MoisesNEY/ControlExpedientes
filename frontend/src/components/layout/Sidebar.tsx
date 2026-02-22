@@ -1,33 +1,39 @@
 import { usePatient } from '../../context/PatientContext';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 interface SidebarProps {
     onNavigate?: (tab: string) => void;
-    currentTab?: string;
 }
 
-const Sidebar = ({ onNavigate, currentTab }: SidebarProps) => {
+const Sidebar = ({ onNavigate }: SidebarProps) => {
     const { selectPatient, selectedPatient } = usePatient();
     const { logout, account, user } = useAuth();
     const { theme, toggleTheme } = useTheme();
+    const navigate = useNavigate();
+    const location = useLocation();
 
-    const handleNavClick = (label: string) => {
+    const handleNavClick = (label: string, pathSegment: string) => {
         if (label === 'Panel Principal') {
             selectPatient(null);
         }
 
+        // If the parent provided an onNavigate callback, call it (useful for mobile drawer closing)
         if (onNavigate) {
             onNavigate(label);
+        } else {
+            // Default internal routing behavior
+            navigate(pathSegment);
         }
     };
 
     const menuItems = [
-        { icon: 'dashboard', label: 'Panel Principal' },
-        { icon: 'group', label: 'Pacientes' },
-        { icon: 'calendar_today', label: 'Citas' },
-        { icon: 'inventory_2', label: 'Inventario' },
-        { icon: 'history_edu', label: 'Registros' },
+        { icon: 'dashboard', label: 'Panel Principal', path: '' },
+        { icon: 'group', label: 'Pacientes', path: 'pacientes' },
+        { icon: 'calendar_today', label: 'Citas', path: 'citas' },
+        { icon: 'inventory_2', label: 'Inventario', path: 'inventario' },
+        { icon: 'history_edu', label: 'Registros', path: 'registros' },
     ];
 
     const getSafeName = () => {
@@ -72,11 +78,11 @@ const Sidebar = ({ onNavigate, currentTab }: SidebarProps) => {
 
                 <nav className="space-y-1.5">
                     {menuItems.map((item) => {
-                        const isActive = labelToActive(item.label, currentTab, selectedPatient);
+                        const isActive = labelToActive(item.path, location.pathname, selectedPatient);
                         return (
                             <button
                                 key={item.label}
-                                onClick={() => handleNavClick(item.label)}
+                                onClick={() => handleNavClick(item.label, item.path)}
                                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group ${isActive
                                     ? 'bg-primary text-white shadow-lg shadow-primary/20'
                                     : 'text-slate-500 hover:bg-primary/5 hover:text-primary'
@@ -134,10 +140,15 @@ const Sidebar = ({ onNavigate, currentTab }: SidebarProps) => {
     );
 };
 
-// Helper function to determine if a menu item should be highlighted as active
-const labelToActive = (label: string, currentTab: string | undefined, selectedPatient: any) => {
-    if (selectedPatient) return false; // When a patient is selected, no sidebar item is "active" in the traditional sense
-    return currentTab === label;
+// Helper function to determine if a menu item should be highlighted as active based on URL
+const labelToActive = (path: string, currentPathname: string, selectedPatient: any) => {
+    if (selectedPatient) return false; // When a patient is selected, no sidebar item is "active"
+
+    // Extract the last segment of the url or default to empty string
+    const segments = currentPathname.split('/').filter(Boolean);
+    const lastSegment = segments.length > 1 ? segments[segments.length - 1] : '';
+
+    return lastSegment === path;
 };
 
 export default Sidebar;

@@ -1,28 +1,32 @@
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 interface AdminSidebarProps {
     onNavigate?: (tab: string) => void;
-    currentTab?: string;
 }
 
-const AdminSidebar = ({ onNavigate, currentTab }: AdminSidebarProps) => {
+const AdminSidebar = ({ onNavigate }: AdminSidebarProps) => {
     const { logout, account, user } = useAuth();
     const { theme, toggleTheme } = useTheme();
+    const navigate = useNavigate();
+    const location = useLocation();
 
-    const handleNavClick = (label: string) => {
+    const handleNavClick = (label: string, pathSegment: string) => {
         if (onNavigate) {
             onNavigate(label);
+        } else {
+            navigate(pathSegment);
         }
     };
 
     const menuItems = [
-        { icon: 'dashboard', label: 'Dashboard' },
-        { icon: 'group', label: 'Pacientes' },
-        { icon: 'medication', label: 'Medicamentos' },
-        { icon: 'calendar_today', label: 'Citas' },
-        { icon: 'folder_shared', label: 'Expedientes' },
-        { icon: 'shield', label: 'Auditoría' },
+        { icon: 'dashboard', label: 'Dashboard', path: '' },
+        { icon: 'group', label: 'Pacientes', path: 'pacientes' },
+        { icon: 'medication', label: 'Medicamentos', path: 'medicamentos' },
+        { icon: 'calendar_today', label: 'Citas', path: 'citas' },
+        { icon: 'folder_shared', label: 'Expedientes', path: 'expedientes' },
+        { icon: 'shield', label: 'Auditoría', path: 'auditoria' },
     ];
 
     const getSafeName = () => {
@@ -62,11 +66,11 @@ const AdminSidebar = ({ onNavigate, currentTab }: AdminSidebarProps) => {
 
                 <nav className="space-y-1.5">
                     {menuItems.map((item) => {
-                        const isActive = currentTab === item.label;
+                        const isActive = labelToActive(item.path, location.pathname);
                         return (
                             <button
                                 key={item.label}
-                                onClick={() => handleNavClick(item.label)}
+                                onClick={() => handleNavClick(item.label, item.path)}
                                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group ${isActive
                                     ? 'bg-amber-600 text-white shadow-lg shadow-amber-600/20'
                                     : 'text-slate-500 hover:bg-amber-600/5 hover:text-amber-600'
@@ -85,7 +89,7 @@ const AdminSidebar = ({ onNavigate, currentTab }: AdminSidebarProps) => {
             <div className="mt-auto p-6 space-y-4">
                 {/* Link al panel médico */}
                 <a
-                    href="/doctor"
+                    href="/medico"
                     className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all font-bold group"
                 >
                     <span className="material-symbols-outlined transition-transform duration-300 group-hover:scale-110">
@@ -131,6 +135,15 @@ const AdminSidebar = ({ onNavigate, currentTab }: AdminSidebarProps) => {
             </div>
         </div>
     );
+};
+
+// Helper function to determine if a menu item should be highlighted as active based on URL
+const labelToActive = (path: string, currentPathname: string) => {
+    // Extract the last segment of the url or default to empty string
+    const segments = currentPathname.split('/').filter(Boolean);
+    const lastSegment = segments.length > 1 ? segments[segments.length - 1] : '';
+
+    return lastSegment === path;
 };
 
 export default AdminSidebar;

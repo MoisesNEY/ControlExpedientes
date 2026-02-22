@@ -1,44 +1,26 @@
 import { useState } from 'react';
+import { Outlet, useNavigate } from 'react-router-dom';
 import Sidebar from '../components/layout/Sidebar';
-import DoctorHomeView from '../components/dashboard/views/DoctorHomeView';
-import ConsultationView from '../components/dashboard/views/ConsultationView';
-import PatientListView from '../components/dashboard/views/PatientListView';
-import AppointmentView from '../components/dashboard/views/AppointmentView';
-import InventoryView from '../components/dashboard/views/InventoryView';
-import RecordsView from '../components/dashboard/views/RecordsView';
+// Views are no longer directly imported here, they will be provided via Outlet
 import { usePatient } from '../context/PatientContext';
 import VitalsPanel from '../components/dashboard/VitalsPanel';
 import AppointmentList from '../components/dashboard/AppointmentList';
 
 const DoctorDashboard = () => {
     const { selectedPatient } = usePatient();
-    const [activeTab, setActiveTab] = useState('Panel Principal');
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const navigate = useNavigate();
 
-    const renderContent = () => {
-        // Si hay un paciente seleccionado, SIEMPRE mostramos la Consulta (Acto Clínico)
-        if (selectedPatient) {
-            return <ConsultationView />;
-        }
-
-        switch (activeTab) {
+    // Mapping from Tab Label to relative path
+    const handleNavigate = (tab: string) => {
+        setIsSidebarOpen(false);
+        switch (tab) {
+            case 'Pacientes': navigate('pacientes'); break;
+            case 'Citas': navigate('citas'); break;
+            case 'Inventario': navigate('inventario'); break;
+            case 'Registros': navigate('registros'); break;
             case 'Panel Principal':
-                return <DoctorHomeView onNavigate={setActiveTab} />;
-            case 'Pacientes':
-                return <PatientListView />;
-            case 'Citas':
-                return <AppointmentView />;
-            case 'Inventario':
-                return <InventoryView />;
-            case 'Registros':
-                return <RecordsView />;
-            default:
-                return (
-                    <div className="flex-1 flex flex-col items-center justify-center text-slate-400 bg-slate-50 dark:bg-slate-950 transition-colors p-8 text-center">
-                        <span className="material-symbols-outlined text-6xl mb-4 opacity-20">construction</span>
-                        <p className="italic font-medium">La vista de "{activeTab}" está bajo construcción clínica...</p>
-                    </div>
-                );
+            default: navigate(''); break;
         }
     };
 
@@ -72,17 +54,13 @@ const DoctorDashboard = () => {
                 />
 
                 <Sidebar
-                    onNavigate={(tab) => {
-                        setActiveTab(tab);
-                        setIsSidebarOpen(false);
-                    }}
-                    currentTab={activeTab}
+                    onNavigate={handleNavigate}
                 />
             </div>
 
             {/* Contenido Principal */}
             <main className="flex-1 flex flex-col min-w-0 h-full overflow-y-auto relative custom-scrollbar">
-                {renderContent()}
+                <Outlet />
             </main>
 
             {/* Panel Derecho (Vitals / Next Appointments) */}
@@ -91,14 +69,14 @@ const DoctorDashboard = () => {
                     <>
                         <VitalsPanel />
                         <div className="lg:mt-auto">
-                            <AppointmentList onNavigate={setActiveTab} />
+                            <AppointmentList onNavigate={handleNavigate} />
                         </div>
                     </>
                 ) : (
-                    <AppointmentList onNavigate={setActiveTab} />
+                    <AppointmentList onNavigate={handleNavigate} />
                 )}
             </aside>
-        </div>
+        </div >
     );
 };
 

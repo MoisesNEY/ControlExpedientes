@@ -3,7 +3,18 @@ import { useAuth } from './context/AuthContext';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
 
 import DoctorDashboard from './pages/DoctorDashboard';
+import DoctorHomeView from './components/dashboard/views/DoctorHomeView';
+import PatientListView from './components/dashboard/views/PatientListView';
+import AppointmentView from './components/dashboard/views/AppointmentView';
+import InventoryView from './components/dashboard/views/InventoryView';
+import RecordsView from './components/dashboard/views/RecordsView';
 import AdminDashboard from './pages/AdminDashboard';
+import AdminHomeView from './components/admin/views/AdminHomeView';
+import AdminPacientesView from './components/admin/views/AdminPacientesView';
+import AdminMedicamentosView from './components/admin/views/AdminMedicamentosView';
+import AdminCitasView from './components/admin/views/AdminCitasView';
+import AdminExpedientesView from './components/admin/views/AdminExpedientesView';
+import AdminAuditoriaView from './components/admin/views/AdminAuditoriaView';
 import NurseDashboard from './pages/NurseDashboard';
 import ReceptionDashboard from './pages/ReceptionDashboard';
 import Unauthorized from './pages/Unauthorized';
@@ -27,7 +38,7 @@ function App() {
   const getDefaultRoute = () => {
     if (!account?.authorities) return '/login';
     if (account.authorities.includes('ROLE_ADMIN')) return '/admin';
-    if (account.authorities.includes('ROLE_MEDICO')) return '/doctor';
+    if (account.authorities.includes('ROLE_MEDICO')) return '/medico';
     if (account.authorities.includes('ROLE_ENFERMERO')) return '/enfermeria';
     if (account.authorities.includes('ROLE_RECEPCION')) return '/recepcion';
     return '/unauthorized';
@@ -42,11 +53,24 @@ function App() {
 
         {/* Rutas Protegidas por Rol */}
         <Route element={<ProtectedRoute allowedRoles={['ROLE_ADMIN']} />}>
-          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/admin" element={<AdminDashboard />}>
+            <Route index element={<AdminHomeView />} />
+            <Route path="pacientes" element={<AdminPacientesView />} />
+            <Route path="medicamentos" element={<AdminMedicamentosView />} />
+            <Route path="citas" element={<AdminCitasView />} />
+            <Route path="expedientes" element={<AdminExpedientesView />} />
+            <Route path="auditoria" element={<AdminAuditoriaView />} />
+          </Route>
         </Route>
 
         <Route element={<ProtectedRoute allowedRoles={['ROLE_ADMIN', 'ROLE_MEDICO']} />}>
-          <Route path="/doctor" element={<DoctorDashboard />} />
+          <Route path="/medico" element={<DoctorDashboard />}>
+            <Route index element={<DoctorHomeView />} />
+            <Route path="pacientes" element={<PatientListView />} />
+            <Route path="citas" element={<AppointmentView />} />
+            <Route path="inventario" element={<InventoryView />} />
+            <Route path="registros" element={<RecordsView />} />
+          </Route>
         </Route>
 
         <Route element={<ProtectedRoute allowedRoles={['ROLE_ADMIN', 'ROLE_ENFERMERO']} />}>
