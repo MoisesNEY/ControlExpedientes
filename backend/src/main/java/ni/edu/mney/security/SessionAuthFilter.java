@@ -68,25 +68,28 @@ public class SessionAuthFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
-        // Skip if already authenticated (e.g., during the /api/authenticate call
-        // itself)
-        if (SecurityContextHolder.getContext().getAuthentication() != null &&
-                SecurityContextHolder.getContext().getAuthentication().isAuthenticated()) {
+        // Skip if already authenticated with a real (non-anonymous) principal
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.isAuthenticated()
+                && !(auth instanceof org.springframework.security.authentication.AnonymousAuthenticationToken)) {
             filterChain.doFilter(request, response);
             return;
         }
 
         HttpSession session = request.getSession(false);
         if (session == null) {
+            LOG.debug("SessionAuthFilter: No session for {}", request.getRequestURI());
             filterChain.doFilter(request, response);
             return;
         }
 
         String accessToken = (String) session.getAttribute(SESSION_ATTR_ACCESS_TOKEN);
         if (accessToken == null) {
+            LOG.debug("SessionAuthFilter: Session exists but no token for {}", request.getRequestURI());
             filterChain.doFilter(request, response);
             return;
         }
+        LOG.debug("SessionAuthFilter: Found token in session for {}", request.getRequestURI());
 
         // Check if token is about to expire (30s buffer)
         Long tokenExpiry = (Long) session.getAttribute(SESSION_ATTR_TOKEN_EXPIRY);

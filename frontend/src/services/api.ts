@@ -7,19 +7,7 @@ const api = axios.create({
     withCredentials: true, // Always send session cookie (JSESSIONID)
 });
 
-// Response interceptor: if 401 → redirect to login
-api.interceptors.response.use(
-    (response) => response,
-    (error) => {
-        if (error.response?.status === 401) {
-            // Session expired or invalid — redirect to login
-            // Only redirect if we're not already on the login page
-            if (!window.location.pathname.includes('/login')) {
-                window.location.href = '/login';
-            }
-        }
-        return Promise.reject(error);
-    }
-);
+// No automatic redirect on 401 — AuthContext handles authentication state.
+// Individual components should check isAuthenticated and redirect as needed.
 
 export default api;

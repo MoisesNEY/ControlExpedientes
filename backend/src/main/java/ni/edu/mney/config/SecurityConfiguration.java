@@ -58,7 +58,8 @@ public class SecurityConfiguration {
                 .cors(withDefaults())
                 .csrf(csrf -> csrf
                         .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
-                        .csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler()))
+                        .csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler())
+                        .ignoringRequestMatchers(mvc.pattern("/api/authenticate"), mvc.pattern("/api/logout")))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .authorizeHttpRequests(authz ->
                 // prettier-ignore
