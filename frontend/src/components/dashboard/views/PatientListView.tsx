@@ -3,31 +3,41 @@ import { useState, useEffect } from 'react';
 import { usePatient } from '../../../context/PatientContext';
 
 import { PacienteService, type PacienteDTO } from '../../../services/paciente.service';
+import PatientFormModal from './PatientFormModal';
 
 const PatientListView = () => {
     const { selectPatient } = usePatient();
     const [pacientes, setPacientes] = useState<PacienteDTO[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [showForm, setShowForm] = useState(false);
+
+    // Filters state
+    const [showFilters, setShowFilters] = useState(false);
+    const [filterGender, setFilterGender] = useState<string>('');
+    const [filterStatus, setFilterStatus] = useState<string>('');
+
+    const fetchPatients = async () => {
+        setLoading(true);
+        try {
+            const params: Record<string, any> = { sort: 'id,desc' };
+            if (searchTerm) params['nombres.contains'] = searchTerm;
+            if (filterGender) params['sexo.equals'] = filterGender;
+            if (filterStatus) params['activo.equals'] = filterStatus === 'activo';
+
+            const response = await PacienteService.getAll(params);
+            setPacientes(response);
+        } catch (error) {
+            console.error('Error fetching patients:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        const fetchPatients = async () => {
-            setLoading(true);
-            try {
-                // Using JHipster criteria for name filtering
-                const params = searchTerm ? { 'nombres.contains': searchTerm } : {};
-                const response = await PacienteService.getAll(params);
-                setPacientes(response);
-            } catch (error) {
-                console.error('Error fetching patients:', error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
         const timeoutId = setTimeout(fetchPatients, 300);
         return () => clearTimeout(timeoutId);
-    }, [searchTerm]);
+    }, [searchTerm, filterGender, filterStatus]);
 
     const handleAttend = (p: PacienteDTO) => {
         selectPatient({
@@ -47,6 +57,35 @@ const PatientListView = () => {
         return Math.abs(ageDate.getUTCFullYear() - 1970) + ' años';
     };
 
+    const downloadCSV = () => {
+        if (pacientes.length === 0) return;
+
+        const headers = ['Expediente', 'Nombres', 'Apellidos', 'Cedula', 'Sexo', 'Fecha Nacimiento', 'Telefono', 'Email', 'Estado Clínico'];
+        const csvContent = "data:text/csv;charset=utf-8,"
+            + headers.join(",") + "\n"
+            + pacientes.map(p => {
+                return [
+                    `XP-2024-${p.id}`,
+                    `"${p.nombres}"`,
+                    `"${p.apellidos}"`,
+                    `${p.cedula || 'N/A'}`,
+                    `${p.sexo}`,
+                    `${p.fechaNacimiento}`,
+                    `${p.telefono || 'N/A'}`,
+                    `${p.email || 'N/A'}`,
+                    `${p.activo ? 'Activo' : 'Inactivo'}`
+                ].join(",");
+            }).join("\n");
+
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `pacientes_export_${new Date().getTime()}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
     return (
         <div className="p-4 md:p-8 space-y-4 md:space-y-6">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -54,7 +93,10 @@ const PatientListView = () => {
                     <h2 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white transition-colors">Base de Datos de Pacientes</h2>
                     <p className="text-slate-500 text-xs md:text-sm font-medium">Búsqueda global y gestión de expedientes.</p>
                 </div>
-                <button className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/30 hover:scale-105 transition-transform">
+                <button
+                    onClick={() => setShowForm(true)}
+                    className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/30 hover:scale-105 transition-transform"
+                >
                     <span className="material-symbols-outlined">person_add</span>
                     Nuevo Paciente
                 </button>
@@ -72,13 +114,59 @@ const PatientListView = () => {
                             className="w-full pl-12 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-xs outline-none focus:ring-2 focus:ring-primary transition-all"
                         />
                     </div>
-                    <div className="flex gap-2 w-full md:w-auto justify-end">
-                        <button className="p-3 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-500 hover:text-primary transition-colors">
+                    <div className="flex gap-2 w-full md:w-auto justify-end relative">
+                        <button
+                            onClick={() => setShowFilters(!showFilters)}
+                            className={`p-3 rounded-xl transition-colors ${showFilters ? 'bg-primary text-white shadow-lg shadow-primary/30' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-primary'}`}
+                            title="Filtros avanzados"
+                        >
                             <span className="material-symbols-outlined">filter_list</span>
                         </button>
-                        <button className="p-3 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-500 hover:text-primary transition-colors">
+                        <button
+                            onClick={downloadCSV}
+                            className="p-3 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-500 hover:text-primary transition-colors"
+                            title="Exportar CSV"
+                        >
                             <span className="material-symbols-outlined">download</span>
                         </button>
+
+                        {/* Filters Dropdown */}
+                        {showFilters && (
+                            <div className="absolute top-14 right-0 w-64 bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700 p-4 z-20 flex flex-col gap-4 animate-in fade-in slide-in-from-top-4">
+                                <div>
+                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Sexo</label>
+                                    <select
+                                        className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
+                                        value={filterGender}
+                                        onChange={(e) => setFilterGender(e.target.value)}
+                                    >
+                                        <option value="">Todos</option>
+                                        <option value="MASCULINO">Masculino</option>
+                                        <option value="FEMENINO">Femenino</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Estado Clínico</label>
+                                    <select
+                                        className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
+                                        value={filterStatus}
+                                        onChange={(e) => setFilterStatus(e.target.value)}
+                                    >
+                                        <option value="">Todos</option>
+                                        <option value="activo">Activo</option>
+                                        <option value="inactivo">Inactivo</option>
+                                    </select>
+                                </div>
+                                {(filterGender || filterStatus) && (
+                                    <button
+                                        onClick={() => { setFilterGender(''); setFilterStatus(''); }}
+                                        className="text-xs font-bold text-red-500 hover:text-red-600 mt-2 text-center"
+                                    >
+                                        Limpiar Filtros
+                                    </button>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -152,6 +240,12 @@ const PatientListView = () => {
                     </table>
                 </div>
             </div>
+
+            <PatientFormModal
+                isOpen={showForm}
+                onClose={() => setShowForm(false)}
+                onSaveSuccess={fetchPatients}
+            />
         </div>
     );
 };
