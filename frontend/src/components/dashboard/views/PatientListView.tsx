@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import api from '../../../services/api';
+
 import { usePatient } from '../../../context/PatientContext';
 
 import { PacienteService, type PacienteDTO } from '../../../services/paciente.service';

@@ -1,16 +1,10 @@
 import { useState, useEffect } from 'react';
-import api from '../../../services/api';
 
-interface Medicamento {
-    id: number;
-    nombre: string;
-    descripcion: string;
-    stock: number;
-    precioVenta: number;
-}
+
+import { MedicamentoService, type MedicamentoDTO } from '../../../services/medicamento.service';
 
 const InventoryView = () => {
-    const [medications, setMedications] = useState<Medicamento[]>([]);
+    const [medications, setMedications] = useState<MedicamentoDTO[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
 
@@ -18,11 +12,9 @@ const InventoryView = () => {
         const fetchInventory = async () => {
             setLoading(true);
             try {
-                const url = searchTerm
-                    ? `/api/medicamentos?nombre.contains=${searchTerm}`
-                    : '/api/medicamentos';
-                const response = await api.get(url);
-                setMedications(dateToSorted(response.data));
+                const params = searchTerm ? { 'nombre.contains': searchTerm } : {};
+                const response = await MedicamentoService.getAll(params);
+                setMedications(dateToSorted(response));
             } catch (error) {
                 console.error('Error fetching inventory:', error);
             } finally {
@@ -34,7 +26,7 @@ const InventoryView = () => {
         return () => clearTimeout(timeoutId);
     }, [searchTerm]);
 
-    const dateToSorted = (data: Medicamento[]) => {
+    const dateToSorted = (data: MedicamentoDTO[]) => {
         return [...data].sort((a, b) => a.nombre.localeCompare(b.nombre));
     };
 
@@ -73,7 +65,6 @@ const InventoryView = () => {
                                 <th className="px-6 py-4">Descripción</th>
                                 <th className="px-6 py-4">Disponibilidad</th>
                                 <th className="px-6 py-4">Estado</th>
-                                <th className="px-6 py-4 text-right">Precio Ref.</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -108,9 +99,6 @@ const InventoryView = () => {
                                                 }`}>
                                                 {m.stock > 10 ? 'En Existencia' : 'Stock Bajo'}
                                             </span>
-                                        </td>
-                                        <td className="px-6 py-4 text-right text-xs font-bold text-slate-600 dark:text-slate-400 italic">
-                                            C$ {(m.precioVenta || 0).toFixed(2)}
                                         </td>
                                     </tr>
                                 ))
