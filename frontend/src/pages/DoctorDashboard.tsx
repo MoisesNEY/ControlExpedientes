@@ -23,7 +23,7 @@ const DoctorDashboard = () => {
 
         switch (activeTab) {
             case 'Panel Principal':
-                return <DoctorHomeView />;
+                return <DoctorHomeView onNavigate={setActiveTab} />;
             case 'Pacientes':
                 return <PatientListView />;
             case 'Citas':
