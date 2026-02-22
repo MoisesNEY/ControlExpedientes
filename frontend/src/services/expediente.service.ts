@@ -42,4 +42,9 @@ export const ExpedienteService = {
     delete: async (id: number): Promise<void> => {
         await api.delete(`/api/expediente-clinicos/${id}`);
     },
+
+    getTimeline: async (id: number): Promise<any> => {
+        const response = await api.get(`/api/expediente-clinicos/${id}/timeline`);
+        return response.data;
+    },
 };
