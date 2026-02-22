@@ -82,7 +82,7 @@ const AppointmentList: React.FC<AppointmentListProps> = ({ onNavigate }) => {
                                 </span>
                             </div>
                             <p className="text-sm font-semibold text-slate-900 dark:text-white uppercase truncate">
-                                {apt.paciente.nombre}
+                                {apt.paciente?.nombres} {apt.paciente?.apellidos}
                             </p>
                         </div>
                     ))

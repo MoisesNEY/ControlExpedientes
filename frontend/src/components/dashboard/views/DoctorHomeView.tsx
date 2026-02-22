@@ -15,7 +15,7 @@ const StatCard = ({ label, value, icon, color }: any) => (
     </div>
 );
 
-const DoctorHomeView = () => {
+const DoctorHomeView = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
     const { selectPatient } = usePatient();
     const { user } = useAuth();
     const [stats, setStats] = useState({ totalToday: 0, attendedToday: 0 });
@@ -45,14 +45,16 @@ const DoctorHomeView = () => {
 
     const handleAttend = (appointment: Appointment) => {
         const paciente = appointment.paciente;
+        if (!paciente) return;
+
         // Map backend patient to frontend PatientContext structure
         selectPatient({
             id: `PX-${paciente.id}`,
-            name: paciente.nombre,
-            age: paciente.fechaNacimiento ? `${new Date().getFullYear() - new Date(paciente.fechaNacimiento).getFullYear()} años` : 'N/A',
-            gender: paciente.sexo || 'N/A',
+            name: `${paciente.nombres || ''} ${paciente.apellidos || ''}`.trim() || 'N/A',
+            age: 'N/A', // Age is unfortunately not in the minimal appointment payload right now
+            gender: 'N/A',
             status: 'Activo',
-            image: `https://i.pravatar.cc/150?u=${paciente.nombre}`,
+            image: `https://i.pravatar.cc/150?u=${paciente.nombres}`,
             appointmentId: appointment.id
         });
     };
@@ -91,7 +93,12 @@ const DoctorHomeView = () => {
                         <span className="material-symbols-outlined text-primary">list_alt</span>
                         Agenda del Día
                     </h3>
-                    <button className="text-xs font-bold text-primary hover:underline">Ver calendario completo</button>
+                    <button
+                        onClick={() => onNavigate?.('Citas')}
+                        className="text-xs font-bold text-primary hover:underline transition-all"
+                    >
+                        Ver calendario completo
+                    </button>
                 </div>
                 <div className="overflow-x-auto scrollbar-hide">
                     <table className="w-full text-left min-w-[600px]">
@@ -111,9 +118,11 @@ const DoctorHomeView = () => {
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-2">
                                             <div className="size-8 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden shadow-inner">
-                                                <img src={`https://i.pravatar.cc/150?u=${item.paciente.nombre}`} alt="" />
+                                                <img src={`https://i.pravatar.cc/150?u=${item.paciente?.nombres || item.id}`} alt="" />
                                             </div>
-                                            <span className="text-sm font-semibold text-slate-700 dark:text-slate-300 transition-colors">{item.paciente.nombre}</span>
+                                            <span className="text-sm font-semibold text-slate-700 dark:text-slate-300 transition-colors">
+                                                {item.paciente?.nombres} {item.paciente?.apellidos}
+                                            </span>
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 text-sm text-slate-500 dark:text-slate-400 transition-colors truncate max-w-[200px]">{item.observaciones || 'Sin observaciones'}</td>

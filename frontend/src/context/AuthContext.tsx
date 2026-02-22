@@ -36,15 +36,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setIsAuthenticated(authenticated);
                 if (authenticated) {
                     setUser(keycloak.tokenParsed);
-                    // No bloqueamos el estado 'loading' esperando al backend
-                    setLoading(false);
-
-                    // Cargamos los detalles de la cuenta en segundo plano
+                    // Esperamos a que getAccount termine ANTES de quitar el loading screen
+                    // para evitar el flash hacia "Unauthorized" mientras Account aún es null
                     UserService.getAccount()
                         .then(setAccount)
                         .catch(error => {
                             console.error('Error fetching account data:', error);
-                            // No pasamos error a loading ya que ya está en false
+                        })
+                        .finally(() => {
+                            setLoading(false);
                         });
                 } else {
                     setLoading(false);
