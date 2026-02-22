@@ -74,11 +74,19 @@ function App() {
         </Route>
 
         <Route element={<ProtectedRoute allowedRoles={['ROLE_ADMIN', 'ROLE_ENFERMERO']} />}>
-          <Route path="/enfermeria" element={<NurseDashboard />} />
+          <Route path="/enfermeria" element={<NurseDashboard />}>
+            <Route index element={<AdminCitasView />} />
+            <Route path="triage" element={<AdminCitasView />} />
+            <Route path="inventario" element={<InventoryView />} />
+          </Route>
         </Route>
 
         <Route element={<ProtectedRoute allowedRoles={['ROLE_ADMIN', 'ROLE_RECEPCION']} />}>
-          <Route path="/recepcion" element={<ReceptionDashboard />} />
+          <Route path="/recepcion" element={<ReceptionDashboard />}>
+            <Route index element={<AdminPacientesView />} />
+            <Route path="pacientes" element={<AdminPacientesView />} />
+            <Route path="citas" element={<AdminCitasView />} />
+          </Route>
         </Route>
 
         {/* Redirección Base */}
