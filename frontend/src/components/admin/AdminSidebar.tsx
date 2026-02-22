@@ -1,0 +1,136 @@
+import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
+
+interface AdminSidebarProps {
+    onNavigate?: (tab: string) => void;
+    currentTab?: string;
+}
+
+const AdminSidebar = ({ onNavigate, currentTab }: AdminSidebarProps) => {
+    const { logout, account, user } = useAuth();
+    const { theme, toggleTheme } = useTheme();
+
+    const handleNavClick = (label: string) => {
+        if (onNavigate) {
+            onNavigate(label);
+        }
+    };
+
+    const menuItems = [
+        { icon: 'dashboard', label: 'Dashboard' },
+        { icon: 'group', label: 'Pacientes' },
+        { icon: 'medication', label: 'Medicamentos' },
+        { icon: 'calendar_today', label: 'Citas' },
+        { icon: 'folder_shared', label: 'Expedientes' },
+        { icon: 'shield', label: 'Auditoría' },
+    ];
+
+    const getSafeName = () => {
+        if (account?.firstName || account?.lastName) {
+            return `${account.firstName || ''} ${account.lastName || ''}`.trim();
+        }
+        if (user?.name) return user.name;
+        if (user?.given_name || user?.family_name) {
+            return `${user.given_name || ''} ${user.family_name || ''}`.trim();
+        }
+        if (user?.preferred_username) return user.preferred_username;
+        return 'Administrador';
+    };
+
+    const fullName = getSafeName();
+
+    const initials = fullName
+        .split(' ')
+        .filter(Boolean)
+        .map((n: string) => n[0])
+        .slice(0, 2)
+        .join('')
+        .toUpperCase() || 'AD';
+
+    return (
+        <div className="w-full lg:w-64 h-full bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col transition-colors duration-300 relative z-50">
+            <div className="p-6">
+                <div className="flex items-center gap-3 mb-8">
+                    <div className="w-10 h-10 bg-amber-600 rounded-xl flex items-center justify-center shadow-lg shadow-amber-600/30">
+                        <span className="material-symbols-outlined text-white font-bold text-2xl">admin_panel_settings</span>
+                    </div>
+                    <div>
+                        <h1 className="text-slate-900 dark:text-white font-black text-lg leading-tight tracking-tight uppercase">Stitch</h1>
+                        <p className="text-[10px] text-amber-600 font-black uppercase tracking-widest leading-none">Panel Admin</p>
+                    </div>
+                </div>
+
+                <nav className="space-y-1.5">
+                    {menuItems.map((item) => {
+                        const isActive = currentTab === item.label;
+                        return (
+                            <button
+                                key={item.label}
+                                onClick={() => handleNavClick(item.label)}
+                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group ${isActive
+                                    ? 'bg-amber-600 text-white shadow-lg shadow-amber-600/20'
+                                    : 'text-slate-500 hover:bg-amber-600/5 hover:text-amber-600'
+                                    }`}
+                            >
+                                <span className={`material-symbols-outlined ${isActive ? 'fill-1' : 'opacity-80 group-hover:opacity-100'}`}>
+                                    {item.icon}
+                                </span>
+                                <span className="text-sm font-bold tracking-tight">{item.label}</span>
+                            </button>
+                        );
+                    })}
+                </nav>
+            </div>
+
+            <div className="mt-auto p-6 space-y-4">
+                {/* Link al panel médico */}
+                <a
+                    href="/doctor"
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all font-bold group"
+                >
+                    <span className="material-symbols-outlined transition-transform duration-300 group-hover:scale-110">
+                        medical_services
+                    </span>
+                    <span className="text-sm">Panel Médico</span>
+                </a>
+
+                {/* Theme Toggle */}
+                <button
+                    onClick={toggleTheme}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all font-bold group"
+                >
+                    <span className="material-symbols-outlined transition-transform duration-300 group-hover:rotate-12">
+                        {theme === 'light' ? 'dark_mode' : 'light_mode'}
+                    </span>
+                    <span className="text-sm">{theme === 'light' ? 'Modo Oscuro' : 'Modo Claro'}</span>
+                </button>
+
+                {/* User Info */}
+                <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800 transition-colors">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-amber-600/10 text-amber-600 border border-amber-600/20 rounded-full flex items-center justify-center font-black text-xs shadow-inner">
+                            {initials}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-xs font-black text-slate-900 dark:text-white truncate">
+                                {fullName}
+                            </p>
+                            <p className="text-[10px] text-amber-600 font-bold truncate uppercase tracking-tight">
+                                Administrador
+                            </p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={logout}
+                        className="w-full mt-3 flex items-center justify-center gap-2 py-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors"
+                    >
+                        <span className="material-symbols-outlined text-sm">logout</span>
+                        Cerrar Sesión
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default AdminSidebar;
