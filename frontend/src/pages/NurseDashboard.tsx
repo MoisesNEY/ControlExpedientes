@@ -21,10 +21,10 @@ const NurseDashboard = () => {
         <div className="flex w-full h-screen bg-slate-50 dark:bg-slate-950 font-sans text-slate-900 dark:text-slate-100 overflow-hidden">
             {/* Sidebar */}
             <aside className={`
-                fixed inset - y - 0 left - 0 z - 50 w - 64 bg - slate - 900 text - slate - 300 flex flex - col
-transition - transform duration - 300 ease -in -out lg: translate - x - 0 lg: static
+                fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 text-slate-300 flex flex-col 
+                transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static
                 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-`}>
+            `}>
                 <div className="p-6 flex items-center gap-3 border-b border-white/10">
                     <div className="w-10 h-10 bg-rose-500 rounded-xl flex items-center justify-center shadow-lg shadow-rose-500/30">
                         <span className="material-symbols-outlined font-bold text-white">vital_signs</span>
@@ -50,10 +50,10 @@ transition - transform duration - 300 ease -in -out lg: translate - x - 0 lg: st
                     </div>
 
                     <nav className="space-y-1">
-                        <button onClick={() => { setActiveTab('PacientesTriage'); setIsSidebarOpen(false); }} className={`w - full flex items - center gap - 3 px - 4 py - 3 rounded - xl text - sm font - bold transition - all ${activeTab === 'PacientesTriage' ? 'bg-rose-500 text-white shadow-md shadow-rose-500/20' : 'hover:bg-white/5 hover:text-white'} `}>
+                        <button onClick={() => { setActiveTab('PacientesTriage'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === 'PacientesTriage' ? 'bg-rose-500 text-white shadow-md shadow-rose-500/20' : 'hover:bg-white/5 hover:text-white'}`}>
                             <span className="material-symbols-outlined">accessible</span> Pacientes & Triaje
                         </button>
-                        <button onClick={() => { setActiveTab('Inventario'); setIsSidebarOpen(false); }} className={`w - full flex items - center gap - 3 px - 4 py - 3 rounded - xl text - sm font - bold transition - all ${activeTab === 'Inventario' ? 'bg-rose-500 text-white shadow-md shadow-rose-500/20' : 'hover:bg-white/5 hover:text-white'} `}>
+                        <button onClick={() => { setActiveTab('Inventario'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === 'Inventario' ? 'bg-rose-500 text-white shadow-md shadow-rose-500/20' : 'hover:bg-white/5 hover:text-white'}`}>
                             <span className="material-symbols-outlined">medication</span> Suministros
                         </button>
                     </nav>
@@ -91,4 +91,3 @@ transition - transform duration - 300 ease -in -out lg: translate - x - 0 lg: st
 };
 
 export default NurseDashboard;
-```
