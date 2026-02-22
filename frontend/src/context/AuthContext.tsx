@@ -1,11 +1,18 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import keycloak from '../keycloak';
-import { UserService, type UserAccount } from '../services/userService';
+import api from '../services/api';
+
+export interface UserAccount {
+    login: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    authorities: string[];
+}
 
 interface AuthContextType {
     isAuthenticated: boolean;
-    login: () => void;
-    logout: () => void;
+    login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
+    logout: () => Promise<void>;
     token: string | undefined;
     user: any;
     account: UserAccount | null;
@@ -20,51 +27,57 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [user, setUser] = useState<any>(null);
     const [account, setAccount] = useState<UserAccount | null>(null);
 
-    const isRun = React.useRef(false);
-
+    // On mount, check if there's an active session by calling GET /api/account
     useEffect(() => {
-        if (isRun.current) return;
-        isRun.current = true;
-
-        keycloak
-            .init({
-                onLoad: 'check-sso',
-                pkceMethod: 'S256',
-                checkLoginIframe: false // Desactivar iframe para evitar loops en localhost
-            })
-            .then((authenticated) => {
-                setIsAuthenticated(authenticated);
-                if (authenticated) {
-                    setUser(keycloak.tokenParsed);
-                    // Esperamos a que getAccount termine ANTES de quitar el loading screen
-                    // para evitar el flash hacia "Unauthorized" mientras Account aún es null
-                    UserService.getAccount()
-                        .then(setAccount)
-                        .catch(error => {
-                            console.error('Error fetching account data:', error);
-                        })
-                        .finally(() => {
-                            setLoading(false);
-                        });
-                } else {
-                    setLoading(false);
-                }
-            })
-            .catch((err) => {
-                console.error('Keycloak init error:', err);
-                setLoading(false);
-            });
+        checkSession();
     }, []);
 
-    const login = () => keycloak.login();
-    const logout = () => keycloak.logout({ redirectUri: window.location.origin });
+    const checkSession = async () => {
+        try {
+            const response = await api.get('/api/account');
+            setAccount(response.data);
+            setUser(response.data);
+            setIsAuthenticated(true);
+        } catch {
+            // No active session (401) — user needs to log in
+            setIsAuthenticated(false);
+            setAccount(null);
+            setUser(null);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const login = async (username: string, password: string): Promise<{ success: boolean; error?: string }> => {
+        try {
+            const response = await api.post('/api/authenticate', { username, password });
+            setAccount(response.data);
+            setUser(response.data);
+            setIsAuthenticated(true);
+            return { success: true };
+        } catch (error: any) {
+            const message = error.response?.data?.detail || error.response?.data?.error || 'Error de autenticación';
+            return { success: false, error: message };
+        }
+    };
+
+    const logout = async () => {
+        try {
+            await api.post('/api/logout');
+        } catch {
+            // Ignore errors on logout
+        }
+        setIsAuthenticated(false);
+        setAccount(null);
+        setUser(null);
+    };
 
     return (
         <AuthContext.Provider value={{
             isAuthenticated,
             login,
             logout,
-            token: keycloak.token,
+            token: undefined, // No token exposed to frontend in BFF pattern
             user,
             account,
             loading
