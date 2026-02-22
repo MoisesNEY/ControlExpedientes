@@ -60,7 +60,9 @@ public class SecurityConfiguration {
                         .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                         .csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler())
                         .ignoringRequestMatchers(mvc.pattern("/api/authenticate"), mvc.pattern("/api/logout")))
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
+                        .sessionFixation(sessionFixation -> sessionFixation.none()))
                 .authorizeHttpRequests(authz ->
                 // prettier-ignore
                 authz
