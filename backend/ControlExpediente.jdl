@@ -71,6 +71,7 @@ entity Receta {
   dosis String required
   frecuencia String required
   duracion String required
+  cantidad Integer required
 }
 
 entity CitaMedica {
@@ -96,7 +97,7 @@ entity AuditoriaAcciones {
   entidad String required
   accion String required
   fecha ZonedDateTime required
-  descripcion String
+  descripcion String maxlength(1000)
 }
 
 // =====================

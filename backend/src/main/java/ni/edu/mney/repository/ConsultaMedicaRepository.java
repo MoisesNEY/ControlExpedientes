@@ -13,7 +13,8 @@ import org.springframework.stereotype.Repository;
  * Spring Data JPA repository for the ConsultaMedica entity.
  */
 @Repository
-public interface ConsultaMedicaRepository extends JpaRepository<ConsultaMedica, Long>, JpaSpecificationExecutor<ConsultaMedica> {
+public interface ConsultaMedicaRepository
+        extends JpaRepository<ConsultaMedica, Long>, JpaSpecificationExecutor<ConsultaMedica> {
     @Query("select consultaMedica from ConsultaMedica consultaMedica where consultaMedica.user.login = ?#{authentication.name}")
     List<ConsultaMedica> findByUserIsCurrentUser();
 
@@ -29,10 +30,7 @@ public interface ConsultaMedicaRepository extends JpaRepository<ConsultaMedica, 
         return this.findAllWithToOneRelationships(pageable);
     }
 
-    @Query(
-        value = "select consultaMedica from ConsultaMedica consultaMedica left join fetch consultaMedica.user",
-        countQuery = "select count(consultaMedica) from ConsultaMedica consultaMedica"
-    )
+    @Query(value = "select consultaMedica from ConsultaMedica consultaMedica left join fetch consultaMedica.user", countQuery = "select count(consultaMedica) from ConsultaMedica consultaMedica")
     Page<ConsultaMedica> findAllWithToOneRelationships(Pageable pageable);
 
     @Query("select consultaMedica from ConsultaMedica consultaMedica left join fetch consultaMedica.user")
@@ -40,4 +38,8 @@ public interface ConsultaMedicaRepository extends JpaRepository<ConsultaMedica, 
 
     @Query("select consultaMedica from ConsultaMedica consultaMedica left join fetch consultaMedica.user where consultaMedica.id =:id")
     Optional<ConsultaMedica> findOneWithToOneRelationships(@Param("id") Long id);
+
+    @EntityGraph(attributePaths = { "user", "diagnosticos", "tratamientos", "signosVitales", "recetas",
+            "recetas.medicamento" })
+    Optional<ConsultaMedica> findOneWithDetailsById(Long id);
 }

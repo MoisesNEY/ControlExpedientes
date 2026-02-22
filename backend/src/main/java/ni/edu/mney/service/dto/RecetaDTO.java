@@ -21,6 +21,10 @@ public class RecetaDTO implements Serializable {
     @NotNull
     private String duracion;
 
+    @NotNull
+    @Min(value = 1)
+    private Integer cantidad;
+
     private MedicamentoDTO medicamento;
 
     private ConsultaMedicaDTO consulta;
@@ -55,6 +59,14 @@ public class RecetaDTO implements Serializable {
 
     public void setDuracion(String duracion) {
         this.duracion = duracion;
+    }
+
+    public Integer getCantidad() {
+        return cantidad;
+    }
+
+    public void setCantidad(Integer cantidad) {
+        this.cantidad = cantidad;
     }
 
     public MedicamentoDTO getMedicamento() {
@@ -98,12 +110,13 @@ public class RecetaDTO implements Serializable {
     @Override
     public String toString() {
         return "RecetaDTO{" +
-            "id=" + getId() +
-            ", dosis='" + getDosis() + "'" +
-            ", frecuencia='" + getFrecuencia() + "'" +
-            ", duracion='" + getDuracion() + "'" +
-            ", medicamento=" + getMedicamento() +
-            ", consulta=" + getConsulta() +
-            "}";
+                "id=" + getId() +
+                ", dosis='" + getDosis() + "'" +
+                ", frecuencia='" + getFrecuencia() + "'" +
+                ", duracion='" + getDuracion() + "'" +
+                ", cantidad=" + getCantidad() +
+                ", medicamento=" + getMedicamento() +
+                ", consulta=" + getConsulta() +
+                "}";
     }
 }

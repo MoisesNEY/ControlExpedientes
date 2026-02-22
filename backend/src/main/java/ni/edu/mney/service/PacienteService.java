@@ -1,9 +1,12 @@
 package ni.edu.mney.service;
 
+import java.time.LocalDate;
 import java.util.Optional;
 import ni.edu.mney.domain.Paciente;
 import ni.edu.mney.repository.PacienteRepository;
+import ni.edu.mney.service.dto.ExpedienteClinicoDTO;
 import ni.edu.mney.service.dto.PacienteDTO;
+import ni.edu.mney.service.dto.PacientePublicDTO;
 import ni.edu.mney.service.mapper.PacienteMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,9 +26,15 @@ public class PacienteService {
 
     private final PacienteMapper pacienteMapper;
 
-    public PacienteService(PacienteRepository pacienteRepository, PacienteMapper pacienteMapper) {
+    private final ExpedienteClinicoService expedienteClinicoService;
+
+    public PacienteService(
+            PacienteRepository pacienteRepository,
+            PacienteMapper pacienteMapper,
+            ExpedienteClinicoService expedienteClinicoService) {
         this.pacienteRepository = pacienteRepository;
         this.pacienteMapper = pacienteMapper;
+        this.expedienteClinicoService = expedienteClinicoService;
     }
 
     /**
@@ -37,6 +46,19 @@ public class PacienteService {
     public PacienteDTO save(PacienteDTO pacienteDTO) {
         LOG.debug("Request to save Paciente : {}", pacienteDTO);
         Paciente paciente = pacienteMapper.toEntity(pacienteDTO);
+
+        // Automate Clinical Record creation if it doesn't exist
+        if (paciente.getExpediente() == null) {
+            ExpedienteClinicoDTO expedienteDTO = new ExpedienteClinicoDTO();
+            expedienteDTO.setNumeroExpediente(expedienteClinicoService.generateNextNumeroExpediente());
+            expedienteDTO.setFechaApertura(LocalDate.now());
+            expedienteDTO.setObservaciones("Apertura automática por registro de paciente");
+
+            expedienteDTO = expedienteClinicoService.save(expedienteDTO);
+            pacienteDTO.setExpediente(expedienteDTO);
+            paciente = pacienteMapper.toEntity(pacienteDTO);
+        }
+
         paciente = pacienteRepository.save(paciente);
         return pacienteMapper.toDto(paciente);
     }
@@ -64,14 +86,14 @@ public class PacienteService {
         LOG.debug("Request to partially update Paciente : {}", pacienteDTO);
 
         return pacienteRepository
-            .findById(pacienteDTO.getId())
-            .map(existingPaciente -> {
-                pacienteMapper.partialUpdate(existingPaciente, pacienteDTO);
+                .findById(pacienteDTO.getId())
+                .map(existingPaciente -> {
+                    pacienteMapper.partialUpdate(existingPaciente, pacienteDTO);
 
-                return existingPaciente;
-            })
-            .map(pacienteRepository::save)
-            .map(pacienteMapper::toDto);
+                    return existingPaciente;
+                })
+                .map(pacienteRepository::save)
+                .map(pacienteMapper::toDto);
     }
 
     /**
@@ -83,7 +105,19 @@ public class PacienteService {
     @Transactional(readOnly = true)
     public Optional<PacienteDTO> findOne(Long id) {
         LOG.debug("Request to get Paciente : {}", id);
-        return pacienteRepository.findById(id).map(pacienteMapper::toDto);
+        return pacienteRepository.findOneWithEagerRelationships(id).map(pacienteMapper::toDto);
+    }
+
+    /**
+     * Get one public paciente by id.
+     *
+     * @param id the id of the entity.
+     * @return the entity.
+     */
+    @Transactional(readOnly = true)
+    public Optional<PacientePublicDTO> findOnePublic(Long id) {
+        LOG.debug("Request to get public Paciente : {}", id);
+        return pacienteRepository.findById(id).map(pacienteMapper::toPublicDto);
     }
 
     /**
