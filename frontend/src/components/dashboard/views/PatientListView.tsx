@@ -2,19 +2,11 @@ import { useState, useEffect } from 'react';
 import api from '../../../services/api';
 import { usePatient } from '../../../context/PatientContext';
 
-interface Paciente {
-    id: number;
-    nombre: string;
-    identificacion: string;
-    sexo: string;
-    celular: string;
-    email: string;
-    fechaNacimiento: string;
-}
+import { PacienteService, type PacienteDTO } from '../../../services/paciente.service';
 
 const PatientListView = () => {
     const { selectPatient } = usePatient();
-    const [pacientes, setPacientes] = useState<Paciente[]>([]);
+    const [pacientes, setPacientes] = useState<PacienteDTO[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
 
@@ -23,11 +15,9 @@ const PatientListView = () => {
             setLoading(true);
             try {
                 // Using JHipster criteria for name filtering
-                const url = searchTerm
-                    ? `/api/pacientes?nombre.contains=${searchTerm}`
-                    : '/api/pacientes';
-                const response = await api.get(url);
-                setPacientes(response.data);
+                const params = searchTerm ? { 'nombres.contains': searchTerm } : {};
+                const response = await PacienteService.getAll(params);
+                setPacientes(response);
             } catch (error) {
                 console.error('Error fetching patients:', error);
             } finally {
@@ -39,13 +29,13 @@ const PatientListView = () => {
         return () => clearTimeout(timeoutId);
     }, [searchTerm]);
 
-    const handleAttend = (p: Paciente) => {
+    const handleAttend = (p: PacienteDTO) => {
         selectPatient({
             id: `PX-${p.id}`,
-            name: p.nombre,
+            name: `${p.nombres} ${p.apellidos}`,
             age: calculateAge(p.fechaNacimiento),
-            gender: p.sexo === 'MASCULINO' ? 'Masculino' : 'Femenino',
-            status: 'Activo',
+            gender: p.sexo === 'MASCULINO' ? 'Masculino' : p.sexo === 'FEMENINO' ? 'Femenino' : 'Otro',
+            status: p.activo ? 'Activo' : 'Inactivo',
             image: `https://i.pravatar.cc/150?u=${p.id}`
         });
     };
@@ -123,23 +113,23 @@ const PatientListView = () => {
                                                     <img src={`https://i.pravatar.cc/150?u=${p.id}`} alt="" />
                                                 </div>
                                                 <div>
-                                                    <p className="font-bold text-slate-800 dark:text-white leading-tight">{p.nombre}</p>
+                                                    <p className="font-bold text-slate-800 dark:text-white leading-tight">{p.nombres} {p.apellidos}</p>
                                                     <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Expediente: XP-{2024}-{p.id}</p>
                                                 </div>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <span className="text-sm font-medium text-slate-600 dark:text-slate-400">{p.identificacion || 'N/A'}</span>
+                                            <span className="text-sm font-medium text-slate-600 dark:text-slate-400">{p.cedula || 'N/A'}</span>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <span className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase ${p.sexo === 'MASCULINO' ? 'bg-blue-100 text-blue-600' : 'bg-pink-100 text-pink-600'}`}>
+                                            <span className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase ${p.sexo === 'MASCULINO' ? 'bg-blue-100 text-blue-600' : p.sexo === 'FEMENINO' ? 'bg-pink-100 text-pink-600' : 'bg-purple-100 text-purple-600'}`}>
                                                 {p.sexo}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="flex flex-col">
-                                                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{p.celular}</span>
-                                                <span className="text-[11px] text-slate-400">{p.email}</span>
+                                                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{p.telefono || 'Sin teléfono'}</span>
+                                                <span className="text-[11px] text-slate-400">{p.email || 'Sin email'}</span>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 text-right">
