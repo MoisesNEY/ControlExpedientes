@@ -23,17 +23,6 @@ import Login from './pages/Login';
 function App() {
   const { loading, account } = useAuth();
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-900">
-        <div className="flex flex-col items-center gap-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-slate-200 border-t-primary"></div>
-          <span className="text-slate-500 font-medium">Cargando aplicación...</span>
-        </div>
-      </div>
-    );
-  }
-
   // Rutas por defecto basadas en el Rol principal
   const getDefaultRoute = () => {
     if (!account?.authorities) return '/login';
@@ -46,55 +35,64 @@ function App() {
 
   return (
     <Router>
-      <Routes>
-        {/* Rutas Públicas */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/unauthorized" element={<Unauthorized />} />
+      {loading ? (
+        <div className="flex items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-900">
+          <div className="flex flex-col items-center gap-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-slate-200 border-t-primary"></div>
+            <span className="text-slate-500 font-medium">Cargando aplicación...</span>
+          </div>
+        </div>
+      ) : (
+        <Routes>
+          {/* Rutas Públicas */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/unauthorized" element={<Unauthorized />} />
 
-        {/* Rutas Protegidas por Rol */}
-        <Route element={<ProtectedRoute allowedRoles={['ROLE_ADMIN']} />}>
-          <Route path="/admin" element={<AdminDashboard />}>
-            <Route index element={<AdminHomeView />} />
-            <Route path="pacientes" element={<AdminPacientesView />} />
-            <Route path="medicamentos" element={<AdminMedicamentosView />} />
-            <Route path="citas" element={<AdminCitasView />} />
-            <Route path="expedientes" element={<AdminExpedientesView />} />
-            <Route path="auditoria" element={<AdminAuditoriaView />} />
+          {/* Rutas Protegidas por Rol */}
+          <Route element={<ProtectedRoute allowedRoles={['ROLE_ADMIN']} />}>
+            <Route path="/admin" element={<AdminDashboard />}>
+              <Route index element={<AdminHomeView />} />
+              <Route path="pacientes" element={<AdminPacientesView />} />
+              <Route path="medicamentos" element={<AdminMedicamentosView />} />
+              <Route path="citas" element={<AdminCitasView />} />
+              <Route path="expedientes" element={<AdminExpedientesView />} />
+              <Route path="auditoria" element={<AdminAuditoriaView />} />
+            </Route>
           </Route>
-        </Route>
 
-        <Route element={<ProtectedRoute allowedRoles={['ROLE_ADMIN', 'ROLE_MEDICO']} />}>
-          <Route path="/medico" element={<DoctorDashboard />}>
-            <Route index element={<DoctorHomeView />} />
-            <Route path="pacientes" element={<PatientListView />} />
-            <Route path="citas" element={<AppointmentView />} />
-            <Route path="inventario" element={<InventoryView />} />
-            <Route path="registros" element={<RecordsView />} />
+          <Route element={<ProtectedRoute allowedRoles={['ROLE_ADMIN', 'ROLE_MEDICO']} />}>
+            <Route path="/medico" element={<DoctorDashboard />}>
+              <Route index element={<DoctorHomeView />} />
+              <Route path="pacientes" element={<PatientListView />} />
+              <Route path="citas" element={<AppointmentView />} />
+              <Route path="inventario" element={<InventoryView />} />
+              <Route path="registros" element={<RecordsView />} />
+            </Route>
           </Route>
-        </Route>
 
-        <Route element={<ProtectedRoute allowedRoles={['ROLE_ADMIN', 'ROLE_ENFERMERO']} />}>
-          <Route path="/enfermeria" element={<NurseDashboard />}>
-            <Route index element={<AdminCitasView />} />
-            <Route path="triage" element={<AdminCitasView />} />
-            <Route path="inventario" element={<InventoryView />} />
+          <Route element={<ProtectedRoute allowedRoles={['ROLE_ADMIN', 'ROLE_ENFERMERO']} />}>
+            <Route path="/enfermeria" element={<NurseDashboard />}>
+              <Route index element={<AdminCitasView />} />
+              <Route path="triage" element={<AdminCitasView />} />
+              <Route path="inventario" element={<InventoryView />} />
+            </Route>
           </Route>
-        </Route>
 
-        <Route element={<ProtectedRoute allowedRoles={['ROLE_ADMIN', 'ROLE_RECEPCION']} />}>
-          <Route path="/recepcion" element={<ReceptionDashboard />}>
-            <Route index element={<AdminPacientesView />} />
-            <Route path="pacientes" element={<AdminPacientesView />} />
-            <Route path="citas" element={<AdminCitasView />} />
+          <Route element={<ProtectedRoute allowedRoles={['ROLE_ADMIN', 'ROLE_RECEPCION']} />}>
+            <Route path="/recepcion" element={<ReceptionDashboard />}>
+              <Route index element={<AdminPacientesView />} />
+              <Route path="pacientes" element={<AdminPacientesView />} />
+              <Route path="citas" element={<AdminCitasView />} />
+            </Route>
           </Route>
-        </Route>
 
-        {/* Redirección Base */}
-        <Route path="/" element={<Navigate to={getDefaultRoute()} replace />} />
+          {/* Redirección Base */}
+          <Route path="/" element={<Navigate to={getDefaultRoute()} replace />} />
 
-        {/* Fallback 404 - Redirige al inicio para que re-evalúe los roles */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+          {/* Fallback 404 - Redirige al inicio para que re-evalúe los roles */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      )}
     </Router>
   );
 }
