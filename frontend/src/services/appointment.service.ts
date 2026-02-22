@@ -5,16 +5,14 @@ export interface Appointment {
     fechaHora: string;
     estado: 'PROGRAMADA' | 'ATENDIDA' | 'CANCELADA';
     observaciones?: string;
-    paciente: {
+    paciente?: {
         id: number;
-        nombre: string;
-        identificacion?: string;
-        fechaNacimiento?: string;
-        sexo?: string;
+        nombres?: string;
+        apellidos?: string;
     };
     user?: {
         id: string;
-        login: string;
+        login?: string;
     };
 }
 
