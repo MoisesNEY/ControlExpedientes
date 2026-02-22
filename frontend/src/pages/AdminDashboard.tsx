@@ -1,32 +1,21 @@
 import { useState } from 'react';
+import { Outlet, useNavigate } from 'react-router-dom';
 import AdminSidebar from '../components/admin/AdminSidebar';
-import AdminHomeView from '../components/admin/views/AdminHomeView';
-import AdminPacientesView from '../components/admin/views/AdminPacientesView';
-import AdminMedicamentosView from '../components/admin/views/AdminMedicamentosView';
-import AdminCitasView from '../components/admin/views/AdminCitasView';
-import AdminExpedientesView from '../components/admin/views/AdminExpedientesView';
-import AdminAuditoriaView from '../components/admin/views/AdminAuditoriaView';
 
 const AdminDashboard = () => {
-    const [activeTab, setActiveTab] = useState('Dashboard');
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const navigate = useNavigate();
 
-    const renderContent = () => {
-        switch (activeTab) {
+    const handleNavigate = (tab: string) => {
+        setIsSidebarOpen(false);
+        switch (tab) {
+            case 'Pacientes': navigate('pacientes'); break;
+            case 'Medicamentos': navigate('medicamentos'); break;
+            case 'Citas': navigate('citas'); break;
+            case 'Expedientes': navigate('expedientes'); break;
+            case 'Auditoría': navigate('auditoria'); break;
             case 'Dashboard':
-                return <AdminHomeView />;
-            case 'Pacientes':
-                return <AdminPacientesView />;
-            case 'Medicamentos':
-                return <AdminMedicamentosView />;
-            case 'Citas':
-                return <AdminCitasView />;
-            case 'Expedientes':
-                return <AdminExpedientesView />;
-            case 'Auditoría':
-                return <AdminAuditoriaView />;
-            default:
-                return <AdminHomeView />;
+            default: navigate(''); break;
         }
     };
 
@@ -58,17 +47,13 @@ const AdminDashboard = () => {
                     onClick={() => setIsSidebarOpen(false)}
                 />
                 <AdminSidebar
-                    onNavigate={(tab) => {
-                        setActiveTab(tab);
-                        setIsSidebarOpen(false);
-                    }}
-                    currentTab={activeTab}
+                    onNavigate={handleNavigate}
                 />
             </div>
 
             {/* Contenido Principal */}
             <main className="flex-1 flex flex-col min-w-0 h-full overflow-y-auto relative custom-scrollbar">
-                {renderContent()}
+                <Outlet />
             </main>
         </div>
     );

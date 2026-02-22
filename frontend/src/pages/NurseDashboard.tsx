@@ -1,21 +1,15 @@
 
 import { useState } from 'react';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import AdminCitasView from '../components/admin/views/AdminCitasView';
-import InventoryView from '../components/dashboard/views/InventoryView';
 
 const NurseDashboard = () => {
     const { logout, account } = useAuth();
-    const [activeTab, setActiveTab] = useState('PacientesTriage');
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const navigate = useNavigate();
+    const location = useLocation();
 
-    const renderContent = () => {
-        switch (activeTab) {
-            case 'PacientesTriage': return <AdminCitasView />;
-            case 'Inventario': return <InventoryView />;
-            default: return <AdminCitasView />;
-        }
-    };
+    const isActive = (path: string) => location.pathname.endsWith(path);
 
     return (
         <div className="flex w-full h-screen bg-slate-50 dark:bg-slate-950 font-sans text-slate-900 dark:text-slate-100 overflow-hidden">
@@ -50,10 +44,10 @@ const NurseDashboard = () => {
                     </div>
 
                     <nav className="space-y-1">
-                        <button onClick={() => { setActiveTab('PacientesTriage'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === 'PacientesTriage' ? 'bg-rose-500 text-white shadow-md shadow-rose-500/20' : 'hover:bg-white/5 hover:text-white'}`}>
-                            <span className="material-symbols-outlined">accessible</span> Pacientes & Triaje
+                        <button onClick={() => { navigate('triage'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${isActive('triage') || isActive('enfermeria') ? 'bg-rose-500 text-white shadow-md shadow-rose-500/20' : 'hover:bg-white/5 hover:text-white'}`}>
+                            <span className="material-symbols-outlined">accessible</span> Pacientes &amp; Triaje
                         </button>
-                        <button onClick={() => { setActiveTab('Inventario'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === 'Inventario' ? 'bg-rose-500 text-white shadow-md shadow-rose-500/20' : 'hover:bg-white/5 hover:text-white'}`}>
+                        <button onClick={() => { navigate('inventario'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${isActive('inventario') ? 'bg-rose-500 text-white shadow-md shadow-rose-500/20' : 'hover:bg-white/5 hover:text-white'}`}>
                             <span className="material-symbols-outlined">medication</span> Suministros
                         </button>
                     </nav>
@@ -83,7 +77,7 @@ const NurseDashboard = () => {
                 </header>
 
                 <div className="custom-scrollbar flex-1 overflow-y-auto">
-                    {renderContent()}
+                    <Outlet />
                 </div>
             </main>
         </div>

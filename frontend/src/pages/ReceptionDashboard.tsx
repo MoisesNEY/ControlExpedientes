@@ -1,20 +1,14 @@
 import { useState } from 'react';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import AdminPacientesView from '../components/admin/views/AdminPacientesView';
-import AdminCitasView from '../components/admin/views/AdminCitasView';
 
 const ReceptionDashboard = () => {
     const { logout, account } = useAuth();
-    const [activeTab, setActiveTab] = useState('Pacientes');
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const navigate = useNavigate();
+    const location = useLocation();
 
-    const renderContent = () => {
-        switch (activeTab) {
-            case 'Pacientes': return <AdminPacientesView />;
-            case 'Citas': return <AdminCitasView />;
-            default: return <AdminPacientesView />;
-        }
-    };
+    const isActive = (path: string) => location.pathname.endsWith(path);
 
     return (
         <div className="flex w-full h-screen bg-slate-50 dark:bg-slate-950 font-sans text-slate-900 dark:text-slate-100 overflow-hidden">
@@ -49,10 +43,10 @@ const ReceptionDashboard = () => {
                     </div>
 
                     <nav className="space-y-1">
-                        <button onClick={() => { setActiveTab('Pacientes'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === 'Pacientes' ? 'bg-teal-500 text-white shadow-md shadow-teal-500/20' : 'hover:bg-white/5 hover:text-white'}`}>
+                        <button onClick={() => { navigate('pacientes'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${isActive('pacientes') || isActive('recepcion') ? 'bg-teal-500 text-white shadow-md shadow-teal-500/20' : 'hover:bg-white/5 hover:text-white'}`}>
                             <span className="material-symbols-outlined">groups</span> Admisión
                         </button>
-                        <button onClick={() => { setActiveTab('Citas'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === 'Citas' ? 'bg-teal-500 text-white shadow-md shadow-teal-500/20' : 'hover:bg-white/5 hover:text-white'}`}>
+                        <button onClick={() => { navigate('citas'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${isActive('citas') ? 'bg-teal-500 text-white shadow-md shadow-teal-500/20' : 'hover:bg-white/5 hover:text-white'}`}>
                             <span className="material-symbols-outlined">calendar_month</span> Agenda
                         </button>
                     </nav>
@@ -82,7 +76,7 @@ const ReceptionDashboard = () => {
                 </header>
 
                 <div className="custom-scrollbar flex-1 overflow-y-auto">
-                    {renderContent()}
+                    <Outlet />
                 </div>
             </main>
         </div>
