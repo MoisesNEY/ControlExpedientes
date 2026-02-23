@@ -58,20 +58,20 @@ const PatientListView = () => {
     };
 
     return (
-        <div className="p-8 space-y-6">
-            <div className="flex justify-between items-center">
+        <div className="p-4 md:p-8 space-y-4 md:space-y-6">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h2 className="text-2xl font-black text-slate-900 dark:text-white transition-colors">Base de Datos de Pacientes</h2>
-                    <p className="text-slate-500 text-sm font-medium">Búsqueda global y gestión de expedientes.</p>
+                    <h2 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white transition-colors">Base de Datos de Pacientes</h2>
+                    <p className="text-slate-500 text-xs md:text-sm font-medium">Búsqueda global y gestión de expedientes.</p>
                 </div>
-                <button className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/30 hover:scale-105 transition-transform">
+                <button className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/30 hover:scale-105 transition-transform">
                     <span className="material-symbols-outlined">person_add</span>
                     Nuevo Paciente
                 </button>
             </div>
 
             <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden transition-colors">
-                <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex flex-col md:flex-row gap-4 items-center justify-between">
+                <div className="p-4 md:p-6 border-b border-slate-100 dark:border-slate-800 flex flex-col md:flex-row gap-4 items-center justify-between">
                     <div className="relative w-full md:w-96">
                         <span className="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400">search</span>
                         <input
@@ -79,10 +79,10 @@ const PatientListView = () => {
                             placeholder="Buscar por nombre o identificación..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-sm outline-none focus:ring-2 focus:ring-primary transition-all"
+                            className="w-full pl-12 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-xs outline-none focus:ring-2 focus:ring-primary transition-all"
                         />
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 w-full md:w-auto justify-end">
                         <button className="p-3 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-500 hover:text-primary transition-colors">
                             <span className="material-symbols-outlined">filter_list</span>
                         </button>
@@ -92,8 +92,8 @@ const PatientListView = () => {
                     </div>
                 </div>
 
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left">
+                <div className="overflow-x-auto scrollbar-hide">
+                    <table className="w-full text-left min-w-[800px]">
                         <thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-500 text-[10px] font-black uppercase tracking-widest">
                             <tr>
                                 <th className="px-6 py-4">Paciente</th>

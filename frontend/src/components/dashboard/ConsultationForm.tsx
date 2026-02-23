@@ -153,9 +153,9 @@ const ConsultationForm = () => {
     };
 
     return (
-        <div className="p-8 max-w-5xl mx-auto w-full flex flex-col gap-6 transition-colors duration-300 pb-32">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-white dark:bg-slate-900 p-5 rounded-lg shadow-sm border border-slate-200 dark:border-slate-800">
+        <div className="p-4 md:p-8 max-w-5xl mx-auto w-full flex flex-col gap-4 md:gap-6 transition-colors duration-300 pb-32">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+                <div className="bg-white dark:bg-slate-900 p-4 md:p-5 rounded-lg shadow-sm border border-slate-200 dark:border-slate-800">
                     <label className="flex flex-col w-full">
                         <p className="text-slate-800 dark:text-slate-200 text-sm font-bold mb-2 flex items-center gap-2">
                             <span className="material-symbols-outlined text-primary text-[18px]">emergency</span>
@@ -164,12 +164,12 @@ const ConsultationForm = () => {
                         <textarea
                             value={motivo}
                             onChange={(e) => setMotivo(e.target.value)}
-                            className="w-full min-h-[120px] rounded-lg text-slate-800 dark:text-slate-200 border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 focus:ring-primary focus:border-primary transition-all p-3 text-sm outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                            className="w-full min-h-[100px] md:min-h-[120px] rounded-lg text-slate-800 dark:text-slate-200 border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 focus:ring-primary focus:border-primary transition-all p-3 text-sm outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500"
                             placeholder="Ej: Dolor lumbar agudo tras esfuerzo físico..."
                         ></textarea>
                     </label>
                 </div>
-                <div className="bg-white dark:bg-slate-900 p-5 rounded-lg shadow-sm border border-slate-200 dark:border-slate-800">
+                <div className="bg-white dark:bg-slate-900 p-4 md:p-5 rounded-lg shadow-sm border border-slate-200 dark:border-slate-800">
                     <label className="flex flex-col w-full">
                         <p className="text-slate-800 dark:text-slate-200 text-sm font-bold mb-2 flex items-center gap-2">
                             <span className="material-symbols-outlined text-primary text-[18px]">medical_information</span>
@@ -178,7 +178,7 @@ const ConsultationForm = () => {
                         <textarea
                             value={notas}
                             onChange={(e) => setNotas(e.target.value)}
-                            className="w-full min-h-[120px] rounded-lg text-slate-800 dark:text-slate-200 border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 focus:ring-primary focus:border-primary transition-all p-3 text-sm outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                            className="w-full min-h-[100px] md:min-h-[120px] rounded-lg text-slate-800 dark:text-slate-200 border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 focus:ring-primary focus:border-primary transition-all p-3 text-sm outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500"
                             placeholder="Observaciones clínicas, historial relevante..."
                         ></textarea>
                     </label>
@@ -186,19 +186,19 @@ const ConsultationForm = () => {
             </div>
 
             {/* Diagnóstico */}
-            <div className="bg-white dark:bg-slate-900 p-5 rounded-lg shadow-sm border border-slate-200 dark:border-slate-800">
+            <div className="bg-white dark:bg-slate-900 p-4 md:p-5 rounded-lg shadow-sm border border-slate-200 dark:border-slate-800">
                 <h3 className="text-slate-800 dark:text-slate-200 text-sm font-bold mb-4 flex items-center gap-2">
                     <span className="material-symbols-outlined text-primary text-[18px]">diagnosis</span>
                     Diagnóstico Principal (ICD-10)
                 </h3>
 
                 {diagnosticoSeleccionado ? (
-                    <div className="flex items-center justify-between bg-primary/10 border border-primary/20 p-4 rounded-xl">
-                        <div className="flex items-center gap-4">
-                            <div className="bg-primary text-white text-xs font-black px-2 py-1 rounded-md">{diagnosticoSeleccionado.codigoIcd10}</div>
-                            <span className="text-slate-800 dark:text-slate-200 font-bold">{diagnosticoSeleccionado.nombre}</span>
+                    <div className="flex flex-col md:flex-row items-start md:items-center justify-between bg-primary/10 border border-primary/20 p-4 rounded-xl gap-3">
+                        <div className="flex items-center gap-3 md:gap-4">
+                            <div className="bg-primary text-white text-[10px] md:text-xs font-black px-2 py-1 rounded-md flex-shrink-0">{diagnosticoSeleccionado.codigoIcd10}</div>
+                            <span className="text-slate-800 dark:text-slate-200 font-bold text-sm md:text-base">{diagnosticoSeleccionado.nombre}</span>
                         </div>
-                        <button onClick={() => setDiagnosticoSeleccionado(null)} className="text-slate-400 hover:text-red-500 transition-colors">
+                        <button onClick={() => setDiagnosticoSeleccionado(null)} className="text-slate-400 hover:text-red-500 transition-colors self-end md:self-auto">
                             <span className="material-symbols-outlined">cancel</span>
                         </button>
                     </div>
@@ -210,7 +210,7 @@ const ConsultationForm = () => {
                         <input
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                            className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                             placeholder="Buscar código o descripción ICD-10..."
                         />
                         {searchResults.length > 0 && (
@@ -228,20 +228,20 @@ const ConsultationForm = () => {
             </div>
 
             {/* Prescripciones */}
-            <div className="bg-white dark:bg-slate-900 p-5 rounded-lg shadow-sm border border-slate-200 dark:border-slate-800">
-                <div className="flex justify-between items-center mb-4">
+            <div className="bg-white dark:bg-slate-900 p-4 md:p-5 rounded-lg shadow-sm border border-slate-200 dark:border-slate-800">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
                     <h3 className="text-slate-800 dark:text-slate-200 text-sm font-bold flex items-center gap-2">
                         <span className="material-symbols-outlined text-primary text-[18px]">prescriptions</span>
                         Plan de Tratamiento y Recetas
                     </h3>
-                    <div className="relative">
+                    <div className="relative w-full sm:w-auto">
                         <span className={`absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400 ${isSearchingMed ? 'animate-spin' : ''}`}>
                             {isSearchingMed ? 'sync' : 'search'}
                         </span>
                         <input
                             value={medQuery}
                             onChange={(e) => setMedQuery(e.target.value)}
-                            className="text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg pl-8 pr-3 py-1.5 outline-none focus:ring-1 focus:ring-primary w-48"
+                            className="text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg pl-8 pr-3 py-1.5 outline-none focus:ring-1 focus:ring-primary w-full sm:w-48"
                             placeholder="Añadir medicamento..."
                         />
                         {showMedResults && medResults.length > 0 && (
@@ -257,8 +257,8 @@ const ConsultationForm = () => {
                     </div>
                 </div>
 
-                <div className="overflow-x-auto rounded-xl border border-slate-100 dark:border-slate-800">
-                    <table className="w-full text-sm text-left">
+                <div className="overflow-x-auto scrollbar-hide rounded-xl border border-slate-100 dark:border-slate-800">
+                    <table className="w-full text-sm text-left min-w-[600px]">
                         <thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-500 uppercase text-[10px] font-black tracking-widest transition-colors">
                             <tr>
                                 <th className="px-6 py-4">Medicamento</th>
@@ -291,15 +291,15 @@ const ConsultationForm = () => {
             </div>
 
             {/* Vitals inputs */}
-            <div className="bg-white dark:bg-slate-900 p-5 rounded-lg shadow-sm border border-slate-200 dark:border-slate-800 transition-colors">
+            <div className="bg-white dark:bg-slate-900 p-4 md:p-5 rounded-lg shadow-sm border border-slate-200 dark:border-slate-800 transition-colors">
                 <h3 className="text-slate-800 dark:text-slate-200 text-sm font-bold mb-4 flex items-center gap-2">
                     <span className="material-symbols-outlined text-primary text-[18px]">monitoring</span>
-                    Signos Vitales Seleccionados
+                    Signos Vitales
                 </h3>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 md:gap-6">
                     {Object.entries(vitals).map(([key, value]) => (
                         <div key={key} className="flex flex-col gap-2">
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                            <span className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest truncate">
                                 {key === 'presionArterial' ? 'Presión Art.' : key.charAt(0).toUpperCase() + key.slice(1)}
                             </span>
                             <input
@@ -307,23 +307,23 @@ const ConsultationForm = () => {
                                 step="0.1"
                                 value={value}
                                 onChange={(e) => setVitals({ ...vitals, [key]: typeof value === 'number' ? parseFloat(e.target.value) : e.target.value })}
-                                className="bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700/50 rounded-xl px-4 py-2 text-sm font-black text-slate-900 dark:text-white transition-all focus:ring-2 focus:ring-primary outline-none"
+                                className="bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700/50 rounded-xl px-3 md:px-4 py-2 text-xs md:text-sm font-black text-slate-900 dark:text-white transition-all focus:ring-2 focus:ring-primary outline-none"
                             />
                         </div>
                     ))}
                 </div>
             </div>
 
-            <div className="fixed bottom-8 right-[352px] z-20">
+            <div className="fixed bottom-6 md:bottom-8 right-6 md:right-8 lg:right-[352px] z-20">
                 <button
                     onClick={handleSave}
                     disabled={isSaving}
-                    className={`flex items-center gap-3 px-10 py-4 bg-primary text-white rounded-full font-black shadow-2xl shadow-primary/40 hover:bg-primary/95 hover:scale-105 active:scale-95 transition-all text-xs uppercase tracking-widest ${isSaving ? 'opacity-70 cursor-not-allowed' : ''}`}
+                    className={`flex items-center gap-3 px-6 md:px-10 py-3 md:py-4 bg-primary text-white rounded-full font-black shadow-2xl shadow-primary/40 hover:bg-primary/95 hover:scale-105 active:scale-95 transition-all text-[10px] md:text-xs uppercase tracking-widest ${isSaving ? 'opacity-70 cursor-not-allowed' : ''}`}
                 >
-                    <span className={`material-symbols-outlined text-[20px] ${isSaving ? 'animate-spin' : ''}`}>
+                    <span className={`material-symbols-outlined text-[18px] md:text-[20px] ${isSaving ? 'animate-spin' : ''}`}>
                         {isSaving ? 'sync' : 'task_alt'}
                     </span>
-                    {isSaving ? 'Guardando...' : 'Finalizar Acto Clínico'}
+                    {isSaving ? 'Guardando...' : 'Finalizar Consulta'}
                 </button>
             </div>
         </div>

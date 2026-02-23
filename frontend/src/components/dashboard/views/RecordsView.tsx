@@ -49,11 +49,11 @@ const RecordsView = () => {
     };
 
     return (
-        <div className="p-8 space-y-6">
+        <div className="p-4 md:p-8 space-y-4 md:space-y-6">
             <div className="flex justify-between items-center">
                 <div>
-                    <h2 className="text-2xl font-black text-slate-900 dark:text-white transition-colors">Historial de Consultas</h2>
-                    <p className="text-slate-500 text-sm font-medium">Registros históricos de todas las atenciones médicas realizadas.</p>
+                    <h2 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white transition-colors">Historial de Consultas</h2>
+                    <p className="text-slate-500 text-xs md:text-sm font-medium">Registros históricos de todas las atenciones médicas realizadas.</p>
                 </div>
             </div>
 
@@ -66,13 +66,13 @@ const RecordsView = () => {
                             placeholder="Buscar por motivo de consulta..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-sm outline-none focus:ring-2 focus:ring-primary transition-all"
+                            className="w-full pl-12 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-xs outline-none focus:ring-2 focus:ring-primary transition-all"
                         />
                     </div>
                 </div>
 
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left">
+                <div className="overflow-x-auto scrollbar-hide">
+                    <table className="w-full text-left min-w-[900px]">
                         <thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-500 text-[10px] font-black uppercase tracking-widest transition-colors">
                             <tr>
                                 <th className="px-6 py-4">Fecha</th>

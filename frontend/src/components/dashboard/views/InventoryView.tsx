@@ -39,11 +39,11 @@ const InventoryView = () => {
     };
 
     return (
-        <div className="p-8 space-y-6">
-            <div className="flex justify-between items-center">
+        <div className="p-4 md:p-8 space-y-4 md:space-y-6">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h2 className="text-2xl font-black text-slate-900 dark:text-white">Inventario Farmacéutico</h2>
-                    <p className="text-slate-500 text-sm font-medium">Consulta de stock y disponibilidad de medicamentos.</p>
+                    <h2 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white">Inventario Farmacéutico</h2>
+                    <p className="text-slate-500 text-xs md:text-sm font-medium">Consulta de stock y disponibilidad de medicamentos.</p>
                 </div>
                 <div className="bg-primary/10 text-primary px-4 py-2 rounded-xl border border-primary/20 flex items-center gap-2">
                     <span className="material-symbols-outlined text-[18px]">info</span>
@@ -60,13 +60,13 @@ const InventoryView = () => {
                             placeholder="Buscar medicamento..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-sm outline-none focus:ring-2 focus:ring-primary transition-all"
+                            className="w-full pl-12 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-xs outline-none focus:ring-2 focus:ring-primary transition-all"
                         />
                     </div>
                 </div>
 
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left">
+                <div className="overflow-x-auto scrollbar-hide">
+                    <table className="w-full text-left min-w-[700px]">
                         <thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-500 text-[10px] font-black uppercase tracking-widest">
                             <tr>
                                 <th className="px-6 py-4">Medicamento</th>

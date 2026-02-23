@@ -70,15 +70,15 @@ const DoctorHomeView = () => {
     }
 
     return (
-        <div className="p-8 max-w-5xl mx-auto w-full flex flex-col gap-8 transition-colors duration-300">
+        <div className="p-4 md:p-8 max-w-5xl mx-auto w-full flex flex-col gap-6 md:gap-8 transition-colors duration-300">
             {/* Bienvenida */}
             <div className="flex flex-col gap-1">
-                <h2 className="text-slate-900 dark:text-white text-3xl font-black tracking-tight">¡Buen día, {user?.given_name || 'Doctor'}!</h2>
-                <p className="text-slate-500 font-medium tracking-tight">Aquí tienes el resumen de tu jornada para hoy, {new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long' })}.</p>
+                <h2 className="text-slate-900 dark:text-white text-2xl md:text-3xl font-black tracking-tight">¡Buen día, {user?.given_name || 'Doctor'}!</h2>
+                <p className="text-slate-500 text-sm md:text-base font-medium tracking-tight">Aquí tienes el resumen de tu jornada para hoy, {new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long' })}.</p>
             </div>
 
             {/* Estadísticas Rápidas */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                 <StatCard label="Citas Hoy" value={stats.totalToday.toString()} icon="calendar_month" color="bg-primary" />
                 <StatCard label="Pacientes Atendidos" value={stats.attendedToday.toString()} icon="check_circle" color="bg-success" />
                 <StatCard label="Nuevos Expedientes" value="-" icon="person_add" color="bg-orange-500" />
@@ -93,8 +93,8 @@ const DoctorHomeView = () => {
                     </h3>
                     <button className="text-xs font-bold text-primary hover:underline">Ver calendario completo</button>
                 </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left">
+                <div className="overflow-x-auto scrollbar-hide">
+                    <table className="w-full text-left min-w-[600px]">
                         <thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-500 uppercase text-[10px] font-black tracking-widest">
                             <tr>
                                 <th className="px-6 py-4">Hora</th>
