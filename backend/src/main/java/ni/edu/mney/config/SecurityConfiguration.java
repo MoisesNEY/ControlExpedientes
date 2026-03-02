@@ -9,6 +9,7 @@ import java.util.*;
 import java.util.function.Supplier;
 import ni.edu.mney.security.*;
 import ni.edu.mney.security.SecurityUtils;
+import ni.edu.mney.security.SessionAuthFilter;
 import ni.edu.mney.security.oauth2.AudienceValidator;
 import ni.edu.mney.security.oauth2.CustomClaimConverter;
 import org.springframework.beans.factory.annotation.Value;
@@ -21,14 +22,9 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.mapping.GrantedAuthoritiesMapper;
-import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserRequest;
-import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserService;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
-import org.springframework.security.oauth2.client.userinfo.OAuth2UserService;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.core.OAuth2TokenValidator;
-import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser;
-import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.oauth2.core.oidc.user.OidcUserAuthority;
 import org.springframework.security.oauth2.jwt.*;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
@@ -38,46 +34,53 @@ import org.springframework.security.web.servlet.util.matcher.MvcRequestMatcher;
 import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.handler.HandlerMappingIntrospector;
 import tech.jhipster.config.JHipsterProperties;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 @EnableMethodSecurity(securedEnabled = true)
 public class SecurityConfiguration {
 
     private final JHipsterProperties jHipsterProperties;
+    private final SessionAuthFilter sessionAuthFilter;
 
     @Value("${spring.security.oauth2.client.provider.oidc.issuer-uri}")
     private String issuerUri;
 
-    public SecurityConfiguration(JHipsterProperties jHipsterProperties) {
+    public SecurityConfiguration(JHipsterProperties jHipsterProperties, SessionAuthFilter sessionAuthFilter) {
         this.jHipsterProperties = jHipsterProperties;
+        this.sessionAuthFilter = sessionAuthFilter;
     }
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, MvcRequestMatcher.Builder mvc) throws Exception {
         http
-            .cors(withDefaults())
-            .csrf(csrf ->
-                csrf
-                    .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
-                    .csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler())
-            )
-            .authorizeHttpRequests(authz ->
+                .cors(withDefaults())
+                .csrf(csrf -> csrf
+                        .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                        .csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler())
+                        .ignoringRequestMatchers(mvc.pattern("/api/authenticate"), mvc.pattern("/api/logout")))
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
+                        .sessionFixation(sessionFixation -> sessionFixation.none()))
+                .authorizeHttpRequests(authz ->
                 // prettier-ignore
                 authz
-                    .requestMatchers(mvc.pattern("/api/authenticate")).permitAll()
-                    .requestMatchers(mvc.pattern("/api/auth-info")).permitAll()
-                    .requestMatchers(mvc.pattern("/api/admin/**")).hasAuthority(AuthoritiesConstants.ADMIN)
-                    .requestMatchers(mvc.pattern("/api/**")).authenticated()
-                    .requestMatchers(mvc.pattern("/v3/api-docs/**")).hasAuthority(AuthoritiesConstants.ADMIN)
-                    .requestMatchers(mvc.pattern("/management/health")).permitAll()
-                    .requestMatchers(mvc.pattern("/management/health/**")).permitAll()
-                    .requestMatchers(mvc.pattern("/management/info")).permitAll()
-                    .requestMatchers(mvc.pattern("/management/prometheus")).permitAll()
-                    .requestMatchers(mvc.pattern("/management/**")).hasAuthority(AuthoritiesConstants.ADMIN)
-            )
-            .oauth2Login(oauth2 -> oauth2.loginPage("/").userInfoEndpoint(userInfo -> userInfo.oidcUserService(this.oidcUserService())))
-            .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(authenticationConverter())))
-            .oauth2Client(withDefaults());
+                        .requestMatchers(mvc.pattern("/api/authenticate")).permitAll()
+                        .requestMatchers(mvc.pattern("/api/auth-info")).permitAll()
+                        .requestMatchers(mvc.pattern("/api/admin/**")).hasAuthority(AuthoritiesConstants.ADMIN)
+                        .requestMatchers(mvc.pattern("/api/**")).authenticated()
+                        .requestMatchers(mvc.pattern("/v3/api-docs/**")).hasAuthority(AuthoritiesConstants.ADMIN)
+                        .requestMatchers(mvc.pattern("/management/health")).permitAll()
+                        .requestMatchers(mvc.pattern("/management/health/**")).permitAll()
+                        .requestMatchers(mvc.pattern("/management/info")).permitAll()
+                        .requestMatchers(mvc.pattern("/management/prometheus")).permitAll()
+                        .requestMatchers(mvc.pattern("/management/**")).hasAuthority(AuthoritiesConstants.ADMIN))
+                // BFF pattern: no oauth2Login redirect, use session-based auth filter instead
+                .addFilterBefore(sessionAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                .oauth2ResourceServer(
+                        oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(authenticationConverter())))
+                .oauth2Client(withDefaults());
         return http.build();
     }
 
@@ -89,31 +92,21 @@ public class SecurityConfiguration {
     Converter<Jwt, AbstractAuthenticationToken> authenticationConverter() {
         JwtAuthenticationConverter jwtAuthenticationConverter = new JwtAuthenticationConverter();
         jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter(
-            new Converter<Jwt, Collection<GrantedAuthority>>() {
-                @Override
-                public Collection<GrantedAuthority> convert(Jwt jwt) {
-                    return SecurityUtils.extractAuthorityFromClaims(jwt.getClaims());
-                }
-            }
-        );
+                new Converter<Jwt, Collection<GrantedAuthority>>() {
+                    @Override
+                    public Collection<GrantedAuthority> convert(Jwt jwt) {
+                        return SecurityUtils.extractAuthorityFromClaims(jwt.getClaims());
+                    }
+                });
         jwtAuthenticationConverter.setPrincipalClaimName(PREFERRED_USERNAME);
         return jwtAuthenticationConverter;
-    }
-
-    OAuth2UserService<OidcUserRequest, OidcUser> oidcUserService() {
-        final OidcUserService delegate = new OidcUserService();
-
-        return userRequest -> {
-            OidcUser oidcUser = delegate.loadUser(userRequest);
-            return new DefaultOidcUser(oidcUser.getAuthorities(), oidcUser.getIdToken(), oidcUser.getUserInfo(), PREFERRED_USERNAME);
-        };
     }
 
     /**
      * Map authorities from "groups" or "roles" claim in ID Token.
      *
      * @return a {@link GrantedAuthoritiesMapper} that maps groups from
-     * the IdP to Spring Security Authorities.
+     *         the IdP to Spring Security Authorities.
      */
     @Bean
     public GrantedAuthoritiesMapper userAuthoritiesMapper() {
@@ -125,7 +118,8 @@ public class SecurityConfiguration {
                 // each scope as a GrantedAuthority, which we don't care about.
                 if (authority instanceof OidcUserAuthority) {
                     OidcUserAuthority oidcUserAuthority = (OidcUserAuthority) authority;
-                    mappedAuthorities.addAll(SecurityUtils.extractAuthorityFromClaims(oidcUserAuthority.getUserInfo().getClaims()));
+                    mappedAuthorities.addAll(
+                            SecurityUtils.extractAuthorityFromClaims(oidcUserAuthority.getUserInfo().getClaims()));
                 }
             });
             return mappedAuthorities;
@@ -133,27 +127,35 @@ public class SecurityConfiguration {
     }
 
     @Bean
-    JwtDecoder jwtDecoder(ClientRegistrationRepository clientRegistrationRepository, RestTemplateBuilder restTemplateBuilder) {
+    JwtDecoder jwtDecoder(ClientRegistrationRepository clientRegistrationRepository,
+            RestTemplateBuilder restTemplateBuilder) {
         NimbusJwtDecoder jwtDecoder = JwtDecoders.fromOidcIssuerLocation(issuerUri);
 
-        OAuth2TokenValidator<Jwt> audienceValidator = new AudienceValidator(jHipsterProperties.getSecurity().getOauth2().getAudience());
+        OAuth2TokenValidator<Jwt> audienceValidator = new AudienceValidator(
+                jHipsterProperties.getSecurity().getOauth2().getAudience());
         OAuth2TokenValidator<Jwt> withIssuer = JwtValidators.createDefaultWithIssuer(issuerUri);
         OAuth2TokenValidator<Jwt> withAudience = new DelegatingOAuth2TokenValidator<>(withIssuer, audienceValidator);
 
         jwtDecoder.setJwtValidator(withAudience);
         jwtDecoder.setClaimSetConverter(
-            new CustomClaimConverter(clientRegistrationRepository.findByRegistrationId("oidc"), restTemplateBuilder.build())
-        );
+                new CustomClaimConverter(clientRegistrationRepository.findByRegistrationId("oidc"),
+                        restTemplateBuilder.build()));
 
         return jwtDecoder;
     }
 
     /**
-     * Custom CSRF handler to provide BREACH protection for Single-Page Applications (SPA).
+     * Custom CSRF handler to provide BREACH protection for Single-Page Applications
+     * (SPA).
      *
-     * @see <a href="https://docs.spring.io/spring-security/reference/servlet/exploits/csrf.html#csrf-integration-javascript-spa">Spring Security Documentation - Integrating with CSRF Protection</a>
-     * @see <a href="https://github.com/jhipster/generator-jhipster/pull/25907">JHipster - use customized SpaCsrfTokenRequestHandler to handle CSRF token</a>
-     * @see <a href="https://stackoverflow.com/q/74447118/65681">CSRF protection not working with Spring Security 6</a>
+     * @see <a href=
+     *      "https://docs.spring.io/spring-security/reference/servlet/exploits/csrf.html#csrf-integration-javascript-spa">Spring
+     *      Security Documentation - Integrating with CSRF Protection</a>
+     * @see <a href=
+     *      "https://github.com/jhipster/generator-jhipster/pull/25907">JHipster -
+     *      use customized SpaCsrfTokenRequestHandler to handle CSRF token</a>
+     * @see <a href="https://stackoverflow.com/q/74447118/65681">CSRF protection not
+     *      working with Spring Security 6</a>
      */
     static final class SpaCsrfTokenRequestHandler implements CsrfTokenRequestHandler {
 
@@ -163,21 +165,26 @@ public class SecurityConfiguration {
         @Override
         public void handle(HttpServletRequest request, HttpServletResponse response, Supplier<CsrfToken> csrfToken) {
             /*
-             * Always use XorCsrfTokenRequestAttributeHandler to provide BREACH protection of
+             * Always use XorCsrfTokenRequestAttributeHandler to provide BREACH protection
+             * of
              * the CsrfToken when it is rendered in the response body.
              */
             this.xor.handle(request, response, csrfToken);
 
-            // Render the token value to a cookie by causing the deferred token to be loaded.
+            // Render the token value to a cookie by causing the deferred token to be
+            // loaded.
             csrfToken.get();
         }
 
         @Override
         public String resolveCsrfTokenValue(HttpServletRequest request, CsrfToken csrfToken) {
             /*
-             * If the request contains a request header, use CsrfTokenRequestAttributeHandler
-             * to resolve the CsrfToken. This applies when a single-page application includes
-             * the header value automatically, which was obtained via a cookie containing the
+             * If the request contains a request header, use
+             * CsrfTokenRequestAttributeHandler
+             * to resolve the CsrfToken. This applies when a single-page application
+             * includes
+             * the header value automatically, which was obtained via a cookie containing
+             * the
              * raw CsrfToken.
              */
             if (StringUtils.hasText(request.getHeader(csrfToken.getHeaderName()))) {

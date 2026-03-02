@@ -13,14 +13,14 @@ const AppointmentView = () => {
 
     useEffect(() => {
         const fetchAppointments = async () => {
-            if (!user?.sub) return;
+            if (!user?.id) return;
             setLoading(true);
+
             try {
-                // For now, we use getRecentAppointments or getTodayAppointments
-                // but we can filter the result in the frontend for a more dynamic feel
-                const data = filter === 'HOY'
-                    ? await AppointmentService.getTodayAppointments(user.sub)
-                    : await AppointmentService.getRecentAppointments(user.sub);
+                // If filtering by upcoming, get todays, otherwise get recent history
+                const data = filter === 'upcoming'
+                    ? await AppointmentService.getTodayAppointments(user.id)
+                    : await AppointmentService.getRecentAppointments(user.id);
 
                 let filtered = data;
 
@@ -45,7 +45,7 @@ const AppointmentView = () => {
         };
 
         fetchAppointments();
-    }, [user?.sub, filter, searchTerm]);
+    }, [user?.id, filter, searchTerm]);
 
     const handleAttend = (appointment: Appointment) => {
         selectPatient({
