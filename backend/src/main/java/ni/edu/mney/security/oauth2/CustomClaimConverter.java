@@ -26,7 +26,8 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 /**
- * Claim converter to add custom claims by retrieving the user from the userinfo endpoint.
+ * Claim converter to add custom claims by retrieving the user from the userinfo
+ * endpoint.
  */
 public class CustomClaimConverter implements Converter<Map<String, Object>, Map<String, Object>> {
 
@@ -39,12 +40,13 @@ public class CustomClaimConverter implements Converter<Map<String, Object>, Map<
     private final ClientRegistration registration;
 
     // See https://github.com/jhipster/generator-jhipster/issues/18868
-    // We don't use a distributed cache or the user selected cache implementation here on purpose
+    // We don't use a distributed cache or the user selected cache implementation
+    // here on purpose
     private final Cache<String, ObjectNode> users = Caffeine.newBuilder()
-        .maximumSize(10_000)
-        .expireAfterWrite(Duration.ofHours(1))
-        .recordStats()
-        .build();
+            .maximumSize(10_000)
+            .expireAfterWrite(Duration.ofHours(1))
+            .recordStats()
+            .build();
 
     public CustomClaimConverter(ClientRegistration registration, RestTemplate restTemplate) {
         this.registration = registration;
@@ -61,17 +63,21 @@ public class CustomClaimConverter implements Converter<Map<String, Object>, Map<
         if (attributes instanceof ServletRequestAttributes) {
             // Retrieve and set the token
             String token = bearerTokenResolver.resolve(((ServletRequestAttributes) attributes).getRequest());
+            // In BFF pattern, there's no Bearer token in the request (only session cookie)
+            // Skip userinfo lookup if no token is available
+            if (token == null) {
+                return convertedClaims;
+            }
             HttpHeaders headers = new HttpHeaders();
             headers.setBearerAuth(token);
 
             // Retrieve user info from OAuth provider if not already loaded
             ObjectNode user = users.get(claims.get("sub").toString(), s -> {
                 ResponseEntity<ObjectNode> userInfo = restTemplate.exchange(
-                    registration.getProviderDetails().getUserInfoEndpoint().getUri(),
-                    HttpMethod.GET,
-                    new HttpEntity<String>(headers),
-                    ObjectNode.class
-                );
+                        registration.getProviderDetails().getUserInfoEndpoint().getUri(),
+                        HttpMethod.GET,
+                        new HttpEntity<String>(headers),
+                        ObjectNode.class);
                 return userInfo.getBody();
             });
 
@@ -96,13 +102,15 @@ public class CustomClaimConverter implements Converter<Map<String, Object>, Map<
                     }
                 }
                 if (user.has("groups")) {
-                    List<String> groups = StreamSupport.stream(user.get("groups").spliterator(), false).map(JsonNode::asText).toList();
+                    List<String> groups = StreamSupport.stream(user.get("groups").spliterator(), false)
+                            .map(JsonNode::asText).toList();
                     convertedClaims.put("groups", groups);
                 }
                 if (user.has(SecurityUtils.CLAIMS_NAMESPACE + "roles")) {
-                    List<String> roles = StreamSupport.stream(user.get(SecurityUtils.CLAIMS_NAMESPACE + "roles").spliterator(), false)
-                        .map(JsonNode::asText)
-                        .toList();
+                    List<String> roles = StreamSupport
+                            .stream(user.get(SecurityUtils.CLAIMS_NAMESPACE + "roles").spliterator(), false)
+                            .map(JsonNode::asText)
+                            .toList();
                     convertedClaims.put("roles", roles);
                 }
             }

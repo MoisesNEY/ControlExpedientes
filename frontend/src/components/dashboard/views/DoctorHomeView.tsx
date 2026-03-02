@@ -24,12 +24,12 @@ const DoctorHomeView = ({ onNavigate }: { onNavigate?: (tab: string) => void }) 
 
     useEffect(() => {
         const fetchData = async () => {
-            if (!user?.sub) return;
+            if (!user?.id) return;
             setLoading(true);
             try {
                 const [statData, appointmentData] = await Promise.all([
-                    AppointmentService.getAppointmentStats(user.sub),
-                    AppointmentService.getTodayAppointments(user.sub)
+                    AppointmentService.getAppointmentStats(user.id),
+                    AppointmentService.getTodayAppointments(user.id)
                 ]);
                 setStats(statData);
                 setAppointments(appointmentData);
@@ -41,7 +41,7 @@ const DoctorHomeView = ({ onNavigate }: { onNavigate?: (tab: string) => void }) 
         };
 
         fetchData();
-    }, [user?.sub]);
+    }, [user?.id]);
 
     const handleAttend = (appointment: Appointment) => {
         const paciente = appointment.paciente;
@@ -75,7 +75,7 @@ const DoctorHomeView = ({ onNavigate }: { onNavigate?: (tab: string) => void }) 
         <div className="p-4 md:p-8 max-w-5xl mx-auto w-full flex flex-col gap-6 md:gap-8 transition-colors duration-300">
             {/* Bienvenida */}
             <div className="flex flex-col gap-1">
-                <h2 className="text-slate-900 dark:text-white text-2xl md:text-3xl font-black tracking-tight">¡Buen día, {user?.given_name || 'Doctor'}!</h2>
+                <h2 className="text-slate-900 dark:text-white text-2xl md:text-3xl font-black tracking-tight">¡Buen día, {user?.firstName || 'Doctor'}!</h2>
                 <p className="text-slate-500 text-sm md:text-base font-medium tracking-tight">Aquí tienes el resumen de tu jornada para hoy, {new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long' })}.</p>
             </div>
 

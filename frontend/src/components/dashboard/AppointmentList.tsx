@@ -13,7 +13,7 @@ const AppointmentList: React.FC<AppointmentListProps> = ({ onNavigate }) => {
 
     useEffect(() => {
         const fetchTodayApts = async () => {
-            const userId = user?.sub || user?.id; // Intenta ambos por seguridad
+            const userId = user?.id;
             if (!userId) {
                 setLoading(false);
                 return;
@@ -32,7 +32,7 @@ const AppointmentList: React.FC<AppointmentListProps> = ({ onNavigate }) => {
         };
 
         fetchTodayApts();
-    }, [user?.sub, user?.id]);
+    }, [user?.id]);
 
     const getStatusColor = (status: string) => {
         switch (status) {
