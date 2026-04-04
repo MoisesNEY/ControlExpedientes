@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Navigate, useNavigate } from 'react-router-dom';
+import api from '../services/api';
+import { AppointmentService } from '../services/appointment.service';
 
 /* ─── SVG: Visualización abstracta de nodos médicos ─── */
 const NodePattern = () => (
@@ -80,8 +82,25 @@ const Login = () => {
             return;
         }
 
-        // Intentar reanudar consulta activa si existe y el usuario tiene rol médico
+        // Reanudar consulta médica activa desde el backend, no solo desde localStorage
         try {
+            const accountResponse = await api.get('/api/account');
+            const account = accountResponse.data;
+            const authorities = Array.isArray(account?.authorities) ? account.authorities : [];
+
+            if (authorities.includes('ROLE_MEDICO')) {
+                const activeConsultation = await AppointmentService.getActiveConsultation(String(account.id ?? account.login ?? ''));
+                if (activeConsultation?.id) {
+                    try {
+                        localStorage.setItem('activeConsultation', String(activeConsultation.id));
+                    } catch {
+                        // ignore
+                    }
+                    navigate(`/medico/consulta/${activeConsultation.id}`);
+                    return;
+                }
+            }
+
             const active = typeof window !== 'undefined' ? localStorage.getItem('activeConsultation') : null;
             if (active && hasAnyRole(['ROLE_MEDICO'])) {
                 navigate(`/medico/consulta/${active}`);
@@ -91,7 +110,26 @@ const Login = () => {
             // ignore
         }
 
-        // Por defecto dirigir al inicio
+        if (hasAnyRole(['ROLE_ADMIN'])) {
+            navigate('/admin/dashboard');
+            return;
+        }
+
+        if (hasAnyRole(['ROLE_MEDICO'])) {
+            navigate('/medico/dashboard');
+            return;
+        }
+
+        if (hasAnyRole(['ROLE_ENFERMERO'])) {
+            navigate('/enfermeria/dashboard');
+            return;
+        }
+
+        if (hasAnyRole(['ROLE_RECEPCION'])) {
+            navigate('/recepcion/dashboard');
+            return;
+        }
+
         navigate('/');
     };
 

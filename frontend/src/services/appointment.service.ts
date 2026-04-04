@@ -40,6 +40,20 @@ export const AppointmentService = {
         return response.data;
     },
 
+    getActiveConsultation: async (userId: string): Promise<Appointment | null> => {
+        const response = await api.get('/api/cita-medicas', {
+            params: {
+                'userId.equals': userId,
+                'estado.equals': 'EN_CONSULTA',
+                'size': 1,
+                'sort': 'fechaHora,desc'
+            }
+        });
+
+        const appointments = Array.isArray(response.data) ? response.data : [];
+        return appointments[0] ?? null;
+    },
+
     getTriageCompletedAppointments: async (userId: string): Promise<Appointment[]> => {
         const today = new Date();
         const startOfDay = new Date(today.setHours(0, 0, 0, 0)).toISOString();

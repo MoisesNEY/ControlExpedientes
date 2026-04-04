@@ -1,237 +1,313 @@
-import { useState, useEffect } from 'react';
-import { CitaService } from '../../../services/cita.service';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+    Bar,
+    BarChart,
+    CartesianGrid,
+    Cell,
+    Legend,
+    Line,
+    LineChart,
+    Pie,
+    PieChart,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis,
+} from 'recharts';
+import { DashboardEmptyState, DashboardLoading, DashboardMetricCard, DashboardPanel } from '../../analytics/DashboardPrimitives';
+import { DashboardService, type DashboardMetrics } from '../../../services/dashboard.service';
+import { AppButton } from '../../ui/AppButton';
 
-interface KpiCardProps {
-    icon: string;
-    label: string;
-    value: number | string;
-    color: string;
-    loading?: boolean;
-}
+const CARD_ICONS: Record<string, string> = {
+    citasHoy: 'calendar_today',
+    checkIn: 'how_to_reg',
+    enAtencion: 'local_hospital',
+    pacientesActivos: 'groups',
+};
+const CARD_ACCENTS = ['bg-sky-500', 'bg-amber-500', 'bg-violet-500', 'bg-emerald-500'];
+const STATUS_COLORS = ['#3b82f6', '#f59e0b', '#8b5cf6', '#14b8a6', '#22c55e', '#ef4444', '#64748b'];
+const DOCTOR_COLORS = ['#0ea5e9', '#f97316', '#8b5cf6', '#10b981', '#f43f5e', '#14b8a6'];
 
-const KpiCard = ({ icon, label, value, color, loading }: KpiCardProps) => (
-    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 flex items-center gap-5 shadow-sm hover:shadow-md transition-shadow">
-        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 ${color}`}>
-            <span className="material-symbols-outlined text-white text-2xl">{icon}</span>
-        </div>
-        <div>
-            {loading ? (
-                <div className="h-8 w-16 bg-slate-100 dark:bg-slate-800 rounded-lg animate-pulse mb-1" />
-            ) : (
-                <p className="text-3xl font-black text-slate-900 dark:text-white leading-none">{value}</p>
-            )}
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">{label}</p>
-        </div>
-    </div>
-);
+const getCardValue = (metrics: DashboardMetrics, key: string) => Number(metrics.cards.find(card => card.key === key)?.value ?? 0);
 
-interface QuickAction {
-    icon: string;
-    label: string;
-    description: string;
-    onClick: () => void;
-    color: string;
-}
-
-const QuickActionCard = ({ icon, label, description, onClick, color }: QuickAction) => (
-    <button
-        onClick={onClick}
-        className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-5 text-left hover:shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all w-full group"
-    >
-        <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${color} group-hover:shadow-lg transition-shadow`}>
-            <span className="material-symbols-outlined text-white">{icon}</span>
-        </div>
-        <p className="font-black text-slate-900 dark:text-white text-sm">{label}</p>
-        <p className="text-xs text-slate-500 mt-0.5">{description}</p>
-    </button>
-);
-
-interface AppointmentRow {
-    id?: number;
-    hora: string;
-    paciente: string;
-    medico: string;
-    estado: string;
-}
+const formatRatio = (value: number, total: number) => {
+    if (total <= 0) return '0%';
+    return `${Math.round((value / total) * 100)}%`;
+};
 
 const ReceptionHomeView = () => {
     const navigate = useNavigate();
-    const [kpis, setKpis] = useState({ total: 0, enEspera: 0, atendidas: 0, canceladas: 0 });
-    const [citasHoy, setCitasHoy] = useState<AppointmentRow[]>([]);
-    const [loadingKpis, setLoadingKpis] = useState(true);
-    const [loadingCitas, setLoadingCitas] = useState(true);
+    const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const loadData = async () => {
-            const today = new Date();
-            const startOfDay = new Date(today.setHours(0, 0, 0, 0)).toISOString();
-            const endOfDay = new Date(today.setHours(23, 59, 59, 999)).toISOString();
-
-            const baseParams = {
-                'fechaHora.greaterThanOrEqual': startOfDay,
-                'fechaHora.lessThanOrEqual': endOfDay,
-            };
-
+        const loadDashboard = async () => {
+            setLoading(true);
             try {
-                // Load KPIs in parallel
-                const [total, atendidas, canceladas] = await Promise.all([
-                    CitaService.count(baseParams),
-                    CitaService.count({ ...baseParams, 'estado.equals': 'ATENDIDA' }),
-                    CitaService.count({ ...baseParams, 'estado.equals': 'CANCELADA' }),
-                ]);
-                setKpis({
-                    total,
-                    enEspera: total - atendidas - canceladas,
-                    atendidas,
-                    canceladas,
-                });
-            } catch (e) {
-                console.error('Error loading KPIs', e);
+                setMetrics(await DashboardService.getReceptionDashboard());
+            } catch (error) {
+                console.error('Error fetching reception dashboard:', error);
             } finally {
-                setLoadingKpis(false);
-            }
-
-            // Load today's next appointments (limited)
-            try {
-                const citas = await CitaService.getAll({
-                    ...baseParams,
-                    'estado.equals': 'PROGRAMADA',
-                    sort: 'fechaHora,asc',
-                    size: 8,
-                });
-                setCitasHoy(citas.map(c => ({
-                    id: c.id,
-                    hora: new Date(c.fechaHora).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                    paciente: c.paciente?.nombres
-                        ? `${c.paciente.nombres} ${c.paciente.apellidos || ''}`.trim()
-                        : 'Sin nombre',
-                    medico: c.user?.login || 'Sin asignar',
-                    estado: c.estado,
-                })));
-            } catch (e) {
-                console.error('Error loading citas', e);
-            } finally {
-                setLoadingCitas(false);
+                setLoading(false);
             }
         };
 
-        loadData();
+        loadDashboard();
+        const interval = setInterval(loadDashboard, 60000);
+        return () => clearInterval(interval);
     }, []);
 
-    const estadoBadge = (estado: string) => {
-        switch (estado) {
-            case 'PROGRAMADA': return 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400';
-            case 'EN_SALA_ESPERA': return 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400';
-            case 'ATENDIDA': return 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400';
-            case 'CANCELADA': return 'bg-red-100 dark:bg-red-900/30 text-red-500 dark:text-red-400';
-            default: return 'bg-slate-100 dark:bg-slate-800 text-slate-500';
+    if (loading) {
+        return <DashboardLoading />;
+    }
+
+    if (!metrics) {
+        return <DashboardEmptyState message="No se pudieron cargar las métricas del panel de recepción." />;
+    }
+
+    const citasHoy = getCardValue(metrics, 'citasHoy');
+    const checkIn = getCardValue(metrics, 'checkIn');
+    const enAtencion = getCardValue(metrics, 'enAtencion');
+    const pacientesActivos = getCardValue(metrics, 'pacientesActivos');
+    const nextAppointment = metrics.queue[0] ?? metrics.spotlight ?? null;
+    const busiestDoctor = metrics.tertiarySeries.reduce<{ label: string; value: number } | null>((current, entry) => {
+        if (!current || entry.value > current.value) {
+            return { label: entry.label, value: entry.value };
         }
-    };
+        return current;
+    }, null);
 
     return (
-        <div className="p-6 md:p-8 space-y-8">
-            {/* Header */}
-            <div>
-                <h2 className="text-2xl font-black text-slate-900 dark:text-white">Panel de Recepción</h2>
-                <p className="text-slate-500 text-sm font-medium mt-1">
-                    {new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-                </p>
-            </div>
+        <div className="p-4 md:p-8 max-w-7xl mx-auto w-full flex flex-col gap-6 md:gap-8 transition-colors duration-300">
+            <div className="relative overflow-hidden rounded-[32px] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 md:p-8 shadow-sm">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.12),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(20,184,166,0.1),transparent_28%)] dark:bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.18),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(20,184,166,0.12),transparent_28%)]" />
+                <div className="relative grid gap-8 xl:grid-cols-[1.45fr_0.95fr] xl:items-start">
+                    <div className="space-y-5">
+                        <div>
+                            <p className="text-xs font-black uppercase tracking-[0.32em] text-sky-600 dark:text-sky-300">Front desk overview</p>
+                            <h2 className="mt-3 text-3xl md:text-4xl font-black tracking-tight text-slate-900 dark:text-white">Dashboard de Recepción</h2>
+                            <p className="mt-3 max-w-2xl text-sm md:text-base text-slate-600 dark:text-slate-300">
+                                Control en vivo de agenda, check-in y distribución de carga para sostener un ingreso fluido.
+                            </p>
+                        </div>
 
-            {/* KPI Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-                <KpiCard icon="calendar_today" label="Citas de Hoy" value={kpis.total} color="bg-primary" loading={loadingKpis} />
-                <KpiCard icon="hourglass_top" label="En Espera / Programadas" value={kpis.enEspera} color="bg-amber-500" loading={loadingKpis} />
-                <KpiCard icon="check_circle" label="Atendidas" value={kpis.atendidas} color="bg-emerald-500" loading={loadingKpis} />
-                <KpiCard icon="cancel" label="Canceladas" value={kpis.canceladas} color="bg-red-500" loading={loadingKpis} />
-            </div>
+                        <div className="grid gap-3 sm:grid-cols-3">
+                            <div className="rounded-2xl border border-sky-100 dark:border-sky-900/60 bg-sky-50/80 dark:bg-sky-950/30 px-4 py-3">
+                                <p className="text-[11px] font-black uppercase tracking-[0.22em] text-sky-700 dark:text-sky-300">Check-in completado</p>
+                                <p className="mt-2 text-2xl font-black text-slate-900 dark:text-white">{formatRatio(checkIn, citasHoy || checkIn)}</p>
+                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Citas del día que ya pasaron por recepción.</p>
+                            </div>
+                            <div className="rounded-2xl border border-teal-100 dark:border-teal-900/60 bg-teal-50/80 dark:bg-teal-950/30 px-4 py-3">
+                                <p className="text-[11px] font-black uppercase tracking-[0.22em] text-teal-700 dark:text-teal-300">Pacientes activos</p>
+                                <p className="mt-2 text-2xl font-black text-slate-900 dark:text-white">{pacientesActivos}</p>
+                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Pacientes con actividad en el flujo durante la jornada.</p>
+                            </div>
+                            <div className="rounded-2xl border border-cyan-100 dark:border-cyan-900/60 bg-cyan-50/80 dark:bg-cyan-950/30 px-4 py-3">
+                                <p className="text-[11px] font-black uppercase tracking-[0.22em] text-cyan-700 dark:text-cyan-300">Médico con más carga</p>
+                                <p className="mt-2 text-lg font-black leading-tight text-slate-900 dark:text-white">{busiestDoctor?.label || 'Sin datos'}</p>
+                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{busiestDoctor ? `${busiestDoctor.value} citas concentradas hoy.` : 'Aún no hay agenda asignada.'}</p>
+                            </div>
+                        </div>
 
-            {/* Quick Actions */}
-            <div>
-                <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-3">Acciones Rápidas</h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <QuickActionCard
-                        icon="person_add"
-                        label="Registrar Paciente"
-                        description="Nuevo ingreso al sistema"
-                        color="bg-primary"
-                        onClick={() => navigate('/recepcion/pacientes')}
-                    />
-                    <QuickActionCard
-                        icon="calendar_add_on"
-                        label="Nueva Cita"
-                        description="Agendar una cita médica"
-                        color="bg-violet-500"
-                        onClick={() => navigate('/recepcion/citas?action=new')}
-                    />
-                    <QuickActionCard
-                        icon="how_to_reg"
-                        label="Check-In Paciente"
-                        description="Registrar llegada del paciente"
-                        color="bg-amber-500"
-                        onClick={() => navigate('/recepcion/citas')}
-                    />
-                    <QuickActionCard
-                        icon="search"
-                        label="Buscar Paciente"
-                        description="Localizar expediente"
-                        color="bg-slate-600"
-                        onClick={() => navigate('/recepcion/pacientes')}
-                    />
+                        <div className="flex flex-wrap gap-3">
+                            <AppButton
+                                icon="calendar_month"
+                                onClick={() => navigate('/recepcion/citas')}
+                                className="bg-sky-500 text-white hover:bg-sky-600 shadow-lg shadow-sky-500/25"
+                            >
+                                Ir a agenda
+                            </AppButton>
+                            <AppButton
+                                variant="ghost"
+                                icon="how_to_reg"
+                                onClick={() => navigate('/recepcion/pacientes')}
+                                className="border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+                            >
+                                Registro base
+                            </AppButton>
+                            <AppButton
+                                variant="ghost"
+                                icon="refresh"
+                                onClick={() => window.location.reload()}
+                                className="border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+                            >
+                                Actualizar
+                            </AppButton>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col gap-4 xl:border-l xl:border-slate-200 xl:dark:border-slate-800 xl:pl-8">
+                        <div className="flex items-center justify-between gap-3">
+                            <div>
+                                <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">Próxima cita clave</p>
+                                <h3 className="mt-2 text-xl font-black text-slate-900 dark:text-white">{nextAppointment?.title || 'Agenda estable'}</h3>
+                            </div>
+                            <span className="rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-1 text-[11px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-slate-300">
+                                Auto 60s
+                            </span>
+                        </div>
+
+                        <p className="text-sm text-slate-500 dark:text-slate-400">
+                            {nextAppointment?.subtitle || nextAppointment?.meta || 'No hay citas pendientes inmediatas para intervenir desde recepción.'}
+                        </p>
+
+                        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/40 p-4">
+                            <div className="flex items-center justify-between gap-3 text-sm">
+                                <span className="text-slate-500 dark:text-slate-400">Hora estimada</span>
+                                <span className="font-black text-slate-900 dark:text-white">
+                                    {nextAppointment?.timestamp ? new Date(nextAppointment.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--'}
+                                </span>
+                            </div>
+                            <div className="mt-3 flex items-center justify-between gap-3 text-sm">
+                                <span className="text-slate-500 dark:text-slate-400">Estado</span>
+                                <span className="rounded-full bg-sky-100 dark:bg-sky-500/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-sky-700 dark:text-sky-300">
+                                    {nextAppointment?.status?.replaceAll('_', ' ') || 'SIN ALERTAS'}
+                                </span>
+                            </div>
+                            <p className="mt-4 text-sm text-slate-600 dark:text-slate-300">{nextAppointment?.meta || 'Sin observaciones adicionales para esta franja.'}</p>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 text-left">
+                            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 px-4 py-3">
+                                <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">En atención</p>
+                                <p className="mt-2 text-2xl font-black text-slate-900 dark:text-white">{enAtencion}</p>
+                            </div>
+                            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 px-4 py-3">
+                                <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">Próximas citas</p>
+                                <p className="mt-2 text-2xl font-black text-slate-900 dark:text-white">{metrics.queue.length}</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            {/* Today's schedule */}
-            <div>
-                <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest">Agenda de Hoy (Próximas Citas)</h3>
-                    <button
-                        onClick={() => navigate('/recepcion/citas')}
-                        className="text-xs font-black text-primary hover:underline"
-                    >
-                        Ver todo →
-                    </button>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-6">
+                {metrics.cards.map((card, index) => (
+                    <DashboardMetricCard
+                        key={card.key}
+                        label={card.label}
+                        value={card.value}
+                        helperText={card.helperText}
+                        icon={CARD_ICONS[card.key] || 'monitoring'}
+                        accent={CARD_ACCENTS[index % CARD_ACCENTS.length]}
+                    />
+                ))}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
+                    <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-400">Ritmo de ingreso</p>
+                    <p className="mt-3 text-3xl font-black text-slate-900 dark:text-white">{checkIn}</p>
+                    <p className="mt-2 text-sm text-slate-500">Pacientes ya registrados hoy frente al total agendado.</p>
                 </div>
-                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 overflow-hidden shadow-sm">
-                    {loadingCitas ? (
-                        <div className="p-6 space-y-3">
-                            {Array(4).fill(0).map((_, i) => (
-                                <div key={i} className="h-10 bg-slate-100 dark:bg-slate-800 rounded-xl animate-pulse" />
+                <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
+                    <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-400">Carga médica activa</p>
+                    <p className="mt-3 text-3xl font-black text-slate-900 dark:text-white">{metrics.tertiarySeries.length}</p>
+                    <p className="mt-2 text-sm text-slate-500">Médicos con agenda asignada visibles en el reparto actual.</p>
+                </div>
+                <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
+                    <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-400">Conversión a atención</p>
+                    <p className="mt-3 text-3xl font-black text-slate-900 dark:text-white">{formatRatio(enAtencion, citasHoy || enAtencion)}</p>
+                    <p className="mt-2 text-sm text-slate-500">Fracción de citas del día que ya avanzaron a atención clínica.</p>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                <div className="xl:col-span-2">
+                    <DashboardPanel title="Carga Horaria de la Agenda" icon="multiline_chart" actions={<span className="text-xs font-semibold text-slate-400">Capacidad por franja</span>}>
+                        {metrics.primarySeries.length > 0 ? (
+                            <ResponsiveContainer width="100%" height={320}>
+                                <LineChart data={metrics.primarySeries}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                                    <XAxis dataKey="label" tick={{ fontSize: 12 }} />
+                                    <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+                                    <Tooltip />
+                                    <Line type="monotone" dataKey="value" name="Citas" stroke="#0ea5e9" strokeWidth={3} dot={{ r: 4 }} />
+                                </LineChart>
+                            </ResponsiveContainer>
+                        ) : (
+                            <DashboardEmptyState message="No hay citas programadas hoy para mostrar la carga horaria." />
+                        )}
+                    </DashboardPanel>
+                </div>
+
+                <DashboardPanel title="Estados de Atención" icon="pie_chart" actions={<span className="text-xs font-semibold text-slate-400">Distribución operativa</span>}>
+                    {metrics.secondarySeries.length > 0 ? (
+                        <ResponsiveContainer width="100%" height={320}>
+                            <PieChart>
+                                <Pie data={metrics.secondarySeries} dataKey="value" nameKey="label" innerRadius={60} outerRadius={110} paddingAngle={3}>
+                                    {metrics.secondarySeries.map((entry, index) => (
+                                        <Cell key={entry.label} fill={STATUS_COLORS[index % STATUS_COLORS.length]} />
+                                    ))}
+                                </Pie>
+                                <Tooltip />
+                                <Legend />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    ) : (
+                        <DashboardEmptyState message="No hay estados de cita para mostrar en recepción." />
+                    )}
+                </DashboardPanel>
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                <div className="xl:col-span-2">
+                    <DashboardPanel title="Carga por Médico" icon="bar_chart" actions={<span className="text-xs font-semibold text-slate-400">Reparto de agenda</span>}>
+                        {metrics.tertiarySeries.length > 0 ? (
+                            <ResponsiveContainer width="100%" height={320}>
+                                <BarChart data={metrics.tertiarySeries}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                                    <XAxis dataKey="label" tick={{ fontSize: 12 }} />
+                                    <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+                                    <Tooltip />
+                                    <Bar dataKey="value" radius={[12, 12, 0, 0]}>
+                                        {metrics.tertiarySeries.map((entry, index) => (
+                                            <Cell key={entry.label} fill={DOCTOR_COLORS[index % DOCTOR_COLORS.length]} />
+                                        ))}
+                                    </Bar>
+                                </BarChart>
+                            </ResponsiveContainer>
+                        ) : (
+                            <DashboardEmptyState message="Aún no hay citas con médico asignado para construir este gráfico." />
+                        )}
+                    </DashboardPanel>
+                </div>
+
+                <DashboardPanel title="Próximas Citas del Día" icon="event_upcoming" actions={<span className="text-xs font-semibold text-slate-400">Seguimiento inmediato</span>}>
+                    {metrics.queue.length > 0 ? (
+                        <div className="space-y-3">
+                            {metrics.queue.map((item, index) => (
+                                <button
+                                    key={item.id ?? item.title}
+                                    onClick={() => navigate('/recepcion/citas')}
+                                    className="w-full text-left rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/30 p-4 hover:border-primary hover:bg-primary/5 transition-colors"
+                                >
+                                    <div className="flex items-start gap-4">
+                                        <div className={`mt-0.5 h-11 w-1.5 rounded-full ${index === 0 ? 'bg-sky-500' : index === 1 ? 'bg-cyan-500' : 'bg-emerald-500'}`} />
+                                        <div className="min-w-0 flex-1">
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div>
+                                                    <p className="font-bold text-slate-900 dark:text-white text-sm">{item.title}</p>
+                                                    <p className="text-xs text-slate-500 mt-1">{item.subtitle || 'Paciente agendado'}</p>
+                                                </div>
+                                                <span className="px-2.5 py-1 rounded-lg text-[10px] font-black uppercase bg-sky-100 text-sky-600 dark:bg-sky-500/10 dark:text-sky-300">
+                                                    {item.status?.replaceAll('_', ' ') || 'PENDIENTE'}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center justify-between mt-3 text-xs text-slate-400 gap-3">
+                                                <span>{item.timestamp ? new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--'}</span>
+                                                <span className="truncate max-w-[220px]">{item.meta}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </button>
                             ))}
                         </div>
-                    ) : citasHoy.length === 0 ? (
-                        <div className="py-16 text-center text-slate-400">
-                            <span className="material-symbols-outlined text-4xl block mb-2 opacity-40">event_busy</span>
-                            <p className="text-sm font-bold">No hay citas programadas para hoy</p>
-                        </div>
                     ) : (
-                        <table className="w-full text-left min-w-[600px]">
-                            <thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-500 text-[10px] font-black uppercase tracking-widest">
-                                <tr>
-                                    <th className="px-6 py-3">Hora</th>
-                                    <th className="px-6 py-3">Paciente</th>
-                                    <th className="px-6 py-3">Médico</th>
-                                    <th className="px-6 py-3">Estado</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                {citasHoy.map((c, idx) => (
-                                    <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-                                        <td className="px-6 py-3 font-black text-slate-900 dark:text-white text-sm">{c.hora}</td>
-                                        <td className="px-6 py-3 text-sm text-slate-700 dark:text-slate-300 font-semibold">{c.paciente}</td>
-                                        <td className="px-6 py-3 text-xs text-slate-500">{c.medico}</td>
-                                        <td className="px-6 py-3">
-                                            <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase ${estadoBadge(c.estado)}`}>
-                                                {c.estado === 'EN_SALA_ESPERA' ? 'En Sala' : c.estado}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                        <DashboardEmptyState message="No hay próximas citas pendientes para hoy." />
                     )}
-                </div>
+                </DashboardPanel>
             </div>
         </div>
     );

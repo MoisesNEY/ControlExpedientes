@@ -8,21 +8,37 @@ import { useWebSocket } from '../../hooks/useWebSocket';
 import ToastNotification from '../ui/ToastNotification';
 
 const SIDEBAR_STORAGE_KEY = 'scan-sidebar-collapsed';
+const DESKTOP_BREAKPOINT = 1024;
+
+const readSidebarPreference = () => {
+  if (typeof window === 'undefined') return false;
+  try {
+    return localStorage.getItem(SIDEBAR_STORAGE_KEY) === 'true';
+  } catch {
+    return false;
+  }
+};
+
+const writeSidebarPreference = (collapsed: boolean) => {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(SIDEBAR_STORAGE_KEY, String(collapsed));
+  } catch {
+    // Ignorar errores de almacenamiento del navegador
+  }
+};
 
 /**
  * Main Layout - El Director Responsable (Smart Component)
  * Controla el ciclo de vida del layout compartido, la lógica responsiva y la política del Sidebar.
  */
 export const MainLayout: React.FC = () => {
-
-  // ── Estado del Sidebar con persistencia en localStorage ──
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
-    // En mobile siempre inicia colapsado
-    if (typeof window !== 'undefined' && window.innerWidth < 1024) return true;
-    // En desktop, leer preferencia guardada
-    const saved = localStorage.getItem(SIDEBAR_STORAGE_KEY);
-    return saved !== null ? saved === 'true' : false;
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth < DESKTOP_BREAKPOINT;
   });
+  const [isDesktopSidebarCollapsed, setIsDesktopSidebarCollapsed] = useState(readSidebarPreference);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   const { hasAnyRole, roles } = useAuth();
   const location = useLocation();
@@ -30,45 +46,54 @@ export const MainLayout: React.FC = () => {
   // WebSocket: suscribirse a notificaciones de sala de espera
   const { notificaciones, clearNotificacion } = useWebSocket('/topic/espera');
 
-  // ── Persistir estado del sidebar en localStorage (solo desktop) ──
   const toggleSidebar = useCallback(() => {
-    setIsSidebarCollapsed(prev => {
-      const newValue = !prev;
-      // Solo persistir en desktop
-      if (window.innerWidth >= 1024) {
-        localStorage.setItem(SIDEBAR_STORAGE_KEY, String(newValue));
-      }
-      return newValue;
+    if (isMobile) {
+      setIsMobileSidebarOpen(prev => !prev);
+      return;
+    }
+
+    setIsDesktopSidebarCollapsed(prev => {
+      const nextValue = !prev;
+      writeSidebarPreference(nextValue);
+      return nextValue;
     });
+  }, [isMobile]);
+
+  const isSidebarCollapsed = isMobile ? !isMobileSidebarOpen : isDesktopSidebarCollapsed;
+
+  useEffect(() => {
+    if (isMobile) return;
+    writeSidebarPreference(isDesktopSidebarCollapsed);
+  }, [isDesktopSidebarCollapsed, isMobile]);
+
+  const closeMobileSidebar = useCallback(() => {
+    setIsMobileSidebarOpen(false);
   }, []);
 
   // ── Cerrar sidebar en mobile al cambiar de ruta ──
   useEffect(() => {
-    if (window.innerWidth < 1024) {
-      setIsSidebarCollapsed(true);
+    if (isMobile) {
+      setIsMobileSidebarOpen(false);
     }
-  }, [location.pathname]);
+  }, [isMobile, location.pathname]);
 
-  // ── Responsividad: solo aplica cambio automático al cruzar breakpoint ──
+  // ── Responsividad: separar estado móvil del mini-sidebar persistido en desktop ──
   useEffect(() => {
-    let lastWasMobile = window.innerWidth < 1024;
-
     const handleResize = () => {
-      const isMobile = window.innerWidth < 1024;
+      const nextIsMobile = window.innerWidth < DESKTOP_BREAKPOINT;
 
-      // Solo actuar cuando se CRUZA el breakpoint (no en cada resize)
-      if (isMobile && !lastWasMobile) {
-        // Se hizo móvil: colapsar
-        setIsSidebarCollapsed(true);
-      } else if (!isMobile && lastWasMobile) {
-        // Se hizo desktop: restaurar preferencia guardada
-        const saved = localStorage.getItem(SIDEBAR_STORAGE_KEY);
-        setIsSidebarCollapsed(saved === 'true');
+      setIsMobile(prevIsMobile => {
+        if (prevIsMobile !== nextIsMobile && nextIsMobile) {
+          setIsMobileSidebarOpen(false);
+        }
+        return nextIsMobile;
+      });
+
+      if (!nextIsMobile) {
+        setIsDesktopSidebarCollapsed(readSidebarPreference());
       }
-
-      lastWasMobile = isMobile;
     };
-    
+
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -92,7 +117,7 @@ export const MainLayout: React.FC = () => {
       <Sidebar 
         groups={allowedNavigation} 
         isCollapsed={isSidebarCollapsed}
-        onCloseMobile={() => setIsSidebarCollapsed(true)}
+        onCloseMobile={isMobile ? closeMobileSidebar : undefined}
       />
 
       {/* Contenedor Flex para Navbar Superior y Contenido Central */}

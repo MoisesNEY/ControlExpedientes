@@ -178,7 +178,7 @@ public class PacienteResource {
         LOG.debug("REST request to get Pacientes by criteria: {}", criteria);
 
         if (SecurityUtils.hasCurrentUserAnyOfAuthorities(AuthoritiesConstants.ADMIN, AuthoritiesConstants.MEDICO,
-                AuthoritiesConstants.ENFERMERO)) {
+            AuthoritiesConstants.ENFERMERO, AuthoritiesConstants.RECEPCION)) {
             Page<PacienteDTO> page = pacienteQueryService.findByCriteria(criteria, pageable);
             HttpHeaders headers = PaginationUtil
                     .generatePaginationHttpHeaders(ServletUriComponentsBuilder.fromCurrentRequest(), page);
@@ -217,7 +217,7 @@ public class PacienteResource {
     public ResponseEntity<?> getPaciente(@PathVariable("id") Long id) {
         LOG.debug("REST request to get Paciente : {}", id);
         if (SecurityUtils.hasCurrentUserAnyOfAuthorities(AuthoritiesConstants.ADMIN, AuthoritiesConstants.MEDICO,
-                AuthoritiesConstants.ENFERMERO)) {
+            AuthoritiesConstants.ENFERMERO, AuthoritiesConstants.RECEPCION)) {
             Optional<PacienteDTO> pacienteDTO = pacienteService.findOne(id);
             return ResponseUtil.wrapOrNotFound(pacienteDTO);
         } else {

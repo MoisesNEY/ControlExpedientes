@@ -73,6 +73,7 @@ public class CitaMedicaResource {
      * @throws URISyntaxException if the Location URI syntax is incorrect.
      */
     @PostMapping("")
+    @PreAuthorize("hasAnyAuthority('" + AuthoritiesConstants.ADMIN + "', '" + AuthoritiesConstants.RECEPCION + "')")
     public ResponseEntity<CitaMedicaDTO> createCitaMedica(@Valid @RequestBody CitaMedicaDTO citaMedicaDTO)
             throws URISyntaxException {
         LOG.debug("REST request to save CitaMedica : {}", citaMedicaDTO);
@@ -100,6 +101,7 @@ public class CitaMedicaResource {
      * @throws URISyntaxException if the Location URI syntax is incorrect.
      */
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('" + AuthoritiesConstants.ADMIN + "', '" + AuthoritiesConstants.RECEPCION + "')")
     public ResponseEntity<CitaMedicaDTO> updateCitaMedica(
             @PathVariable(value = "id", required = false) final Long id,
             @Valid @RequestBody CitaMedicaDTO citaMedicaDTO) throws URISyntaxException {
@@ -139,6 +141,8 @@ public class CitaMedicaResource {
      * @throws URISyntaxException if the Location URI syntax is incorrect.
      */
     @PatchMapping(value = "/{id}", consumes = { "application/json", "application/merge-patch+json" })
+        @PreAuthorize("hasAnyAuthority('" + AuthoritiesConstants.ADMIN + "', '" + AuthoritiesConstants.RECEPCION + "', '"
+            + AuthoritiesConstants.MEDICO + "', '" + AuthoritiesConstants.ENFERMERO + "')")
     public ResponseEntity<CitaMedicaDTO> partialUpdateCitaMedica(
             @PathVariable(value = "id", required = false) final Long id,
             @NotNull @RequestBody CitaMedicaDTO citaMedicaDTO) throws URISyntaxException {
@@ -171,6 +175,8 @@ public class CitaMedicaResource {
      *         of citaMedicas in body.
      */
     @GetMapping("")
+        @PreAuthorize("hasAnyAuthority('" + AuthoritiesConstants.ADMIN + "', '" + AuthoritiesConstants.RECEPCION + "', '"
+            + AuthoritiesConstants.MEDICO + "', '" + AuthoritiesConstants.ENFERMERO + "')")
     public ResponseEntity<List<CitaMedicaDTO>> getAllCitaMedicas(
             CitaMedicaCriteria criteria,
             @org.springdoc.core.annotations.ParameterObject Pageable pageable) {
@@ -190,6 +196,8 @@ public class CitaMedicaResource {
      *         in body.
      */
     @GetMapping("/count")
+        @PreAuthorize("hasAnyAuthority('" + AuthoritiesConstants.ADMIN + "', '" + AuthoritiesConstants.RECEPCION + "', '"
+            + AuthoritiesConstants.MEDICO + "', '" + AuthoritiesConstants.ENFERMERO + "')")
     public ResponseEntity<Long> countCitaMedicas(CitaMedicaCriteria criteria) {
         LOG.debug("REST request to count CitaMedicas by criteria: {}", criteria);
         return ResponseEntity.ok().body(citaMedicaQueryService.countByCriteria(criteria));
@@ -203,6 +211,8 @@ public class CitaMedicaResource {
      *         the citaMedicaDTO, or with status {@code 404 (Not Found)}.
      */
     @GetMapping("/{id}")
+        @PreAuthorize("hasAnyAuthority('" + AuthoritiesConstants.ADMIN + "', '" + AuthoritiesConstants.RECEPCION + "', '"
+            + AuthoritiesConstants.MEDICO + "', '" + AuthoritiesConstants.ENFERMERO + "')")
     public ResponseEntity<CitaMedicaDTO> getCitaMedica(@PathVariable("id") Long id) {
         LOG.debug("REST request to get CitaMedica : {}", id);
         Optional<CitaMedicaDTO> citaMedicaDTO = citaMedicaService.findOne(id);
@@ -216,6 +226,7 @@ public class CitaMedicaResource {
      * @return the {@link ResponseEntity} with status {@code 204 (NO_CONTENT)}.
      */
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('" + AuthoritiesConstants.ADMIN + "')")
     public ResponseEntity<Void> deleteCitaMedica(@PathVariable("id") Long id) {
         LOG.debug("REST request to delete CitaMedica : {}", id);
         citaMedicaService.delete(id);

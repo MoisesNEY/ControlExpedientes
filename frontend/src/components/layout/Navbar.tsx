@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { AppointmentService, type Appointment } from '../../services/appointment.service';
 
 interface NavbarProps {
   onToggleSidebar: () => void;
@@ -15,6 +16,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, isSidebarCollap
   const location = useLocation();
   const navigate = useNavigate();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [activeConsultation, setActiveConsultation] = useState<Appointment | null>(null);
   const profileRef = useRef<HTMLDivElement>(null);
 
   // Generar breadcrumbs dinámicos básicos
@@ -43,6 +45,58 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, isSidebarCollap
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (!user?.id || !hasAnyRole(['ROLE_MEDICO'])) {
+      setActiveConsultation(null);
+      return;
+    }
+
+    let isMounted = true;
+
+    const syncActiveConsultation = async () => {
+      try {
+        const active = await AppointmentService.getActiveConsultation(user.id);
+        if (!isMounted) return;
+
+        setActiveConsultation(active);
+
+        if (active?.id) {
+          try {
+            localStorage.setItem('activeConsultation', String(active.id));
+          } catch {
+            // ignore
+          }
+        } else {
+          try {
+            localStorage.removeItem('activeConsultation');
+          } catch {
+            // ignore
+          }
+        }
+      } catch {
+        if (!isMounted) return;
+        setActiveConsultation(null);
+      }
+    };
+
+    void syncActiveConsultation();
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void syncActiveConsultation();
+      }
+    };
+
+    window.addEventListener('focus', syncActiveConsultation);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('focus', syncActiveConsultation);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [user?.id, location.pathname, hasAnyRole]);
 
   const handleLogout = () => {
       setIsProfileOpen(false);
@@ -95,19 +149,16 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, isSidebarCollap
         </button>
 
         {/* Reanudar consulta (si existe) */}
-        {hasAnyRole(['ROLE_MEDICO']) && (() => {
-          const active = typeof window !== 'undefined' ? localStorage.getItem('activeConsultation') : null;
-          if (!active) return null;
-          return (
-            <button
-              onClick={() => navigate(`/medico/consulta/${active}`)}
-              title="Reanudar consulta"
-              className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900 rounded-full transition-colors hidden sm:block"
-            >
-              <span className="material-symbols-outlined text-[20px]">stethoscope</span>
-            </button>
-          );
-        })()}
+        {hasAnyRole(['ROLE_MEDICO']) && activeConsultation?.id && (
+          <button
+            onClick={() => navigate(`/medico/consulta/${activeConsultation.id}`)}
+            title={`Continuar consulta de ${activeConsultation.paciente?.nombres || 'paciente'}`}
+            className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300 transition-colors"
+          >
+            <span className="material-symbols-outlined text-[18px]">stethoscope</span>
+            <span className="text-xs font-bold uppercase tracking-wide">Continuar consulta</span>
+          </button>
+        )}
 
         <div className="h-8 w-px bg-slate-200 dark:bg-white/10 hidden sm:block"></div>
 

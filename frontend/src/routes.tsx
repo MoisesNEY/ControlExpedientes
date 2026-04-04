@@ -13,7 +13,6 @@ import PatientListView from './components/dashboard/views/PatientListView';
 import AppointmentView from './components/dashboard/views/AppointmentView';
 import InventoryView from './components/dashboard/views/InventoryView';
 import RecordsView from './components/dashboard/views/RecordsView';
-import EfficiencyDashboard from './components/dashboard/views/EfficiencyDashboard';
 
 import AdminDashboard from './pages/AdminDashboard';
 import AdminHomeView from './components/admin/views/AdminHomeView';
@@ -46,10 +45,10 @@ const RootRedirect: React.FC = () => {
 
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
-  if (hasRole('ROLE_ADMIN')) return <Navigate to="/admin" replace />;
-  if (hasRole('ROLE_MEDICO')) return <Navigate to="/medico" replace />;
-  if (hasRole('ROLE_ENFERMERO')) return <Navigate to="/enfermeria" replace />;
-  if (hasRole('ROLE_RECEPCION')) return <Navigate to="/recepcion" replace />;
+  if (hasRole('ROLE_ADMIN')) return <Navigate to="/admin/dashboard" replace />;
+  if (hasRole('ROLE_MEDICO')) return <Navigate to="/medico/dashboard" replace />;
+  if (hasRole('ROLE_ENFERMERO')) return <Navigate to="/enfermeria/dashboard" replace />;
+  if (hasRole('ROLE_RECEPCION')) return <Navigate to="/recepcion/dashboard" replace />;
 
   return <Navigate to="/unauthorized" replace />;
 };
@@ -79,13 +78,13 @@ export const routerConfig: RouteObject[] = [
           </ProtectedSlot>
         ),
         children: [
-          { index: true, element: <AdminHomeView /> },
+          { index: true, element: <Navigate to="dashboard" replace /> },
+          { path: 'dashboard', element: <AdminHomeView /> },
           { path: 'pacientes', element: <AdminPacientesView /> },
           { path: 'medicamentos', element: <AdminMedicamentosView /> },
           { path: 'citas', element: <AdminCitasView /> },
           { path: 'expedientes', element: <AdminExpedientesView /> },
-          { path: 'auditoria', element: <AdminAuditoriaView /> },
-          { path: 'dashboard', element: <EfficiencyDashboard /> }
+          { path: 'auditoria', element: <AdminAuditoriaView /> }
         ]
       },
       {
@@ -96,7 +95,8 @@ export const routerConfig: RouteObject[] = [
           </ProtectedSlot>
         ),
         children: [
-          { index: true, element: <DoctorHomeView /> },
+          { index: true, element: <Navigate to="dashboard" replace /> },
+          { path: 'dashboard', element: <DoctorHomeView /> },
           { path: 'consulta/:citaId', element: <DoctorConsultationView /> },
           { path: 'pacientes', element: <PatientListView /> },
           { path: 'citas', element: <AppointmentView /> },
@@ -112,7 +112,8 @@ export const routerConfig: RouteObject[] = [
           </ProtectedSlot>
         ),
         children: [
-          { index: true, element: <NurseHomeView /> },
+          { index: true, element: <Navigate to="dashboard" replace /> },
+          { path: 'dashboard', element: <NurseHomeView /> },
           { path: 'triage/:citaId', element: <TriageView /> },
           { path: 'inventario', element: <InventoryView /> }
         ]
@@ -125,7 +126,8 @@ export const routerConfig: RouteObject[] = [
           </ProtectedSlot>
         ),
         children: [
-          { index: true, element: <ReceptionHomeView /> },
+          { index: true, element: <Navigate to="dashboard" replace /> },
+          { path: 'dashboard', element: <ReceptionHomeView /> },
           { path: 'pacientes', element: <AdminPacientesView /> },
           { path: 'citas', element: <ReceptionAgendaView /> }
         ]

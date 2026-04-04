@@ -3,6 +3,7 @@ import { CitaService, type CitaMedicaDTO } from '../../../services/cita.service'
 import { PacienteService, type PacienteDTO } from '../../../services/paciente.service';
 import { UserService, type PublicUser } from '../../../services/userService';
 import { useLocation } from 'react-router-dom';
+import { useAuth } from '../../../context/AuthContext';
 
 const emptyCita: CitaMedicaDTO = {
     fechaHora: '',
@@ -36,6 +37,7 @@ const estadoColor = (estado: string) => {
 // ─── Main Component ────────────────────────────────────────────────────────────
 const ReceptionAgendaView = () => {
     const location = useLocation();
+    const { hasRole } = useAuth();
 
     const [citas, setCitas] = useState<CitaMedicaDTO[]>([]);
     const [pacientes, setPacientes] = useState<PacienteDTO[]>([]);
@@ -52,6 +54,8 @@ const ReceptionAgendaView = () => {
     const [editing, setEditing] = useState<CitaMedicaDTO | null>(null);
     const [form, setForm] = useState<CitaMedicaDTO>(emptyCita);
     const [saving, setSaving] = useState(false);
+
+    const canDeleteAppointments = hasRole('ROLE_ADMIN');
 
     // Auto-open new appointment form if navigated with ?action=new
     const autoOpenedRef = useRef(false);
@@ -306,9 +310,11 @@ const ReceptionAgendaView = () => {
                                                     <button onClick={() => openEdit(c)} className="p-2 text-slate-400 hover:text-primary transition-colors" title="Editar">
                                                         <span className="material-symbols-outlined text-sm">edit</span>
                                                     </button>
-                                                    <button onClick={() => c.id && handleDelete(c.id)} className="p-2 text-slate-400 hover:text-red-500 transition-colors" title="Eliminar">
-                                                        <span className="material-symbols-outlined text-sm">delete</span>
-                                                    </button>
+                                                    {canDeleteAppointments && (
+                                                        <button onClick={() => c.id && handleDelete(c.id)} className="p-2 text-slate-400 hover:text-red-500 transition-colors" title="Eliminar">
+                                                            <span className="material-symbols-outlined text-sm">delete</span>
+                                                        </button>
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>

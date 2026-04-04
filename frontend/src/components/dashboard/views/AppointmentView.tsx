@@ -15,6 +15,42 @@ const AppointmentView = () => {
     const [filter, setFilter] = useState<'HOY' | 'TODAS' | 'ATENDIDAS' | 'PENDIENTES'>('HOY');
     const [searchTerm, setSearchTerm] = useState('');
 
+    const openConsultation = (appointment: Appointment) => {
+        const pacienteId = appointment.paciente?.id;
+        const name = `${appointment.paciente?.nombres || ''} ${appointment.paciente?.apellidos || ''}`.trim() || 'Paciente';
+
+        if (!pacienteId) return;
+
+        selectPatient({
+            id: `PX-${pacienteId}`,
+            patientId: pacienteId,
+            name,
+            age: 'N/A',
+            gender: 'N/A',
+            status: 'Activo',
+            appointmentId: appointment.id
+        });
+
+        if (appointment.id) {
+            try { localStorage.setItem('activeConsultation', String(appointment.id)); } catch (e) { /* silent */ }
+            navigate(`/medico/consulta/${appointment.id}`);
+        }
+
+        void (async () => {
+            try {
+                const full = await PacienteService.getById(pacienteId);
+                updateSelectedPatient({
+                    name: `${full.nombres} ${full.apellidos}`.trim() || name,
+                    age: calculateAge(full.fechaNacimiento),
+                    gender: mapSexo(full.sexo),
+                    status: full.activo ? 'Activo' : 'Inactivo',
+                });
+            } catch {
+                // ignore
+            }
+        })();
+    };
+
     const calculateAge = (birthday?: string) => {
         if (!birthday) return 'N/A';
         const b = new Date(birthday);
@@ -49,7 +85,7 @@ const AppointmentView = () => {
                 if (filter === 'ATENDIDAS') {
                     filtered = data.filter(a => a.estado === 'ATENDIDA');
                 } else if (filter === 'PENDIENTES') {
-                    filtered = data.filter(a => a.estado === 'ESPERANDO_MEDICO');
+                    filtered = data.filter(a => a.estado === 'ESPERANDO_MEDICO' || a.estado === 'EN_CONSULTA');
                 }
 
                 if (searchTerm) {
@@ -70,41 +106,11 @@ const AppointmentView = () => {
     }, [user?.id, filter, searchTerm]);
 
     const handleAttend = (appointment: Appointment) => {
-        const pacienteId = appointment.paciente?.id;
-        const name = `${appointment.paciente?.nombres || ''} ${appointment.paciente?.apellidos || ''}`.trim() || 'Paciente';
+        openConsultation(appointment);
+    };
 
-        if (!pacienteId) return;
-
-        selectPatient({
-            id: `PX-${pacienteId}`,
-            patientId: pacienteId,
-            name,
-            age: 'N/A',
-            gender: 'N/A',
-            status: 'Activo',
-            appointmentId: appointment.id
-        });
-
-        // Persistir consulta activa para poder reanudar si salimos
-        if (appointment.id) {
-            try { localStorage.setItem('activeConsultation', String(appointment.id)); } catch (e) { /* silent */ }
-            navigate(`/medico/consulta/${appointment.id}`);
-        }
-
-        // Cargar información completa del paciente en background
-        void (async () => {
-            try {
-                const full = await PacienteService.getById(pacienteId);
-                updateSelectedPatient({
-                    name: `${full.nombres} ${full.apellidos}`.trim() || name,
-                    age: calculateAge(full.fechaNacimiento),
-                    gender: mapSexo(full.sexo),
-                    status: full.activo ? 'Activo' : 'Inactivo',
-                });
-            } catch {
-                // ignore
-            }
-        })();
+    const handleContinueConsultation = (appointment: Appointment) => {
+        openConsultation(appointment);
     };
 
     const handleViewRecord = (appointment: Appointment) => {
@@ -225,18 +231,27 @@ const AppointmentView = () => {
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 text-right">
-                                                {a.estado === 'ESPERANDO_MEDICO' ? (
-                                                    <button
-                                                        onClick={() => handleAttend(a)}
-                                                        className="px-4 py-2 bg-primary text-white rounded-xl text-xs font-black uppercase shadow-lg shadow-primary/20 hover:scale-105 transition-all"
-                                                    >
-                                                        Atender
-                                                    </button>
-                                                ) : (
+                                                <div className="flex items-center justify-end gap-2">
+                                                    {a.estado === 'ESPERANDO_MEDICO' && (
+                                                        <button
+                                                            onClick={() => handleAttend(a)}
+                                                            className="px-4 py-2 bg-primary text-white rounded-xl text-xs font-black uppercase shadow-lg shadow-primary/20 hover:scale-105 transition-all"
+                                                        >
+                                                            Atender
+                                                        </button>
+                                                    )}
+                                                    {a.estado === 'EN_CONSULTA' && (
+                                                        <button
+                                                            onClick={() => handleContinueConsultation(a)}
+                                                            className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-black uppercase shadow-lg shadow-emerald-600/20 hover:scale-105 transition-all"
+                                                        >
+                                                            Continuar consulta
+                                                        </button>
+                                                    )}
                                                     <button onClick={() => handleViewRecord(a)} className="text-slate-400 hover:text-primary transition-colors">
                                                         <span className="material-symbols-outlined text-sm">visibility</span>
                                                     </button>
-                                                )}
+                                                </div>
                                             </td>
                                         </tr>
                                     );
