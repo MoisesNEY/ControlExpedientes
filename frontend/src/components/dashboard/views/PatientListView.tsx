@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 
 import { usePatient } from '../../../context/PatientContext';
+import Avatar from '../../ui/Avatar';
 
 import { PacienteService, type PacienteDTO } from '../../../services/paciente.service';
 import PatientFormModal from './PatientFormModal';
@@ -40,13 +41,14 @@ const PatientListView = () => {
     }, [searchTerm, filterGender, filterStatus]);
 
     const handleAttend = (p: PacienteDTO) => {
+        const name = `${p.nombres} ${p.apellidos}`.trim() || 'Paciente';
         selectPatient({
             id: `PX-${p.id}`,
-            name: `${p.nombres} ${p.apellidos}`,
+            patientId: p.id,
+            name,
             age: calculateAge(p.fechaNacimiento),
             gender: p.sexo === 'MASCULINO' ? 'Masculino' : p.sexo === 'FEMENINO' ? 'Femenino' : 'Otro',
             status: p.activo ? 'Activo' : 'Inactivo',
-            image: `https://i.pravatar.cc/150?u=${p.id}`
         });
     };
 
@@ -197,9 +199,7 @@ const PatientListView = () => {
                                     <tr key={p.id} className="group hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 bg-slate-200 dark:bg-slate-700 rounded-xl overflow-hidden shadow-sm">
-                                                    <img src={`https://i.pravatar.cc/150?u=${p.id}`} alt="" />
-                                                </div>
+                                                <Avatar name={`${p.nombres} ${p.apellidos}`.trim() || 'Paciente'} size="md" className="rounded-xl" />
                                                 <div>
                                                     <p className="font-bold text-slate-800 dark:text-white leading-tight">{p.nombres} {p.apellidos}</p>
                                                     <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Expediente: XP-{2024}-{p.id}</p>

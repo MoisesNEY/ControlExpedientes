@@ -23,6 +23,7 @@
     <include file="config/liquibase/changelog/20260125005538_added_entity_SignosVitales.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/20260125005539_added_entity_HistorialClinico.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/20260125005540_added_entity_AuditoriaAcciones.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/20260321000000_added_envers_audit_tables.xml" relativeToChangelogFile="false"/>
     <!-- jhipster-needle-liquibase-add-changelog - JHipster will add liquibase changelogs here -->
     <include file="config/liquibase/changelog/20260125005530_added_entity_constraints_Paciente.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/20260125005532_added_entity_constraints_ConsultaMedica.xml" relativeToChangelogFile="false"/>

@@ -40,4 +40,7 @@ public interface CitaMedicaRepository extends JpaRepository<CitaMedica, Long>, J
 
     @Query("select citaMedica from CitaMedica citaMedica left join fetch citaMedica.user where citaMedica.id =:id")
     Optional<CitaMedica> findOneWithToOneRelationships(@Param("id") Long id);
+
+    @Query("select c from CitaMedica c left join fetch c.paciente p left join fetch p.expediente where c.id = :id")
+    Optional<CitaMedica> findWithPacienteAndExpedienteById(@Param("id") Long id);
 }

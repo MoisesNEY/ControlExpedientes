@@ -35,8 +35,8 @@ const PatientFormModal = ({ isOpen, onClose, onSaveSuccess, editingPaciente }: P
     if (!isOpen) return null;
 
     const handleSave = async () => {
-        if (!form.codigo || !form.nombres || !form.apellidos || !form.fechaNacimiento) {
-            alert('Por favor complete los campos obligatorios: código, nombres, apellidos y fecha de nacimiento.');
+        if (!form.nombres || !form.apellidos || !form.fechaNacimiento) {
+            alert('Por favor complete los campos obligatorios: nombres, apellidos y fecha de nacimiento.');
             return;
         }
         setSaving(true);
@@ -70,7 +70,16 @@ const PatientFormModal = ({ isOpen, onClose, onSaveSuccess, editingPaciente }: P
                 </div>
                 <div className="p-6 space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField label="Código *" value={form.codigo} onChange={v => setForm({ ...form, codigo: v })} placeholder="PAC-001" />
+                        {/* Código: read-only en edición, autogenerado en creación */}
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Código</label>
+                            <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800/80 border border-dashed border-slate-300 dark:border-slate-600 rounded-xl px-4 py-2.5">
+                                <span className="material-symbols-outlined text-[16px] text-slate-400">auto_awesome</span>
+                                <span className="text-sm font-bold text-slate-500 dark:text-slate-400 italic">
+                                    {editingPaciente?.codigo ? editingPaciente.codigo : 'Se generará automáticamente'}
+                                </span>
+                            </div>
+                        </div>
                         <FormField label="Nombres *" value={form.nombres} onChange={v => setForm({ ...form, nombres: v })} placeholder="Juan Carlos" />
                         <FormField label="Apellidos *" value={form.apellidos} onChange={v => setForm({ ...form, apellidos: v })} placeholder="Pérez López" />
                         <div className="flex flex-col gap-1.5">

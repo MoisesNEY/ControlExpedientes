@@ -34,7 +34,8 @@ import tech.jhipster.web.util.ResponseUtil;
  */
 @RestController
 @RequestMapping("/api/expediente-clinicos")
-@PreAuthorize("hasAnyAuthority('" + AuthoritiesConstants.ADMIN + "', '" + AuthoritiesConstants.MEDICO + "')")
+@PreAuthorize("hasAnyAuthority('" + AuthoritiesConstants.ADMIN + "', '" + AuthoritiesConstants.MEDICO + "', '"
+        + AuthoritiesConstants.ENFERMERO + "')")
 public class ExpedienteClinicoResource {
 
     private static final Logger LOG = LoggerFactory.getLogger(ExpedienteClinicoResource.class);

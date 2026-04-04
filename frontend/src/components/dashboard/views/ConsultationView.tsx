@@ -1,4 +1,4 @@
-import React from 'react';
+// import React from 'react';
 import PatientHeader from '../PatientHeader';
 import ConsultationForm from '../ConsultationForm';
 import { usePatient } from '../../../context/PatientContext';

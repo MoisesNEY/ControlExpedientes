@@ -1,11 +1,16 @@
 id;descripcion;codigo_cie
-1;reschedule;well
-2;while;forenenst lucky woot
-3;pfft;aggressive keenly
-4;whenever;provided standard
-5;psst reel;neatly
-6;aw amid unimportant;indeed sailor
-7;misguided speedily blissfully;up gadzooks hello
-8;yippee;joyously about hmph
-9;alongside;sonnet
-10;general golden;or coordinated ick
+1;Infección aguda de las vías respiratorias superiores, no especificada;J069
+2;Faringitis aguda, no especificada;J029
+3;Amigdalitis aguda, no especificada;J039
+4;Asma, no especificada;J459
+5;Neumonía, organismo no especificado;J189
+6;Hipertensión esencial (primaria);I10
+7;Diabetes mellitus tipo 2, sin mención de complicación;E119
+8;Migraña, no especificada;G439
+9;Gastroenteritis y colitis de origen no especificado;A099
+10;Infección de vías urinarias, sitio no especificado;N390
+11;Lumbago no especificado;M545
+12;Gastritis, no especificada;K297
+13;Ansiedad, no especificada;F419
+14;Depresión, no especificada;F329
+15;COVID-19, virus identificado;U071

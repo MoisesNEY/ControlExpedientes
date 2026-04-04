@@ -17,10 +17,13 @@ import org.springframework.transaction.annotation.Transactional;
 import tech.jhipster.service.QueryService;
 
 /**
- * Service for executing complex queries for {@link CitaMedica} entities in the database.
- * The main input is a {@link CitaMedicaCriteria} which gets converted to {@link Specification},
+ * Service for executing complex queries for {@link CitaMedica} entities in the
+ * database.
+ * The main input is a {@link CitaMedicaCriteria} which gets converted to
+ * {@link Specification},
  * in a way that all the filters must apply.
- * It returns a {@link Page} of {@link CitaMedicaDTO} which fulfills the criteria.
+ * It returns a {@link Page} of {@link CitaMedicaDTO} which fulfills the
+ * criteria.
  */
 @Service
 @Transactional(readOnly = true)
@@ -38,9 +41,12 @@ public class CitaMedicaQueryService extends QueryService<CitaMedica> {
     }
 
     /**
-     * Return a {@link Page} of {@link CitaMedicaDTO} which matches the criteria from the database.
-     * @param criteria The object which holds all the filters, which the entities should match.
-     * @param page The page, which should be returned.
+     * Return a {@link Page} of {@link CitaMedicaDTO} which matches the criteria
+     * from the database.
+     * 
+     * @param criteria The object which holds all the filters, which the entities
+     *                 should match.
+     * @param page     The page, which should be returned.
      * @return the matching entities.
      */
     @Transactional(readOnly = true)
@@ -52,7 +58,9 @@ public class CitaMedicaQueryService extends QueryService<CitaMedica> {
 
     /**
      * Return the number of matching entities in the database.
-     * @param criteria The object which holds all the filters, which the entities should match.
+     * 
+     * @param criteria The object which holds all the filters, which the entities
+     *                 should match.
      * @return the number of matching entities.
      */
     @Transactional(readOnly = true)
@@ -64,7 +72,9 @@ public class CitaMedicaQueryService extends QueryService<CitaMedica> {
 
     /**
      * Function to convert {@link CitaMedicaCriteria} to a {@link Specification}
-     * @param criteria The object which holds all the filters, which the entities should match.
+     * 
+     * @param criteria The object which holds all the filters, which the entities
+     *                 should match.
      * @return the matching {@link Specification} of the entity.
      */
     protected Specification<CitaMedica> createSpecification(CitaMedicaCriteria criteria) {
@@ -72,14 +82,15 @@ public class CitaMedicaQueryService extends QueryService<CitaMedica> {
         if (criteria != null) {
             // This has to be called first, because the distinct method returns null
             specification = Specification.allOf(
-                Boolean.TRUE.equals(criteria.getDistinct()) ? distinct(criteria.getDistinct()) : null,
-                buildRangeSpecification(criteria.getId(), CitaMedica_.id),
-                buildRangeSpecification(criteria.getFechaHora(), CitaMedica_.fechaHora),
-                buildSpecification(criteria.getEstado(), CitaMedica_.estado),
-                buildStringSpecification(criteria.getObservaciones(), CitaMedica_.observaciones),
-                buildSpecification(criteria.getUserId(), root -> root.join(CitaMedica_.user, JoinType.LEFT).get(User_.id)),
-                buildSpecification(criteria.getPacienteId(), root -> root.join(CitaMedica_.paciente, JoinType.LEFT).get(Paciente_.id))
-            );
+                    Boolean.TRUE.equals(criteria.getDistinct()) ? distinct(criteria.getDistinct()) : null,
+                    buildRangeSpecification(criteria.getId(), CitaMedica_.id),
+                    buildRangeSpecification(criteria.getFechaHora(), CitaMedica_.fechaHora),
+                    buildSpecification(criteria.getEstado(), CitaMedica_.estado),
+                    buildStringSpecification(criteria.getObservaciones(), CitaMedica_.observaciones),
+                    buildSpecification(criteria.getUserId(),
+                            root -> root.join(CitaMedica_.user, JoinType.LEFT).get(User_.id)),
+                    buildSpecification(criteria.getPacienteId(),
+                            root -> root.join(CitaMedica_.paciente, JoinType.LEFT).get(Paciente_.id)));
         }
         return specification;
     }

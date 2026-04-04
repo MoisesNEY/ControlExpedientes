@@ -1,94 +1,142 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import type { ReactNode } from 'react';
 import api from '../services/api';
 
-export interface UserAccount {
-    login: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-    authorities: string[];
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  realm_access?: { roles: string[] };
+  given_name?: string;
+  family_name?: string;
+  preferred_username?: string;
+  firstName?: string;
+  lastName?: string;
 }
 
-interface AuthContextType {
-    isAuthenticated: boolean;
-    login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
-    logout: () => Promise<void>;
-    token: string | undefined;
-    user: any;
-    account: UserAccount | null;
-    loading: boolean;
+export interface AuthState {
+  isAuthenticated: boolean;
+  user: User | null;
+  roles: string[];
+  account: { authorities: string[]; firstName?: string; lastName?: string; email?: string } | null;
+  loading: boolean;
+
+  login: (username: string, password?: string) => Promise<{success: boolean, error?: string}>;
+  logout: () => void;
+  hasRole: (role: string) => boolean;
+  hasAnyRole: (roles: string[]) => boolean;
 }
 
-const AuthContext = createContext<AuthContextType | null>(null);
+const AuthContext = createContext<AuthState | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [loading, setLoading] = useState(true);
-    const [user, setUser] = useState<any>(null);
-    const [account, setAccount] = useState<UserAccount | null>(null);
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loading, setLoading] = useState(true); // Empieza cargando para verificar sesión
+  const [user, setUser] = useState<User | null>(null);
+  const [roles, setRoles] = useState<string[]>([]);
+  const [account, setAccount] = useState<{ authorities: string[]; firstName?: string; lastName?: string; email?: string } | null>(null);
 
-    // On mount, check if there's an active session by calling GET /api/account
-    useEffect(() => {
-        checkSession();
-    }, []);
+  /**
+   * Obtiene los datos de la sesión activa desde /api/account (BFF).
+   * Si hay sesión válida en el backend (cookie de sesión), retorna el usuario real con sus roles de Keycloak.
+   * Si no hay sesión, lanza error 401.
+   */
+  const fetchAccount = useCallback(async () => {
+    try {
+      const response = await api.get('/api/account');
+      const acc = response.data;
 
-    const checkSession = async () => {
-        try {
-            const response = await api.get('/api/account');
-            setAccount(response.data);
-            setUser(response.data);
-            setIsAuthenticated(true);
-        } catch {
-            // No active session (401) — user needs to log in
-            setIsAuthenticated(false);
-            setAccount(null);
-            setUser(null);
-        } finally {
-            setLoading(false);
-        }
+      setIsAuthenticated(true);
+      setAccount({
+        authorities: acc.authorities || [],
+        firstName: acc.firstName,
+        lastName: acc.lastName,
+        email: acc.email,
+      });
+      setRoles(acc.authorities || []);
+      setUser({
+        id: acc.id?.toString() || acc.login,
+        name: `${acc.firstName || ''} ${acc.lastName || ''}`.trim() || acc.login,
+        email: acc.email || '',
+        preferred_username: acc.login,
+        firstName: acc.firstName,
+        lastName: acc.lastName,
+      });
+
+      return true;
+    } catch {
+      // No hay sesión activa (401) o error de red
+      setIsAuthenticated(false);
+      setUser(null);
+      setRoles([]);
+      setAccount(null);
+      return false;
+    }
+  }, []);
+
+  // Al montar el provider, intentar recuperar la sesión existente
+  useEffect(() => {
+    const init = async () => {
+      setLoading(true);
+      await fetchAccount();
+      setLoading(false);
     };
+    init();
+  }, [fetchAccount]);
 
-    const login = async (username: string, password: string): Promise<{ success: boolean; error?: string }> => {
-        try {
-            const response = await api.post('/api/authenticate', { username, password });
-            setAccount(response.data);
-            setUser(response.data);
-            setIsAuthenticated(true);
-            return { success: true };
-        } catch (error: any) {
-            const message = error.response?.data?.detail || error.response?.data?.error || 'Error de autenticación';
-            return { success: false, error: message };
-        }
-    };
+  const login = async (username: string, password?: string) => {
+    setLoading(true);
+    try {
+      // El login real va por /api/authenticate (BFF) que crea la sesión
+      await api.post('/api/authenticate', { username, password });
 
-    const logout = async () => {
-        try {
-            await api.post('/api/logout');
-        } catch {
-            // Ignore errors on logout
-        }
-        setIsAuthenticated(false);
-        setAccount(null);
-        setUser(null);
-    };
+      // Después de autenticar, obtener los datos reales del account
+      const success = await fetchAccount();
+      setLoading(false);
 
-    return (
-        <AuthContext.Provider value={{
-            isAuthenticated,
-            login,
-            logout,
-            token: undefined, // No token exposed to frontend in BFF pattern
-            user,
-            account,
-            loading
-        }}>
-            {children}
-        </AuthContext.Provider>
-    );
+      if (success) {
+        return { success: true };
+      }
+      return { success: false, error: 'No se pudo cargar la cuenta después del login' };
+    } catch (err: any) {
+      setLoading(false);
+      return { success: false, error: err?.response?.data?.detail || 'Error al iniciar sesión' };
+    }
+  };
+
+  const logout = async () => {
+    try {
+      await api.post('/api/logout');
+    } catch {
+      // Ignorar — limpiar estado local de todas formas
+    }
+    try { localStorage.removeItem('activeConsultation'); } catch (e) { }
+    setIsAuthenticated(false);
+    setUser(null);
+    setRoles([]);
+    setAccount(null);
+  };
+
+  const hasRole = (role: string) => {
+    return roles.includes(role);
+  };
+
+  const hasAnyRole = (requiredRoles: string[]) => {
+    if (requiredRoles.length === 0) return true;
+    return requiredRoles.some((role) => roles.includes(role));
+  };
+
+  return (
+    <AuthContext.Provider value={{ isAuthenticated, user, roles, account, loading, login, logout, hasRole, hasAnyRole }}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
-export const useAuth = () => {
-    const context = useContext(AuthContext);
-    if (!context) throw new Error('useAuth must be used within an AuthProvider');
-    return context;
+export const useAuth = (): AuthState => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 };

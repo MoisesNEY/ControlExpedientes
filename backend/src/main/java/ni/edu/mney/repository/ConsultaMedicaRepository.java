@@ -42,4 +42,7 @@ public interface ConsultaMedicaRepository
     @EntityGraph(attributePaths = { "user", "diagnosticos", "tratamientos", "signosVitales", "recetas",
             "recetas.medicamento" })
     Optional<ConsultaMedica> findOneWithDetailsById(Long id);
+
+    Optional<ConsultaMedica> findFirstByExpedienteIdAndFechaConsultaOrderByIdDesc(Long expedienteId,
+            java.time.LocalDate fechaConsulta);
 }

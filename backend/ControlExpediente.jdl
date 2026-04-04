@@ -17,8 +17,12 @@ enum EstadoCivil {
 
 enum EstadoCita {
   PROGRAMADA,
-  ATENDIDA,
-  CANCELADA
+  EN_SALA_ESPERA,
+  EN_TRIAGE,
+  ESPERANDO_MEDICO,
+  EN_CONSULTA,
+  CANCELADA,
+  ATENDIDA
 }
 
 // =====================

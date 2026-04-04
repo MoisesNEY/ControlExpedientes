@@ -23,4 +23,10 @@ public interface PacienteRepository extends JpaRepository<Paciente, Long>, JpaSp
     @EntityGraph(attributePaths = { "expediente" })
     @Query("select paciente from Paciente paciente where paciente.id = :id")
     Optional<Paciente> findOneWithEagerRelationships(@Param("id") Long id);
+
+    /**
+     * Verifica si existe un paciente con el código dado (para garantizar unicidad
+     * en autogeneración)
+     */
+    boolean existsByCodigo(String codigo);
 }

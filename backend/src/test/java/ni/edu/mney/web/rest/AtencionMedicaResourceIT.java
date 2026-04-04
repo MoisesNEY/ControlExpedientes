@@ -15,7 +15,6 @@ import ni.edu.mney.domain.enumeration.Sexo;
 import ni.edu.mney.repository.*;
 import ni.edu.mney.security.AuthoritiesConstants;
 import ni.edu.mney.service.dto.*;
-import ni.edu.mney.web.rest.vm.AtencionMedicaVM;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -98,8 +97,8 @@ class AtencionMedicaResourceIT {
         int databaseSizeBefore = consultaMedicaRepository.findAll().size();
         int auditSizeBefore = auditoriaAccionesRepository.findAll().size();
 
-        // Create VM
-        AtencionMedicaVM vm = new AtencionMedicaVM();
+        // Create DTO
+        AtencionMedicaDTO vm = new AtencionMedicaDTO();
 
         // 1. Consulta
         ConsultaMedicaDTO consultaDTO = new ConsultaMedicaDTO();

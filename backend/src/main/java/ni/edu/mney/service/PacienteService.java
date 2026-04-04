@@ -45,6 +45,14 @@ public class PacienteService {
      */
     public PacienteDTO save(PacienteDTO pacienteDTO) {
         LOG.debug("Request to save Paciente : {}", pacienteDTO);
+
+        // Autogenerar código si no viene del cliente (nuevo paciente sin código)
+        if (pacienteDTO.getCodigo() == null || pacienteDTO.getCodigo().isBlank()) {
+            String generatedCode = generateNextCodigoPaciente();
+            pacienteDTO.setCodigo(generatedCode);
+            LOG.debug("Código autogenerado para nuevo paciente: {}", generatedCode);
+        }
+
         Paciente paciente = pacienteMapper.toEntity(pacienteDTO);
 
         // Automate Clinical Record creation if it doesn't exist
@@ -61,6 +69,23 @@ public class PacienteService {
 
         paciente = pacienteRepository.save(paciente);
         return pacienteMapper.toDto(paciente);
+    }
+
+    /**
+     * Genera el siguiente código de paciente en formato PAC-XXXX.
+     * Usa el conteo actual de pacientes como base y verifica unicidad.
+     */
+    private String generateNextCodigoPaciente() {
+        long count = pacienteRepository.count();
+        String candidate;
+        long attempt = count + 1;
+        // Iterar hasta encontrar un código que no existe (protección ante gaps por
+        // borrados)
+        do {
+            candidate = String.format("PAC-%04d", attempt);
+            attempt++;
+        } while (pacienteRepository.existsByCodigo(candidate));
+        return candidate;
     }
 
     /**

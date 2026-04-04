@@ -212,12 +212,6 @@ public class SignosVitalesResource {
         return ResponseUtil.wrapOrNotFound(signosVitalesDTO);
     }
 
-    /**
-     * {@code DELETE  /signos-vitales/:id} : delete the "id" signosVitales.
-     *
-     * @param id the id of the signosVitalesDTO to delete.
-     * @return the {@link ResponseEntity} with status {@code 204 (NO_CONTENT)}.
-     */
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('" + AuthoritiesConstants.ADMIN + "')")
     public ResponseEntity<Void> deleteSignosVitales(@PathVariable("id") Long id) {
@@ -226,5 +220,24 @@ public class SignosVitalesResource {
         return ResponseEntity.noContent()
                 .headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id.toString()))
                 .build();
+    }
+
+    /**
+     * {@code GET  /signos-vitales/paciente/:pacienteId/hoy} : get today's
+     * signosVitales by pacienteId.
+     *
+     * @param pacienteId the id of the paciente.
+     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and the list
+     *         of signosVitales in body.
+     */
+    @GetMapping("/paciente/{pacienteId}/hoy")
+    @PreAuthorize("hasAnyAuthority('" + AuthoritiesConstants.ADMIN + "', '" + AuthoritiesConstants.MEDICO + "', '"
+            + AuthoritiesConstants.ENFERMERO + "')")
+    public ResponseEntity<List<SignosVitalesDTO>> getSignosVitalesByPacienteHoy(
+            @PathVariable("pacienteId") Long pacienteId) {
+        LOG.debug("REST request to get today's SignosVitales for Paciente : {}", pacienteId);
+        List<SignosVitalesDTO> result = signosVitalesService.findLatestByPacienteIdAndDate(pacienteId,
+                java.time.LocalDate.now());
+        return ResponseEntity.ok().body(result);
     }
 }

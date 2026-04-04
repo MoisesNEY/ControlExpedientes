@@ -9,10 +9,13 @@ import ni.edu.mney.domain.enumeration.EstadoCita;
 import org.hibernate.annotations.Cache;
 import org.hibernate.annotations.CacheConcurrencyStrategy;
 
+import org.hibernate.envers.Audited;
+
 /**
  * A CitaMedica.
  */
 @Entity
+@Audited
 @Table(name = "cita_medica")
 @Cache(usage = CacheConcurrencyStrategy.READ_WRITE)
 @SuppressWarnings("common-java:DuplicatedBlocks")
@@ -39,10 +42,12 @@ public class CitaMedica implements Serializable {
     private String observaciones;
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @org.hibernate.envers.NotAudited
     private User user;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JsonIgnoreProperties(value = { "expediente", "citas" }, allowSetters = true)
+    @org.hibernate.envers.NotAudited
     private Paciente paciente;
 
     // jhipster-needle-entity-add-field - JHipster will add fields here
