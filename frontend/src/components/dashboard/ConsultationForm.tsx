@@ -2,9 +2,12 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import type { Diagnostico, Medicamento, Receta } from '../../services/consultation.service';
 import { ConsultationService } from '../../services/consultation.service';
 import { usePatient } from '../../context/PatientContext';
+import { DiagnosticoService } from '../../services/diagnostico.service';
+import { useAuth } from '../../context/AuthContext';
 
 const ConsultationForm = () => {
     const { selectedPatient, selectPatient } = usePatient();
+    const { hasAnyRole } = useAuth();
 
     // Form State
     const [motivo, setMotivo] = useState('');
@@ -31,6 +34,13 @@ const ConsultationForm = () => {
     const [medResults, setMedResults] = useState<Medicamento[]>([]);
     const [showMedResults, setShowMedResults] = useState(false);
     const [isSearchingMed, setIsSearchingMed] = useState(false);
+
+    // Create diagnosis modal state
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [newCodigo, setNewCodigo] = useState('');
+    const [newNombre, setNewNombre] = useState('');
+    const [creating, setCreating] = useState(false);
+    const [createError, setCreateError] = useState<string | null>(null);
 
     // Simple debounce utility
     const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -88,6 +98,31 @@ const ConsultationForm = () => {
 
     const [isSaving, setIsSaving] = useState(false);
 
+    const handleCreateDiagnostico = async () => {
+        if (!newCodigo.trim() || !newNombre.trim()) {
+            setCreateError('Código y descripción son obligatorios.');
+            return;
+        }
+        setCreating(true);
+        setCreateError(null);
+        try {
+            const created: any = await DiagnosticoService.create(newCodigo.trim(), newNombre.trim());
+            const mapped: Diagnostico = {
+                id: created.id,
+                codigoIcd10: created.codigoCie10 || (created.codigoIcd10 as any) || newCodigo.trim(),
+                nombre: created.descripcion || (created.nombre as any) || newNombre.trim()
+            };
+            setDiagnosticoSeleccionado(mapped);
+            setShowCreateModal(false);
+            setSearchResults([]);
+            setSearchQuery('');
+        } catch (err: any) {
+            setCreateError(err?.response?.data?.message || 'Error creando diagnóstico (ver consola).');
+        } finally {
+            setCreating(false);
+        }
+    };
+
     const handleSave = async () => {
         if (!selectedPatient || !diagnosticoSeleccionado) {
             alert('Por favor seleccione un diagnóstico antes de finalizar la consulta.');
@@ -95,16 +130,17 @@ const ConsultationForm = () => {
         }
 
         setIsSaving(true);
-        const patientId = selectedPatient.id.includes('-')
-            ? selectedPatient.id.split('-')[1]
-            : selectedPatient.id;
+        const patientId = selectedPatient.patientId ??
+            (selectedPatient.id.includes('-')
+                ? parseInt(selectedPatient.id.split('-')[1], 10)
+                : parseInt(selectedPatient.id, 10));
 
         const payload = {
             consulta: {
                 motivoConsulta: motivo,
                 notasMedicas: notas,
                 fechaConsulta: new Date().toISOString(),
-                expediente: { id: parseInt(patientId) || 1 }
+                expediente: { id: patientId || 1 }
             },
             signosVitales: {
                 ...vitals,
@@ -144,6 +180,7 @@ const ConsultationForm = () => {
             setDiagnosticoSeleccionado(null);
             setPrescripciones([]);
             selectPatient(null);
+            try { localStorage.removeItem('activeConsultation'); } catch (e) { }
         } catch (error) {
             console.error('Error al guardar consulta:', error);
             alert('Error en el servidor al intentar guardar el acto clínico.');
@@ -187,10 +224,20 @@ const ConsultationForm = () => {
 
             {/* Diagnóstico */}
             <div className="bg-white dark:bg-slate-900 p-4 md:p-5 rounded-lg shadow-sm border border-slate-200 dark:border-slate-800">
-                <h3 className="text-slate-800 dark:text-slate-200 text-sm font-bold mb-4 flex items-center gap-2">
-                    <span className="material-symbols-outlined text-primary text-[18px]">diagnosis</span>
-                    Diagnóstico Principal (ICD-10)
-                </h3>
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-slate-800 dark:text-slate-200 text-sm font-bold flex items-center gap-2">
+                        <span className="material-symbols-outlined text-primary text-[18px]">diagnosis</span>
+                        Diagnóstico Principal (ICD-10)
+                    </h3>
+                    {hasAnyRole(['ROLE_ADMIN', 'ROLE_MEDICO']) && (
+                        <button
+                            onClick={() => { setShowCreateModal(true); setNewCodigo(searchQuery); setNewNombre(''); }}
+                            className="text-primary font-bold text-sm hover:underline"
+                        >
+                            Crear diagnóstico
+                        </button>
+                    )}
+                </div>
 
                 {diagnosticoSeleccionado ? (
                     <div className="flex flex-col md:flex-row items-start md:items-center justify-between bg-primary/10 border border-primary/20 p-4 rounded-xl gap-3">
@@ -223,9 +270,47 @@ const ConsultationForm = () => {
                                 ))}
                             </div>
                         )}
+                        {searchResults.length === 0 && searchQuery.length >= 3 && (
+                            <div className="mt-3 px-3 flex items-center justify-between text-sm text-slate-500">
+                                <span>No se encontraron diagnósticos.</span>
+                                {hasAnyRole(['ROLE_ADMIN', 'ROLE_MEDICO']) ? (
+                                    <button
+                                        onClick={() => { setShowCreateModal(true); setNewCodigo(searchQuery); setNewNombre(''); }}
+                                        className="text-primary font-bold hover:underline"
+                                    >
+                                        Crear diagnóstico
+                                    </button>
+                                ) : (
+                                    <span className="text-xs text-slate-400">Pide al administrador crear este diagnóstico</span>
+                                )}
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
+
+            {/* Modal: Crear Diagnóstico */}
+            {showCreateModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+                    <div className="bg-white dark:bg-slate-900 rounded-xl w-full max-w-xl p-6 border border-slate-200 dark:border-slate-800">
+                        <h3 className="text-lg font-bold mb-1">Crear diagnóstico</h3>
+                        <p className="text-sm text-slate-500 mb-4">Crear un nuevo código ICD‑10 y seleccionarlo para esta consulta.</p>
+                        <div className="grid gap-3">
+                            <label className="text-[11px] font-black text-slate-500 uppercase">Código ICD-10</label>
+                            <input value={newCodigo} onChange={(e) => setNewCodigo(e.target.value)} placeholder="Ej: J06" className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 outline-none" />
+                            <label className="text-[11px] font-black text-slate-500 uppercase">Descripción</label>
+                            <input value={newNombre} onChange={(e) => setNewNombre(e.target.value)} placeholder="Faringitis aguda" className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 outline-none" />
+                            {createError && <p className="text-xs text-red-500">{createError}</p>}
+                            <div className="flex justify-end gap-3 mt-3">
+                                <button onClick={() => { setShowCreateModal(false); setCreateError(null); }} className="px-4 py-2 rounded-lg border">Cancelar</button>
+                                <button onClick={handleCreateDiagnostico} disabled={creating} className="px-4 py-2 rounded-lg bg-primary text-white">
+                                    {creating ? 'Creando...' : 'Crear y seleccionar'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Prescripciones */}
             <div className="bg-white dark:bg-slate-900 p-4 md:p-5 rounded-lg shadow-sm border border-slate-200 dark:border-slate-800">

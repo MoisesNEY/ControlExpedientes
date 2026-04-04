@@ -2,7 +2,7 @@ package ni.edu.mney.web.rest;
 
 import ni.edu.mney.service.AtencionMedicaService;
 import ni.edu.mney.service.dto.ConsultaMedicaDTO;
-import ni.edu.mney.web.rest.vm.AtencionMedicaVM;
+import ni.edu.mney.service.dto.AtencionMedicaDTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -33,9 +33,9 @@ public class AtencionMedicaResource {
      *         de la consulta médica guardada.
      */
     @PostMapping("/finalizar-consulta")
-    public ResponseEntity<ConsultaMedicaDTO> finalizarConsulta(@RequestBody AtencionMedicaVM atencionMedicaVM) {
-        LOG.debug("REST request to finalizar consulta médica : {}", atencionMedicaVM);
-        ConsultaMedicaDTO result = atencionMedicaService.finalizarConsulta(atencionMedicaVM);
+    public ResponseEntity<ConsultaMedicaDTO> finalizarConsulta(@RequestBody AtencionMedicaDTO atencionMedicaDTO) {
+        LOG.debug("REST request to finalizar consulta médica : {}", atencionMedicaDTO);
+        ConsultaMedicaDTO result = atencionMedicaService.finalizarConsulta(atencionMedicaDTO);
         return ResponseEntity.ok().body(result);
     }
 }

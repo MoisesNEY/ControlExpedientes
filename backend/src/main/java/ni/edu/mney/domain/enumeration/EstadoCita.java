@@ -5,6 +5,10 @@ package ni.edu.mney.domain.enumeration;
  */
 public enum EstadoCita {
     PROGRAMADA,
-    ATENDIDA,
+    EN_SALA_ESPERA,
+    EN_TRIAGE,
+    ESPERANDO_MEDICO,
+    EN_CONSULTA,
     CANCELADA,
+    ATENDIDA,
 }

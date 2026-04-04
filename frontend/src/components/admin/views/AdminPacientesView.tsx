@@ -1,13 +1,18 @@
 import { useState, useEffect } from 'react';
 import { PacienteService, type PacienteDTO } from '../../../services/paciente.service';
+import { useAuth } from '../../../context/AuthContext';
 import PatientFormModal from '../../dashboard/views/PatientFormModal';
 
 const AdminPacientesView = () => {
+    const { hasRole } = useAuth();
     const [pacientes, setPacientes] = useState<PacienteDTO[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [showForm, setShowForm] = useState(false);
     const [editing, setEditing] = useState<PacienteDTO | null>(null);
+
+    const isReception = hasRole('ROLE_RECEPCION') && !hasRole('ROLE_ADMIN');
+    const canDeletePatients = hasRole('ROLE_ADMIN');
 
     const fetchPacientes = async () => {
         setLoading(true);
@@ -34,8 +39,20 @@ const AdminPacientesView = () => {
     };
 
     const openEdit = (p: PacienteDTO) => {
-        setEditing(p);
-        setShowForm(true);
+        const patientId = p.id;
+        if (!patientId) return;
+
+        void (async () => {
+            try {
+                const fullPaciente = await PacienteService.getById(patientId);
+                setEditing(fullPaciente);
+            } catch (error) {
+                console.error('Error fetching paciente detail:', error);
+                setEditing(p);
+            } finally {
+                setShowForm(true);
+            }
+        })();
     };
 
     const handleClose = () => {
@@ -66,8 +83,12 @@ const AdminPacientesView = () => {
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h2 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white">Gestión de Pacientes</h2>
-                    <p className="text-slate-500 text-xs md:text-sm font-medium">Crear, editar y administrar los pacientes del sistema.</p>
+                    <h2 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white">{isReception ? 'Registro Base de Pacientes' : 'Gestión de Pacientes'}</h2>
+                    <p className="text-slate-500 text-xs md:text-sm font-medium">
+                        {isReception
+                            ? 'Registrar y actualizar la base de pacientes atendidos en recepción.'
+                            : 'Crear, editar y administrar los pacientes del sistema.'}
+                    </p>
                 </div>
                 <button
                     onClick={openCreate}
@@ -140,9 +161,11 @@ const AdminPacientesView = () => {
                                                 <button onClick={() => openEdit(p)} className="p-2 text-slate-400 hover:text-amber-600 transition-colors" title="Editar">
                                                     <span className="material-symbols-outlined text-sm">edit</span>
                                                 </button>
-                                                <button onClick={() => p.id && handleDelete(p.id)} className="p-2 text-slate-400 hover:text-red-500 transition-colors" title="Eliminar">
-                                                    <span className="material-symbols-outlined text-sm">delete</span>
-                                                </button>
+                                                {canDeletePatients && (
+                                                    <button onClick={() => p.id && handleDelete(p.id)} className="p-2 text-slate-400 hover:text-red-500 transition-colors" title="Eliminar">
+                                                        <span className="material-symbols-outlined text-sm">delete</span>
+                                                    </button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>

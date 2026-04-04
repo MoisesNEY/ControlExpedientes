@@ -34,8 +34,14 @@ const RecordsView = () => {
             setError('');
             try {
                 // Obtenemos el ID del expediente base al paciente
-                // Asumiremos que el backend devuelve un arreglo de TimelineEntry
-                const expediente = await ExpedienteService.getByPacienteId(parseInt(selectedPatient.id));
+                const pacienteId = selectedPatient.patientId ??
+                    (selectedPatient.id ? parseInt(selectedPatient.id, 10) : NaN);
+                if (!pacienteId || Number.isNaN(pacienteId)) {
+                    setTimeline([]);
+                    return;
+                }
+
+                const expediente = await ExpedienteService.getByPacienteId(pacienteId);
                 if (expediente?.id) {
                     const data = await ExpedienteService.getTimeline(expediente.id);
                     setTimeline(data);

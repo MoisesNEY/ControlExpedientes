@@ -3,7 +3,7 @@ import api from './api';
 export interface CitaMedicaDTO {
     id?: number;
     fechaHora: string;
-    estado: 'PROGRAMADA' | 'ATENDIDA' | 'CANCELADA';
+    estado: 'PROGRAMADA' | 'EN_SALA_ESPERA' | 'EN_TRIAGE' | 'ESPERANDO_MEDICO' | 'EN_CONSULTA' | 'CANCELADA' | 'ATENDIDA';
     observaciones?: string;
     user?: { id: string; login?: string };
     paciente?: { id: number; nombres?: string; apellidos?: string };

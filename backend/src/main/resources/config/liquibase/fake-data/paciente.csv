@@ -1,11 +1,11 @@
 id;codigo;nombres;apellidos;sexo;fecha_nacimiento;cedula;telefono;direccion;estado_civil;email;activo
-1;scruple whenever;bleakly;notwithstanding;FEMENINO;2026-01-24;woot until powerfully;garage;bah righteously gust;VIUDO;Clara.QuintanillaBarraza17@gmail.com;true
-2;whoa dead similar;excess foolhardy;foot;FEMENINO;2026-01-24;brush;deny;horn kookily;CASADO;Marisol27@hotmail.com;false
-3;kindheartedly instantly dislocate;aha yet honestly;zesty;MASCULINO;2026-01-24;cautiously;unique;yowza hospitalization;SOLTERO;Amalia.TrevinoDelatorre65@yahoo.com;true
-4;bank burly;carpool popularize eyeglasses;palatable geez;FEMENINO;2026-01-24;provided cuddly finished;emulsify;sternly pish amendment;SOLTERO;Francisca.ValleOlivarez15@gmail.com;true
-5;without;victoriously correctly alb;afore aw reassuringly;MASCULINO;2026-01-24;dull quicker bah;whenever cleverly;dreamily aside dark;DIVORCIADO;Mariana_BalderasTejeda@gmail.com;false
-6;bouncy past;outside;supposing wide-eyed;MASCULINO;2026-01-25;dreamily;horn mid;mouser;VIUDO;Ignacio_HerediaPichardo@yahoo.com;false
-7;grade;broken;huzzah;OTRO;2026-01-25;contradict;clamp moment;cantaloupe quickly although;SOLTERO;Jeronimo68@yahoo.com;true
-8;arbitrate;hopelessly off lonely;after;FEMENINO;2026-01-24;though besides newsletter;accountability supposing;competent;SOLTERO;Jaime12@gmail.com;true
-9;readily whereas writ;sandy;outlying satirise;FEMENINO;2026-01-24;yahoo;turret;psst;VIUDO;MariaJose_AbregoHerrera33@hotmail.com;false
-10;towards apologise but;between;misjudge onto;MASCULINO;2026-01-24;artistic apud consequently;flu through;without frenetically;CASADO;Teodoro8@gmail.com;true
+1;PAC-001;Moises Alberto;Ney Mayorga;MASCULINO;1995-05-15;001-150595-1000A;8888-1111;Managua, Nicaragua;SOLTERO;moises@example.com;true
+2;PAC-002;Ana Maria;Perez Lopez;FEMENINO;1988-10-20;001-201088-2000B;8888-2222;Masaya, Nicaragua;CASADO;ana@example.com;true
+3;PAC-003;Juan Carlos;Garcia Ruiz;MASCULINO;1975-03-10;001-100375-3000C;8888-3333;Granada, Nicaragua;DIVORCIADO;juan@example.com;true
+4;PAC-004;Maria Fernanda;Rodriguez Solis;FEMENINO;1990-12-05;001-051290-4000D;8888-4444;Leon, Nicaragua;SOLTERO;maria@example.com;true
+5;PAC-005;Carlos Ivan;Martinez Torres;MASCULINO;1982-07-22;001-220782-5000E;8888-5555;Managua, Nicaragua;CASADO;carlos@example.com;false
+6;PAC-006;Laura Isabel;Gomez Castro;FEMENINO;1998-01-30;001-300198-6000F;8888-6666;Esteli, Nicaragua;SOLTERO;laura@example.com;true
+7;PAC-007;Roberto Luis;Fernandez Cruz;MASCULINO;1965-09-14;001-140965-7000G;8888-7777;Matagalpa, Nicaragua;VIUDO;roberto@example.com;true
+8;PAC-008;Sofia Valentina;Madrigal Paz;FEMENINO;2005-04-18;001-180405-8000H;8888-8888;Managua, Nicaragua;SOLTERO;sofia@example.com;true
+9;PAC-009;Diego Antonio;Vargas Silva;MASCULINO;1992-11-25;001-251192-9000I;8888-9999;Chinandega, Nicaragua;CASADO;diego@example.com;true
+10;PAC-010;Valeria Beatriz;Rios Castillo;FEMENINO;1985-08-12;001-120885-0000J;8888-0000;Managua, Nicaragua;DIVORCIADO;valeria@example.com;true

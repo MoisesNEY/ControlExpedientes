@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="20260321-envers-audit" author="jhipster">
+        <createSequence sequenceName="revinfo_seq" incrementBy="50" startValue="1"/>
+        <createTable tableName="revinfo">
+            <column name="rev" type="int">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="revtstmp" type="bigint"/>
+        </createTable>
+
+        <createTable tableName="cita_medica_aud">
+            <column name="id" type="bigint">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="rev" type="int">
+                <constraints primaryKey="true" nullable="false" foreignKeyName="fk_cita_medica_aud_revinfo" references="revinfo(rev)"/>
+            </column>
+            <column name="revtype" type="tinyint"/>
+            <column name="fecha_hora" type="timestamp"/>
+            <column name="estado" type="varchar(255)"/>
+            <column name="observaciones" type="varchar(255)"/>
+        </createTable>
+
+        <createTable tableName="paciente_aud">
+            <column name="id" type="bigint">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="rev" type="int">
+                <constraints primaryKey="true" nullable="false" foreignKeyName="fk_paciente_aud_revinfo" references="revinfo(rev)"/>
+            </column>
+            <column name="revtype" type="tinyint"/>
+            <column name="codigo" type="varchar(255)"/>
+            <column name="nombres" type="varchar(255)"/>
+            <column name="apellidos" type="varchar(255)"/>
+            <column name="sexo" type="varchar(255)"/>
+            <column name="fecha_nacimiento" type="date"/>
+            <column name="cedula" type="varchar(255)"/>
+            <column name="telefono" type="varchar(255)"/>
+            <column name="direccion" type="varchar(255)"/>
+            <column name="estado_civil" type="varchar(255)"/>
+            <column name="email" type="varchar(255)"/>
+            <column name="activo" type="boolean"/>
+        </createTable>
+
+        <createTable tableName="signos_vitales_aud">
+            <column name="id" type="bigint">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="rev" type="int">
+                <constraints primaryKey="true" nullable="false" foreignKeyName="fk_signos_vitales_aud_revinfo" references="revinfo(rev)"/>
+            </column>
+            <column name="revtype" type="tinyint"/>
+            <column name="peso" type="double"/>
+            <column name="altura" type="double"/>
+            <column name="presion_arterial" type="varchar(255)"/>
+            <column name="temperatura" type="double"/>
+            <column name="frecuencia_cardiaca" type="int"/>
+        </createTable>
+    </changeSet>
+</databaseChangeLog>

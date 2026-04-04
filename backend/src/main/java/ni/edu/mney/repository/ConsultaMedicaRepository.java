@@ -1,5 +1,6 @@
 package ni.edu.mney.repository;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import ni.edu.mney.domain.ConsultaMedica;
@@ -42,4 +43,11 @@ public interface ConsultaMedicaRepository
     @EntityGraph(attributePaths = { "user", "diagnosticos", "tratamientos", "signosVitales", "recetas",
             "recetas.medicamento" })
     Optional<ConsultaMedica> findOneWithDetailsById(Long id);
+
+    Optional<ConsultaMedica> findFirstByExpedienteIdAndFechaConsultaOrderByIdDesc(Long expedienteId,
+            java.time.LocalDate fechaConsulta);
+
+    List<ConsultaMedica> findAllByFechaConsultaBetween(LocalDate start, LocalDate end);
+
+    List<ConsultaMedica> findAllByFechaConsultaBetweenAndUserLogin(LocalDate start, LocalDate end, String login);
 }

@@ -1,8 +1,11 @@
 package ni.edu.mney.repository;
 
+import java.time.ZonedDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import ni.edu.mney.domain.CitaMedica;
+import ni.edu.mney.domain.enumeration.EstadoCita;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.*;
@@ -40,4 +43,21 @@ public interface CitaMedicaRepository extends JpaRepository<CitaMedica, Long>, J
 
     @Query("select citaMedica from CitaMedica citaMedica left join fetch citaMedica.user where citaMedica.id =:id")
     Optional<CitaMedica> findOneWithToOneRelationships(@Param("id") Long id);
+
+    @Query("select c from CitaMedica c left join fetch c.paciente p left join fetch p.expediente where c.id = :id")
+    Optional<CitaMedica> findWithPacienteAndExpedienteById(@Param("id") Long id);
+
+    List<CitaMedica> findAllByFechaHoraBetween(ZonedDateTime start, ZonedDateTime end);
+
+    List<CitaMedica> findAllByFechaHoraBetweenAndUserLogin(ZonedDateTime start, ZonedDateTime end, String login);
+
+    List<CitaMedica> findTop8ByFechaHoraBetweenAndEstadoNotInOrderByFechaHoraAsc(
+        ZonedDateTime start,
+        ZonedDateTime end,
+        Collection<EstadoCita> excludedStatuses
+    );
+
+    List<CitaMedica> findTop6ByUserLoginAndEstadoOrderByFechaHoraAsc(String login, EstadoCita estado);
+
+    Optional<CitaMedica> findFirstByUserLoginAndEstadoOrderByFechaHoraDesc(String login, EstadoCita estado);
 }

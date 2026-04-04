@@ -10,9 +10,12 @@ import java.util.Optional;
 import ni.edu.mney.repository.CitaMedicaRepository;
 import ni.edu.mney.service.CitaMedicaQueryService;
 import ni.edu.mney.service.CitaMedicaService;
+import ni.edu.mney.service.FinalizarConsultaService;
 import ni.edu.mney.service.criteria.CitaMedicaCriteria;
 import ni.edu.mney.service.dto.CitaMedicaDTO;
+import ni.edu.mney.service.dto.FinalizarConsultaRequestDTO;
 import ni.edu.mney.web.rest.errors.BadRequestAlertException;
+import ni.edu.mney.security.AuthoritiesConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,6 +23,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import tech.jhipster.web.util.HeaderUtil;
@@ -46,50 +50,61 @@ public class CitaMedicaResource {
 
     private final CitaMedicaQueryService citaMedicaQueryService;
 
+    private final FinalizarConsultaService finalizarConsultaService;
+
     public CitaMedicaResource(
-        CitaMedicaService citaMedicaService,
-        CitaMedicaRepository citaMedicaRepository,
-        CitaMedicaQueryService citaMedicaQueryService
-    ) {
+            CitaMedicaService citaMedicaService,
+            CitaMedicaRepository citaMedicaRepository,
+            CitaMedicaQueryService citaMedicaQueryService,
+            FinalizarConsultaService finalizarConsultaService) {
         this.citaMedicaService = citaMedicaService;
         this.citaMedicaRepository = citaMedicaRepository;
         this.citaMedicaQueryService = citaMedicaQueryService;
+        this.finalizarConsultaService = finalizarConsultaService;
     }
 
     /**
      * {@code POST  /cita-medicas} : Create a new citaMedica.
      *
      * @param citaMedicaDTO the citaMedicaDTO to create.
-     * @return the {@link ResponseEntity} with status {@code 201 (Created)} and with body the new citaMedicaDTO, or with status {@code 400 (Bad Request)} if the citaMedica has already an ID.
+     * @return the {@link ResponseEntity} with status {@code 201 (Created)} and with
+     *         body the new citaMedicaDTO, or with status {@code 400 (Bad Request)}
+     *         if the citaMedica has already an ID.
      * @throws URISyntaxException if the Location URI syntax is incorrect.
      */
     @PostMapping("")
-    public ResponseEntity<CitaMedicaDTO> createCitaMedica(@Valid @RequestBody CitaMedicaDTO citaMedicaDTO) throws URISyntaxException {
+    @PreAuthorize("hasAnyAuthority('" + AuthoritiesConstants.ADMIN + "', '" + AuthoritiesConstants.RECEPCION + "')")
+    public ResponseEntity<CitaMedicaDTO> createCitaMedica(@Valid @RequestBody CitaMedicaDTO citaMedicaDTO)
+            throws URISyntaxException {
         LOG.debug("REST request to save CitaMedica : {}", citaMedicaDTO);
         if (citaMedicaDTO.getId() != null) {
             throw new BadRequestAlertException("A new citaMedica cannot already have an ID", ENTITY_NAME, "idexists");
         }
         citaMedicaDTO = citaMedicaService.save(citaMedicaDTO);
         return ResponseEntity.created(new URI("/api/cita-medicas/" + citaMedicaDTO.getId()))
-            .headers(HeaderUtil.createEntityCreationAlert(applicationName, true, ENTITY_NAME, citaMedicaDTO.getId().toString()))
-            .body(citaMedicaDTO);
+                .headers(HeaderUtil.createEntityCreationAlert(applicationName, true, ENTITY_NAME,
+                        citaMedicaDTO.getId().toString()))
+                .body(citaMedicaDTO);
     }
 
     /**
      * {@code PUT  /cita-medicas/:id} : Updates an existing citaMedica.
      *
-     * @param id the id of the citaMedicaDTO to save.
+     * @param id            the id of the citaMedicaDTO to save.
      * @param citaMedicaDTO the citaMedicaDTO to update.
-     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body the updated citaMedicaDTO,
-     * or with status {@code 400 (Bad Request)} if the citaMedicaDTO is not valid,
-     * or with status {@code 500 (Internal Server Error)} if the citaMedicaDTO couldn't be updated.
+     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body
+     *         the updated citaMedicaDTO,
+     *         or with status {@code 400 (Bad Request)} if the citaMedicaDTO is not
+     *         valid,
+     *         or with status {@code 500 (Internal Server Error)} if the
+     *         citaMedicaDTO couldn't be updated.
      * @throws URISyntaxException if the Location URI syntax is incorrect.
      */
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('" + AuthoritiesConstants.ADMIN + "', '" + AuthoritiesConstants.RECEPCION + "')")
     public ResponseEntity<CitaMedicaDTO> updateCitaMedica(
-        @PathVariable(value = "id", required = false) final Long id,
-        @Valid @RequestBody CitaMedicaDTO citaMedicaDTO
-    ) throws URISyntaxException {
+            @PathVariable(value = "id", required = false) final Long id,
+            @Valid @RequestBody CitaMedicaDTO citaMedicaDTO) throws URISyntaxException {
         LOG.debug("REST request to update CitaMedica : {}, {}", id, citaMedicaDTO);
         if (citaMedicaDTO.getId() == null) {
             throw new BadRequestAlertException("Invalid id", ENTITY_NAME, "idnull");
@@ -104,26 +119,33 @@ public class CitaMedicaResource {
 
         citaMedicaDTO = citaMedicaService.update(citaMedicaDTO);
         return ResponseEntity.ok()
-            .headers(HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME, citaMedicaDTO.getId().toString()))
-            .body(citaMedicaDTO);
+                .headers(HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME,
+                        citaMedicaDTO.getId().toString()))
+                .body(citaMedicaDTO);
     }
 
     /**
-     * {@code PATCH  /cita-medicas/:id} : Partial updates given fields of an existing citaMedica, field will ignore if it is null
+     * {@code PATCH  /cita-medicas/:id} : Partial updates given fields of an
+     * existing citaMedica, field will ignore if it is null
      *
-     * @param id the id of the citaMedicaDTO to save.
+     * @param id            the id of the citaMedicaDTO to save.
      * @param citaMedicaDTO the citaMedicaDTO to update.
-     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body the updated citaMedicaDTO,
-     * or with status {@code 400 (Bad Request)} if the citaMedicaDTO is not valid,
-     * or with status {@code 404 (Not Found)} if the citaMedicaDTO is not found,
-     * or with status {@code 500 (Internal Server Error)} if the citaMedicaDTO couldn't be updated.
+     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body
+     *         the updated citaMedicaDTO,
+     *         or with status {@code 400 (Bad Request)} if the citaMedicaDTO is not
+     *         valid,
+     *         or with status {@code 404 (Not Found)} if the citaMedicaDTO is not
+     *         found,
+     *         or with status {@code 500 (Internal Server Error)} if the
+     *         citaMedicaDTO couldn't be updated.
      * @throws URISyntaxException if the Location URI syntax is incorrect.
      */
     @PatchMapping(value = "/{id}", consumes = { "application/json", "application/merge-patch+json" })
+        @PreAuthorize("hasAnyAuthority('" + AuthoritiesConstants.ADMIN + "', '" + AuthoritiesConstants.RECEPCION + "', '"
+            + AuthoritiesConstants.MEDICO + "', '" + AuthoritiesConstants.ENFERMERO + "')")
     public ResponseEntity<CitaMedicaDTO> partialUpdateCitaMedica(
-        @PathVariable(value = "id", required = false) final Long id,
-        @NotNull @RequestBody CitaMedicaDTO citaMedicaDTO
-    ) throws URISyntaxException {
+            @PathVariable(value = "id", required = false) final Long id,
+            @NotNull @RequestBody CitaMedicaDTO citaMedicaDTO) throws URISyntaxException {
         LOG.debug("REST request to partial update CitaMedica partially : {}, {}", id, citaMedicaDTO);
         if (citaMedicaDTO.getId() == null) {
             throw new BadRequestAlertException("Invalid id", ENTITY_NAME, "idnull");
@@ -139,9 +161,9 @@ public class CitaMedicaResource {
         Optional<CitaMedicaDTO> result = citaMedicaService.partialUpdate(citaMedicaDTO);
 
         return ResponseUtil.wrapOrNotFound(
-            result,
-            HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME, citaMedicaDTO.getId().toString())
-        );
+                result,
+                HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME,
+                        citaMedicaDTO.getId().toString()));
     }
 
     /**
@@ -149,17 +171,20 @@ public class CitaMedicaResource {
      *
      * @param pageable the pagination information.
      * @param criteria the criteria which the requested entities should match.
-     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and the list of citaMedicas in body.
+     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and the list
+     *         of citaMedicas in body.
      */
     @GetMapping("")
+        @PreAuthorize("hasAnyAuthority('" + AuthoritiesConstants.ADMIN + "', '" + AuthoritiesConstants.RECEPCION + "', '"
+            + AuthoritiesConstants.MEDICO + "', '" + AuthoritiesConstants.ENFERMERO + "')")
     public ResponseEntity<List<CitaMedicaDTO>> getAllCitaMedicas(
-        CitaMedicaCriteria criteria,
-        @org.springdoc.core.annotations.ParameterObject Pageable pageable
-    ) {
+            CitaMedicaCriteria criteria,
+            @org.springdoc.core.annotations.ParameterObject Pageable pageable) {
         LOG.debug("REST request to get CitaMedicas by criteria: {}", criteria);
 
         Page<CitaMedicaDTO> page = citaMedicaQueryService.findByCriteria(criteria, pageable);
-        HttpHeaders headers = PaginationUtil.generatePaginationHttpHeaders(ServletUriComponentsBuilder.fromCurrentRequest(), page);
+        HttpHeaders headers = PaginationUtil
+                .generatePaginationHttpHeaders(ServletUriComponentsBuilder.fromCurrentRequest(), page);
         return ResponseEntity.ok().headers(headers).body(page.getContent());
     }
 
@@ -167,9 +192,12 @@ public class CitaMedicaResource {
      * {@code GET  /cita-medicas/count} : count all the citaMedicas.
      *
      * @param criteria the criteria which the requested entities should match.
-     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and the count in body.
+     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and the count
+     *         in body.
      */
     @GetMapping("/count")
+        @PreAuthorize("hasAnyAuthority('" + AuthoritiesConstants.ADMIN + "', '" + AuthoritiesConstants.RECEPCION + "', '"
+            + AuthoritiesConstants.MEDICO + "', '" + AuthoritiesConstants.ENFERMERO + "')")
     public ResponseEntity<Long> countCitaMedicas(CitaMedicaCriteria criteria) {
         LOG.debug("REST request to count CitaMedicas by criteria: {}", criteria);
         return ResponseEntity.ok().body(citaMedicaQueryService.countByCriteria(criteria));
@@ -179,9 +207,12 @@ public class CitaMedicaResource {
      * {@code GET  /cita-medicas/:id} : get the "id" citaMedica.
      *
      * @param id the id of the citaMedicaDTO to retrieve.
-     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body the citaMedicaDTO, or with status {@code 404 (Not Found)}.
+     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body
+     *         the citaMedicaDTO, or with status {@code 404 (Not Found)}.
      */
     @GetMapping("/{id}")
+        @PreAuthorize("hasAnyAuthority('" + AuthoritiesConstants.ADMIN + "', '" + AuthoritiesConstants.RECEPCION + "', '"
+            + AuthoritiesConstants.MEDICO + "', '" + AuthoritiesConstants.ENFERMERO + "')")
     public ResponseEntity<CitaMedicaDTO> getCitaMedica(@PathVariable("id") Long id) {
         LOG.debug("REST request to get CitaMedica : {}", id);
         Optional<CitaMedicaDTO> citaMedicaDTO = citaMedicaService.findOne(id);
@@ -195,11 +226,37 @@ public class CitaMedicaResource {
      * @return the {@link ResponseEntity} with status {@code 204 (NO_CONTENT)}.
      */
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('" + AuthoritiesConstants.ADMIN + "')")
     public ResponseEntity<Void> deleteCitaMedica(@PathVariable("id") Long id) {
         LOG.debug("REST request to delete CitaMedica : {}", id);
         citaMedicaService.delete(id);
         return ResponseEntity.noContent()
-            .headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id.toString()))
-            .build();
+                .headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id.toString()))
+                .build();
+    }
+
+    /**
+     * {@code POST /cita-medicas/:id/finalizar} : Finaliza una consulta médica de
+     * forma transaccional.
+     * Crea la ConsultaMedica, vincula el Diagnóstico CIE-10, persiste las Recetas
+     * y actualiza la CitaMedica a estado ATENDIDA.
+     *
+     * @param id      el ID de la CitaMedica a cerrar.
+     * @param request DTO con los datos de la consulta.
+     * @return ResponseEntity con status 200 (OK).
+     */
+    @PostMapping("/{id}/finalizar")
+    @PreAuthorize("hasAnyAuthority('" + AuthoritiesConstants.ADMIN + "', '" + AuthoritiesConstants.MEDICO + "')")
+    public ResponseEntity<Void> finalizarConsulta(
+            @PathVariable("id") Long id,
+            @RequestBody FinalizarConsultaRequestDTO request) {
+        LOG.debug("REST request to finalizar consulta for CitaMedica ID: {}", id);
+        if (!citaMedicaRepository.existsById(id)) {
+            throw new BadRequestAlertException("Entity not found", ENTITY_NAME, "idnotfound");
+        }
+        finalizarConsultaService.finalizarConsulta(id, request);
+        return ResponseEntity.ok()
+                .headers(HeaderUtil.createAlert(applicationName, "consultaMedica.finalized", id.toString()))
+                .build();
     }
 }

@@ -37,7 +37,8 @@ const AppointmentList: React.FC<AppointmentListProps> = ({ onNavigate }) => {
     const getStatusColor = (status: string) => {
         switch (status) {
             case 'ATENDIDA': return 'bg-success/10 text-success';
-            case 'PROGRAMADA': return 'bg-primary/20 text-primary animate-pulse';
+            case 'ESPERANDO_MEDICO': return 'bg-primary/20 text-primary animate-pulse';
+            case 'PROGRAMADA': return 'bg-blue-100 text-blue-600';
             case 'CANCELADA': return 'bg-red-100 text-red-700';
             default: return 'bg-slate-100 text-slate-500';
         }

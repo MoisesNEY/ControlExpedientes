@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react';
 
 import { usePatient } from '../../../context/PatientContext';
+import { useAuth } from '../../../context/AuthContext';
+import Avatar from '../../ui/Avatar';
 
 import { PacienteService, type PacienteDTO } from '../../../services/paciente.service';
 import PatientFormModal from './PatientFormModal';
 
 const PatientListView = () => {
     const { selectPatient } = usePatient();
+    const { hasAnyRole } = useAuth();
     const [pacientes, setPacientes] = useState<PacienteDTO[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -16,6 +19,8 @@ const PatientListView = () => {
     const [showFilters, setShowFilters] = useState(false);
     const [filterGender, setFilterGender] = useState<string>('');
     const [filterStatus, setFilterStatus] = useState<string>('');
+
+    const canCreatePatient = hasAnyRole(['ROLE_ADMIN', 'ROLE_RECEPCION']);
 
     const fetchPatients = async () => {
         setLoading(true);
@@ -40,13 +45,14 @@ const PatientListView = () => {
     }, [searchTerm, filterGender, filterStatus]);
 
     const handleAttend = (p: PacienteDTO) => {
+        const name = `${p.nombres} ${p.apellidos}`.trim() || 'Paciente';
         selectPatient({
             id: `PX-${p.id}`,
-            name: `${p.nombres} ${p.apellidos}`,
+            patientId: p.id,
+            name,
             age: calculateAge(p.fechaNacimiento),
             gender: p.sexo === 'MASCULINO' ? 'Masculino' : p.sexo === 'FEMENINO' ? 'Femenino' : 'Otro',
             status: p.activo ? 'Activo' : 'Inactivo',
-            image: `https://i.pravatar.cc/150?u=${p.id}`
         });
     };
 
@@ -93,13 +99,15 @@ const PatientListView = () => {
                     <h2 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white transition-colors">Base de Datos de Pacientes</h2>
                     <p className="text-slate-500 text-xs md:text-sm font-medium">Búsqueda global y gestión de expedientes.</p>
                 </div>
-                <button
-                    onClick={() => setShowForm(true)}
-                    className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/30 hover:scale-105 transition-transform"
-                >
-                    <span className="material-symbols-outlined">person_add</span>
-                    Nuevo Paciente
-                </button>
+                {canCreatePatient && (
+                    <button
+                        onClick={() => setShowForm(true)}
+                        className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/30 hover:scale-105 transition-transform"
+                    >
+                        <span className="material-symbols-outlined">person_add</span>
+                        Nuevo Paciente
+                    </button>
+                )}
             </div>
 
             <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden transition-colors">
@@ -197,9 +205,7 @@ const PatientListView = () => {
                                     <tr key={p.id} className="group hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 bg-slate-200 dark:bg-slate-700 rounded-xl overflow-hidden shadow-sm">
-                                                    <img src={`https://i.pravatar.cc/150?u=${p.id}`} alt="" />
-                                                </div>
+                                                <Avatar name={`${p.nombres} ${p.apellidos}`.trim() || 'Paciente'} size="md" className="rounded-xl" />
                                                 <div>
                                                     <p className="font-bold text-slate-800 dark:text-white leading-tight">{p.nombres} {p.apellidos}</p>
                                                     <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Expediente: XP-{2024}-{p.id}</p>
@@ -241,11 +247,13 @@ const PatientListView = () => {
                 </div>
             </div>
 
-            <PatientFormModal
-                isOpen={showForm}
-                onClose={() => setShowForm(false)}
-                onSaveSuccess={fetchPatients}
-            />
+            {canCreatePatient && (
+                <PatientFormModal
+                    isOpen={showForm}
+                    onClose={() => setShowForm(false)}
+                    onSaveSuccess={fetchPatients}
+                />
+            )}
         </div>
     );
 };

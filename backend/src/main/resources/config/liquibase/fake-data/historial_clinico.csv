@@ -1,11 +1,12 @@
 id;fecha_registro;descripcion
-1;2026-01-24T04:48:37;promptly aha valiantly
-2;2026-01-24T18:14:11;demob
-3;2026-01-24T20:18:57;seemingly personal
-4;2026-01-24T20:34:59;but likewise reward
-5;2026-01-24T13:15:14;but ramp thunderbolt
-6;2026-01-24T12:59:50;by silt
-7;2026-01-24T14:16:27;before excluding past
-8;2026-01-24T21:36:20;crystallize
-9;2026-01-24T07:38:17;however phew descent
-10;2026-01-24T21:27:38;um
+1;2026-03-04 08:00:00;Apertura de expediente clínico en recepción
+2;2026-03-04 08:15:00;Paciente ingresa a área de Triage
+3;2026-03-04 08:20:00;Toma de signos vitales completada por enfermería
+4;2026-03-04 08:30:00;Paciente en espera de ser llamado por el médico
+5;2026-03-04 09:00:00;Inicia consulta médica general
+6;2026-03-04 09:15:00;Diagnóstico presuntivo establecido
+7;2026-03-04 09:20:00;Se emite receta médica y plan de tratamiento
+8;2026-03-04 09:25:00;Fin de la consulta médica
+9;2026-03-05 10:00:00;Llamada de seguimiento telefónico
+10;2026-03-05 10:05:00;Paciente reporta mejoría de síntomas
+

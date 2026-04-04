@@ -1,17 +1,13 @@
-package ni.edu.mney.web.rest.vm;
+package ni.edu.mney.service.dto;
 
 import java.io.Serializable;
 import java.util.List;
-import ni.edu.mney.service.dto.ConsultaMedicaDTO;
-import ni.edu.mney.service.dto.DiagnosticoDTO;
-import ni.edu.mney.service.dto.RecetaDTO;
-import ni.edu.mney.service.dto.SignosVitalesDTO;
 
 /**
  * View Model que agrupa todos los datos necesarios para finalizar una consulta
  * médica.
  */
-public class AtencionMedicaVM implements Serializable {
+public class AtencionMedicaDTO implements Serializable {
 
     private ConsultaMedicaDTO consulta;
     private SignosVitalesDTO signosVitales;
@@ -52,7 +48,7 @@ public class AtencionMedicaVM implements Serializable {
 
     @Override
     public String toString() {
-        return "AtencionMedicaVM{" +
+        return "AtencionMedicaDTO{" +
                 "consulta=" + consulta +
                 ", signosVitales=" + signosVitales +
                 ", diagnostico=" + diagnostico +

@@ -67,7 +67,8 @@ public class ConsultaMedicaResource {
      * @throws URISyntaxException if the Location URI syntax is incorrect.
      */
     @PostMapping("")
-    @PreAuthorize("hasAnyAuthority('" + AuthoritiesConstants.ADMIN + "', '" + AuthoritiesConstants.MEDICO + "')")
+    @PreAuthorize("hasAnyAuthority('" + AuthoritiesConstants.ADMIN + "', '" + AuthoritiesConstants.MEDICO + "', '"
+            + AuthoritiesConstants.ENFERMERO + "')")
     public ResponseEntity<ConsultaMedicaDTO> createConsultaMedica(
             @Valid @RequestBody ConsultaMedicaDTO consultaMedicaDTO)
             throws URISyntaxException {
