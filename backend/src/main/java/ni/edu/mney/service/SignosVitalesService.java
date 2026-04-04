@@ -23,7 +23,8 @@ public class SignosVitalesService {
 
     private final SignosVitalesMapper signosVitalesMapper;
 
-    public SignosVitalesService(SignosVitalesRepository signosVitalesRepository, SignosVitalesMapper signosVitalesMapper) {
+    public SignosVitalesService(SignosVitalesRepository signosVitalesRepository,
+            SignosVitalesMapper signosVitalesMapper) {
         this.signosVitalesRepository = signosVitalesRepository;
         this.signosVitalesMapper = signosVitalesMapper;
     }
@@ -64,14 +65,14 @@ public class SignosVitalesService {
         LOG.debug("Request to partially update SignosVitales : {}", signosVitalesDTO);
 
         return signosVitalesRepository
-            .findById(signosVitalesDTO.getId())
-            .map(existingSignosVitales -> {
-                signosVitalesMapper.partialUpdate(existingSignosVitales, signosVitalesDTO);
+                .findById(signosVitalesDTO.getId())
+                .map(existingSignosVitales -> {
+                    signosVitalesMapper.partialUpdate(existingSignosVitales, signosVitalesDTO);
 
-                return existingSignosVitales;
-            })
-            .map(signosVitalesRepository::save)
-            .map(signosVitalesMapper::toDto);
+                    return existingSignosVitales;
+                })
+                .map(signosVitalesRepository::save)
+                .map(signosVitalesMapper::toDto);
     }
 
     /**
@@ -94,5 +95,19 @@ public class SignosVitalesService {
     public void delete(Long id) {
         LOG.debug("Request to delete SignosVitales : {}", id);
         signosVitalesRepository.deleteById(id);
+    }
+
+    /**
+     * Get the latest SignosVitales by pacienteId and current date.
+     *
+     * @param pacienteId the id of the paciente.
+     * @return the list of entities.
+     */
+    @Transactional(readOnly = true)
+    public java.util.List<SignosVitalesDTO> findLatestByPacienteIdAndDate(Long pacienteId, java.time.LocalDate date) {
+        LOG.debug("Request to get SignosVitales for Paciente : {} and Date : {}", pacienteId, date);
+        return signosVitalesRepository.findByPacienteIdAndFechaConsulta(pacienteId, date).stream()
+                .map(signosVitalesMapper::toDto)
+                .collect(java.util.stream.Collectors.toList());
     }
 }

@@ -21,6 +21,8 @@ public class ExpedienteClinicoDTO implements Serializable {
 
     private String observaciones;
 
+    private PacienteDTO paciente;
+
     public Long getId() {
         return id;
     }
@@ -53,6 +55,14 @@ public class ExpedienteClinicoDTO implements Serializable {
         this.observaciones = observaciones;
     }
 
+    public PacienteDTO getPaciente() {
+        return paciente;
+    }
+
+    public void setPaciente(PacienteDTO paciente) {
+        this.paciente = paciente;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -82,6 +92,7 @@ public class ExpedienteClinicoDTO implements Serializable {
             ", numeroExpediente='" + getNumeroExpediente() + "'" +
             ", fechaApertura='" + getFechaApertura() + "'" +
             ", observaciones='" + getObservaciones() + "'" +
+            ", paciente=" + getPaciente() +
             "}";
     }
 }

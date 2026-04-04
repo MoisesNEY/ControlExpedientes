@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import ni.edu.mney.repository.DiagnosticoRepository;
+import ni.edu.mney.security.AuthoritiesConstants;
 import ni.edu.mney.service.DiagnosticoQueryService;
 import ni.edu.mney.service.DiagnosticoService;
 import ni.edu.mney.service.criteria.DiagnosticoCriteria;
@@ -20,6 +21,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import tech.jhipster.web.util.HeaderUtil;
@@ -31,6 +33,7 @@ import tech.jhipster.web.util.ResponseUtil;
  */
 @RestController
 @RequestMapping("/api/diagnosticos")
+@PreAuthorize("hasAnyAuthority('" + AuthoritiesConstants.ADMIN + "', '" + AuthoritiesConstants.MEDICO + "', '" + AuthoritiesConstants.ENFERMERO + "')")
 public class DiagnosticoResource {
 
     private static final Logger LOG = LoggerFactory.getLogger(DiagnosticoResource.class);
@@ -64,6 +67,7 @@ public class DiagnosticoResource {
      * @throws URISyntaxException if the Location URI syntax is incorrect.
      */
     @PostMapping("")
+    @PreAuthorize("hasAnyAuthority('" + AuthoritiesConstants.ADMIN + "', '" + AuthoritiesConstants.MEDICO + "')")
     public ResponseEntity<DiagnosticoDTO> createDiagnostico(@Valid @RequestBody DiagnosticoDTO diagnosticoDTO) throws URISyntaxException {
         LOG.debug("REST request to save Diagnostico : {}", diagnosticoDTO);
         if (diagnosticoDTO.getId() != null) {
@@ -86,6 +90,7 @@ public class DiagnosticoResource {
      * @throws URISyntaxException if the Location URI syntax is incorrect.
      */
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('" + AuthoritiesConstants.ADMIN + "')")
     public ResponseEntity<DiagnosticoDTO> updateDiagnostico(
         @PathVariable(value = "id", required = false) final Long id,
         @Valid @RequestBody DiagnosticoDTO diagnosticoDTO
@@ -120,6 +125,7 @@ public class DiagnosticoResource {
      * @throws URISyntaxException if the Location URI syntax is incorrect.
      */
     @PatchMapping(value = "/{id}", consumes = { "application/json", "application/merge-patch+json" })
+    @PreAuthorize("hasAuthority('" + AuthoritiesConstants.ADMIN + "')")
     public ResponseEntity<DiagnosticoDTO> partialUpdateDiagnostico(
         @PathVariable(value = "id", required = false) final Long id,
         @NotNull @RequestBody DiagnosticoDTO diagnosticoDTO
@@ -195,6 +201,7 @@ public class DiagnosticoResource {
      * @return the {@link ResponseEntity} with status {@code 204 (NO_CONTENT)}.
      */
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('" + AuthoritiesConstants.ADMIN + "')")
     public ResponseEntity<Void> deleteDiagnostico(@PathVariable("id") Long id) {
         LOG.debug("REST request to delete Diagnostico : {}", id);
         diagnosticoService.delete(id);

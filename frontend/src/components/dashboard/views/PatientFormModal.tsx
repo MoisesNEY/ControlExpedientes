@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, type HTMLAttributes, type RefObject } from 'react';
 import { PacienteService, type PacienteDTO } from '../../../services/paciente.service';
+import { formatNicaraguanCedula, formatPhoneNumber, isValidNicaraguanCedula, isValidPhoneNumber } from '../../../utils/inputMasks';
 
 interface PatientFormModalProps {
     isOpen: boolean;
@@ -22,29 +23,73 @@ const emptyPaciente: PacienteDTO = {
     activo: true,
 };
 
+const sanitizePacienteForm = (paciente: PacienteDTO): PacienteDTO => ({
+    ...paciente,
+    cedula: formatNicaraguanCedula(paciente.cedula || ''),
+    telefono: formatPhoneNumber(paciente.telefono || ''),
+});
+
+const todayIsoDate = () => new Date().toISOString().split('T')[0];
+
 const PatientFormModal = ({ isOpen, onClose, onSaveSuccess, editingPaciente }: PatientFormModalProps) => {
     const [form, setForm] = useState<PacienteDTO>(emptyPaciente);
     const [saving, setSaving] = useState(false);
+    const birthDateInputRef = useRef<HTMLInputElement>(null);
+
+    const cedulaError = form.cedula && !isValidNicaraguanCedula(form.cedula)
+        ? 'Formato requerido: 000-000000-0000X'
+        : '';
+    const telefonoError = form.telefono && !isValidPhoneNumber(form.telefono)
+        ? 'Formato requerido: 0000-0000'
+        : '';
 
     useEffect(() => {
         if (isOpen) {
-            setForm(editingPaciente ? { ...editingPaciente } : emptyPaciente);
+            setForm(editingPaciente ? sanitizePacienteForm({ ...editingPaciente }) : emptyPaciente);
         }
     }, [isOpen, editingPaciente]);
 
     if (!isOpen) return null;
 
     const handleSave = async () => {
-        if (!form.codigo || !form.nombres || !form.apellidos || !form.fechaNacimiento) {
-            alert('Por favor complete los campos obligatorios: código, nombres, apellidos y fecha de nacimiento.');
+        if (!form.nombres || !form.apellidos || !form.fechaNacimiento) {
+            alert('Por favor complete los campos obligatorios: nombres, apellidos y fecha de nacimiento.');
             return;
         }
+
+        if (cedulaError) {
+            alert('La cédula debe tener el formato 000-000000-0000X.');
+            return;
+        }
+
+        if (telefonoError) {
+            alert('El teléfono debe tener el formato 0000-0000.');
+            return;
+        }
+
+        const today = new Date();
+        const selectedDate = new Date(`${form.fechaNacimiento}T00:00:00`);
+        if (selectedDate.getTime() > today.getTime()) {
+            alert('La fecha de nacimiento no puede ser futura.');
+            return;
+        }
+
         setSaving(true);
         try {
+            const payload: PacienteDTO = {
+                ...form,
+                nombres: form.nombres.trim(),
+                apellidos: form.apellidos.trim(),
+                cedula: form.cedula || undefined,
+                telefono: form.telefono || undefined,
+                direccion: form.direccion?.trim() || undefined,
+                email: form.email?.trim() || undefined,
+            };
+
             if (editingPaciente?.id) {
-                await PacienteService.update(editingPaciente.id, form);
+                await PacienteService.update(editingPaciente.id, payload);
             } else {
-                await PacienteService.create(form);
+                await PacienteService.create(payload);
             }
             onSaveSuccess();
             onClose();
@@ -70,7 +115,6 @@ const PatientFormModal = ({ isOpen, onClose, onSaveSuccess, editingPaciente }: P
                 </div>
                 <div className="p-6 space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField label="Código *" value={form.codigo} onChange={v => setForm({ ...form, codigo: v })} placeholder="PAC-001" />
                         <FormField label="Nombres *" value={form.nombres} onChange={v => setForm({ ...form, nombres: v })} placeholder="Juan Carlos" />
                         <FormField label="Apellidos *" value={form.apellidos} onChange={v => setForm({ ...form, apellidos: v })} placeholder="Pérez López" />
                         <div className="flex flex-col gap-1.5">
@@ -85,9 +129,15 @@ const PatientFormModal = ({ isOpen, onClose, onSaveSuccess, editingPaciente }: P
                                 <option value="OTRO">Otro</option>
                             </select>
                         </div>
-                        <FormField label="Fecha de Nacimiento *" type="date" value={form.fechaNacimiento} onChange={v => setForm({ ...form, fechaNacimiento: v })} />
-                        <FormField label="Cédula" value={form.cedula || ''} onChange={v => setForm({ ...form, cedula: v })} placeholder="001-010190-0001A" />
-                        <FormField label="Teléfono" value={form.telefono || ''} onChange={v => setForm({ ...form, telefono: v })} placeholder="+505 8888-0000" />
+                        <DateField
+                            label="Fecha de Nacimiento *"
+                            value={form.fechaNacimiento}
+                            max={todayIsoDate()}
+                            inputRef={birthDateInputRef}
+                            onChange={v => setForm({ ...form, fechaNacimiento: v })}
+                        />
+                        <FormField label="Cédula" value={form.cedula || ''} onChange={v => setForm({ ...form, cedula: formatNicaraguanCedula(v) })} placeholder="000-000000-0000X" error={cedulaError} autoCapitalize="characters" />
+                        <FormField label="Teléfono" value={form.telefono || ''} onChange={v => setForm({ ...form, telefono: formatPhoneNumber(v) })} placeholder="0000-0000" inputMode="numeric" error={telefonoError} />
                         <FormField label="Email" type="email" value={form.email || ''} onChange={v => setForm({ ...form, email: v })} placeholder="correo@ejemplo.com" />
                         <div className="flex flex-col gap-1.5">
                             <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Estado Civil</label>
@@ -132,8 +182,47 @@ const PatientFormModal = ({ isOpen, onClose, onSaveSuccess, editingPaciente }: P
     );
 };
 
-const FormField = ({ label, value, onChange, placeholder, type = 'text' }: {
-    label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string;
+const DateField = ({ label, value, onChange, max, inputRef }: {
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    max: string;
+    inputRef: RefObject<HTMLInputElement | null>;
+}) => (
+    <div className="flex flex-col gap-1.5">
+        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{label}</label>
+        <div className="relative">
+            <input
+                ref={inputRef}
+                type="date"
+                value={value}
+                max={max}
+                onChange={e => onChange(e.target.value)}
+                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 pr-11 text-sm outline-none focus:ring-2 focus:ring-primary transition-all text-slate-900 dark:text-white"
+            />
+            <button
+                type="button"
+                onClick={() => inputRef.current?.showPicker?.()}
+                className="absolute inset-y-0 right-0 px-3 text-slate-400 hover:text-primary transition-colors"
+                aria-label="Abrir calendario"
+            >
+                <span className="material-symbols-outlined text-[18px]">calendar_month</span>
+            </button>
+        </div>
+        <p className="text-[11px] text-slate-400">Selecciona la fecha desde el calendario. No se permiten fechas futuras.</p>
+    </div>
+);
+
+const FormField = ({ label, value, onChange, placeholder, type = 'text', maxLength, inputMode, error, autoCapitalize }: {
+    label: string;
+    value: string;
+    onChange: (v: string) => void;
+    placeholder?: string;
+    type?: string;
+    maxLength?: number;
+    inputMode?: HTMLAttributes<HTMLInputElement>['inputMode'];
+    error?: string;
+    autoCapitalize?: string;
 }) => (
     <div className="flex flex-col gap-1.5">
         <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{label}</label>
@@ -142,8 +231,12 @@ const FormField = ({ label, value, onChange, placeholder, type = 'text' }: {
             value={value}
             onChange={e => onChange(e.target.value)}
             placeholder={placeholder}
-            className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary transition-all text-slate-900 dark:text-white"
+            maxLength={maxLength}
+            inputMode={inputMode}
+            autoCapitalize={autoCapitalize}
+            className={`bg-slate-50 dark:bg-slate-800 border rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary transition-all text-slate-900 dark:text-white ${error ? 'border-rose-300 dark:border-rose-500/40' : 'border-slate-200 dark:border-slate-700'}`}
         />
+        {error && <p className="text-[11px] font-medium text-rose-500">{error}</p>}
     </div>
 );
 

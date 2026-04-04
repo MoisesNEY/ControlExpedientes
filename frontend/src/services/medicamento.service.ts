@@ -18,6 +18,17 @@ export const MedicamentoService = {
         return response.data;
     },
 
+    search: async (query: string): Promise<MedicamentoDTO[]> => {
+        if (!query || query.length < 2) return [];
+        const response = await api.get('/api/medicamentos', {
+            params: {
+                'nombre.contains': query,
+                'size': 10 // Limit results
+            }
+        });
+        return response.data;
+    },
+
     count: async (params?: Record<string, any>): Promise<number> => {
         const response = await api.get('/api/medicamentos/count', { params });
         return response.data;

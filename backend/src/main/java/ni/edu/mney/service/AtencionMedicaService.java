@@ -4,7 +4,7 @@ import ni.edu.mney.service.dto.ConsultaMedicaDTO;
 import ni.edu.mney.service.dto.DiagnosticoDTO;
 import ni.edu.mney.service.dto.RecetaDTO;
 import ni.edu.mney.service.dto.SignosVitalesDTO;
-import ni.edu.mney.web.rest.vm.AtencionMedicaVM;
+import ni.edu.mney.service.dto.AtencionMedicaDTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -43,29 +43,29 @@ public class AtencionMedicaService {
      * @param vm el view model con todos los datos de la atención.
      * @return la consulta médica guardada.
      */
-    public ConsultaMedicaDTO finalizarConsulta(AtencionMedicaVM vm) {
+    public ConsultaMedicaDTO finalizarConsulta(AtencionMedicaDTO dto) {
         LOG.debug("Request to finalizar consulta médica de forma atómica");
 
         // 1. Guardar la Consulta Médica
-        ConsultaMedicaDTO consultaDTO = consultaMedicaService.save(vm.getConsulta());
+        ConsultaMedicaDTO consultaDTO = consultaMedicaService.save(dto.getConsulta());
 
         // 2. Guardar Signos Vitales si existen
-        if (vm.getSignosVitales() != null) {
-            SignosVitalesDTO svDTO = vm.getSignosVitales();
+        if (dto.getSignosVitales() != null) {
+            SignosVitalesDTO svDTO = dto.getSignosVitales();
             svDTO.setConsulta(consultaDTO);
             signosVitalesService.save(svDTO);
         }
 
         // 3. Guardar Diagnóstico si existe
-        if (vm.getDiagnostico() != null) {
-            DiagnosticoDTO diagDTO = vm.getDiagnostico();
+        if (dto.getDiagnostico() != null) {
+            DiagnosticoDTO diagDTO = dto.getDiagnostico();
             diagDTO.setConsulta(consultaDTO);
             diagnosticoService.save(diagDTO);
         }
 
         // 4. Guardar Recetas si existen
-        if (vm.getRecetas() != null && !vm.getRecetas().isEmpty()) {
-            for (RecetaDTO recetaDTO : vm.getRecetas()) {
+        if (dto.getRecetas() != null && !dto.getRecetas().isEmpty()) {
+            for (RecetaDTO recetaDTO : dto.getRecetas()) {
                 recetaDTO.setConsulta(consultaDTO);
                 recetaService.save(recetaDTO);
             }

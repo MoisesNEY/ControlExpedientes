@@ -1,154 +1,125 @@
-import { usePatient } from '../../context/PatientContext';
-import { useAuth } from '../../context/AuthContext';
-import { useTheme } from '../../context/ThemeContext';
-import { useNavigate, useLocation } from 'react-router-dom';
+import React from 'react';
+import { NavLink } from 'react-router-dom';
+import type { NavGroup } from '../../config/navigation';
 
 interface SidebarProps {
-    onNavigate?: (tab: string) => void;
+  groups: NavGroup[];
+  isCollapsed: boolean;
+  onCloseMobile?: () => void;
 }
 
-const Sidebar = ({ onNavigate }: SidebarProps) => {
-    const { selectPatient, selectedPatient } = usePatient();
-    const { logout, account, user } = useAuth();
-    const { theme, toggleTheme } = useTheme();
-    const navigate = useNavigate();
-    const location = useLocation();
+/**
+ * Componente (Presentational) puro de renderizado lateral.
+ * Depende totalmente de las Props proporcionadas por su Contenedor.
+ */
+export const Sidebar: React.FC<SidebarProps> = ({ groups, isCollapsed, onCloseMobile }) => {
 
-    const handleNavClick = (label: string, pathSegment: string) => {
-        if (label === 'Panel Principal') {
-            selectPatient(null);
-        }
+  return (
+    <>
+      {/* Backdrop (Fondo oscuro) manejado en Mobile */}
+      {!isCollapsed && onCloseMobile && (
+        <div 
+          className="fixed inset-0 z-30 bg-slate-900/50 backdrop-blur-sm lg:hidden transition-opacity"
+          onClick={onCloseMobile}
+          aria-hidden="true"
+        />
+      )}
 
-        // If the parent provided an onNavigate callback, call it (useful for mobile drawer closing)
-        if (onNavigate) {
-            onNavigate(label);
-        } else {
-            // Default internal routing behavior
-            navigate(pathSegment);
-        }
-    };
+      {/* Contenedor del Sidebar con transiciones */}
+      <aside 
+        className={`fixed lg:static inset-y-0 left-0 z-40 flex flex-col bg-[#071e2b] text-slate-300 
+          transition-all duration-300 ease-in-out border-r border-white/5 shadow-xl lg:shadow-none
+          ${isCollapsed ? '-translate-x-full lg:translate-x-0 lg:w-20' : 'translate-x-0 w-72'}
+        `}
+      >
+        {/* Cabecera Sidebar (Logo & Marca) */}
+        <div className="h-16 flex items-center justify-center border-b border-white/5 shrink-0 relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-r from-sky-600/10 to-indigo-600/10 pointer-events-none"></div>
+          
+          <div className="w-8 h-8 rounded-lg bg-sky-500/10 border border-sky-500/20 flex items-center justify-center shrink-0 z-10 transition-transform hover:scale-105">
+            <span className="material-symbols-outlined text-sky-400 text-[18px]">local_hospital</span>
+          </div>
+          
+          <div className={`ml-3 overflow-hidden transition-all duration-300 flex flex-col justify-center z-10 ${isCollapsed ? 'lg:w-0 lg:opacity-0' : 'w-auto opacity-100'}`}>
+            <span className="text-white text-base font-black tracking-tight leading-none">STITCH</span>
+            <span className="text-sky-500/60 text-[9px] font-bold uppercase tracking-widest mt-[2px] leading-none">Medical</span>
+          </div>
 
-    const menuItems = [
-        { icon: 'dashboard', label: 'Panel Principal', path: '' },
-        { icon: 'group', label: 'Pacientes', path: 'pacientes' },
-        { icon: 'calendar_today', label: 'Citas', path: 'citas' },
-        { icon: 'inventory_2', label: 'Inventario', path: 'inventario' },
-        { icon: 'history_edu', label: 'Registros', path: 'registros' },
-    ];
-
-    const getSafeName = () => {
-        // 1. Try account fields
-        if (account?.firstName || account?.lastName) {
-            return `${account.firstName || ''} ${account.lastName || ''}`.trim();
-        }
-        // 2. Try token name
-        if (user?.name) return user.name;
-        // 3. Try token components
-        if (user?.given_name || user?.family_name) {
-            return `${user.given_name || ''} ${user.family_name || ''}`.trim();
-        }
-        // 4. Try username
-        if (user?.preferred_username) return user.preferred_username;
-        // 5. Default
-        return 'Doctor';
-    };
-
-    const fullName = getSafeName();
-
-    const initials = fullName
-        .split(' ')
-        .filter(Boolean)
-        .map((n: string) => n[0])
-        .slice(0, 2)
-        .join('')
-        .toUpperCase() || 'DR';
-
-    return (
-        <div className="w-full lg:w-64 h-full bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col transition-colors duration-300 relative z-50">
-            <div className="p-6">
-                <div className="flex items-center gap-3 mb-8">
-                    <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/30">
-                        <span className="material-symbols-outlined text-white font-bold text-2xl">medical_services</span>
-                    </div>
-                    <div>
-                        <h1 className="text-slate-900 dark:text-white font-black text-lg leading-tight tracking-tight uppercase">Stitch</h1>
-                        <p className="text-[10px] text-primary font-black uppercase tracking-widest leading-none">Medical Center</p>
-                    </div>
-                </div>
-
-                <nav className="space-y-1.5">
-                    {menuItems.map((item) => {
-                        const isActive = labelToActive(item.path, location.pathname, selectedPatient);
-                        return (
-                            <button
-                                key={item.label}
-                                onClick={() => handleNavClick(item.label, item.path)}
-                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group ${isActive
-                                    ? 'bg-primary text-white shadow-lg shadow-primary/20'
-                                    : 'text-slate-500 hover:bg-primary/5 hover:text-primary'
-                                    }`}
-                            >
-                                <span className={`material-symbols-outlined ${isActive ? 'fill-1' : 'opacity-80 group-hover:opacity-100'}`}>
-                                    {item.icon}
-                                </span>
-                                <span className="text-sm font-bold tracking-tight">{item.label}</span>
-                            </button>
-                        );
-                    })}
-                </nav>
-            </div>
-
-            <div className="mt-auto p-6 space-y-4">
-                {/* Theme Toggle */}
-                <button
-                    onClick={toggleTheme}
-                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all font-bold group"
-                >
-                    <span className="material-symbols-outlined transition-transform duration-300 group-hover:rotate-12">
-                        {theme === 'light' ? 'dark_mode' : 'light_mode'}
-                    </span>
-                    <span className="text-sm">{theme === 'light' ? 'Modo Oscuro' : 'Modo Claro'}</span>
-                </button>
-
-                {/* User Info */}
-                <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800 transition-colors">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-primary/10 text-primary border border-primary/20 rounded-full flex items-center justify-center font-black text-xs shadow-inner">
-                            {initials}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <p className="text-xs font-black text-slate-900 dark:text-white truncate">
-                                {fullName}
-                            </p>
-                            <p className="text-[10px] text-slate-400 font-bold truncate uppercase tracking-tight">
-                                {account?.authorities?.find(r => r.startsWith('ROLE_'))?.replace('ROLE_', '').replace('_', ' ') ||
-                                    user?.realm_access?.roles?.find((r: string) => r.startsWith('ROLE_'))?.replace('ROLE_', '').replace('_', ' ') ||
-                                    'Médico'}
-                            </p>
-                        </div>
-                    </div>
-                    <button
-                        onClick={logout}
-                        className="w-full mt-3 flex items-center justify-center gap-2 py-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors"
-                    >
-                        <span className="material-symbols-outlined text-sm">logout</span>
-                        Cerrar Sesión
-                    </button>
-                </div>
-            </div>
+          {/* Botón de cierre explícito para Móvil */}
+          {onCloseMobile && !isCollapsed && (
+            <button 
+              onClick={onCloseMobile} 
+              className="absolute right-4 lg:hidden text-slate-400 hover:text-white"
+            >
+              <span className="material-symbols-outlined">close</span>
+            </button>
+          )}
         </div>
-    );
+
+        {/* Nodos de Navegación */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden pt-6 pb-4 space-y-7 custom-scrollbar hide-scrollbar-mobile">
+          {groups.map((group, groupIndex) => (
+            <div key={groupIndex} className="px-3">
+              {/* Etiqueta del módulo/grupo */}
+              <h3 className={`mb-2.5 px-3 text-[10px] font-black text-slate-500/70 uppercase tracking-widest transition-opacity duration-300 ${isCollapsed ? 'lg:opacity-0 lg:hidden' : 'opacity-100'}`}>
+                {group.groupName}
+              </h3>
+              
+              <ul className="space-y-1">
+                {group.items.map(item => (
+                  <li key={item.id}>
+                    <NavLink
+                      to={item.path}
+                      onClick={onCloseMobile} // Cierra en mobile
+                      // Exact para evitar que '/admin' encienda a todas sus hijas al abrir el panel, etc.
+                      // En tu caso es útil si hay jerarquías exactas, pero 'end' a veces interfiere con vistas anidadas.
+                      // Simplificaremos dejando React Router resolver el `isActive`.
+                      className={({ isActive }) => `
+                        group flex items-center rounded-lg px-3 py-2.5 transition-all duration-200 relative cursor-pointer
+                        ${isActive 
+                          ? 'bg-sky-500/10 text-sky-400 shadow-[inset_2px_0_0_0_#38bdf8]' 
+                          : 'hover:bg-white/5 hover:text-slate-100'
+                        }
+                        ${isCollapsed ? 'lg:justify-center' : 'justify-start'}
+                      `}
+                    >
+                      {({ isActive }) => (
+                        <>
+                          <span className={`material-symbols-outlined shrink-0 text-[19px] transition-colors ${isActive ? 'text-sky-400' : 'text-slate-400 group-hover:text-slate-300'} ${isCollapsed ? '' : 'mr-3'}`}>
+                            {item.icon}
+                          </span>
+                          
+                          <span className={`text-[13px] font-medium whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'lg:w-0 lg:opacity-0' : 'w-auto opacity-100'} ${isActive ? 'font-semibold' : ''}`}>
+                            {item.label}
+                          </span>
+
+                          {/* Tooltip Dinámico (Aparece en Desktop colapsado al hacer Hover) */}
+                          {isCollapsed && (
+                            <div className="absolute left-full ml-4 px-2.5 py-1.5 bg-slate-800 text-white text-[11px] font-bold rounded-md opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap z-50 shadow-xl border border-white/10 hidden lg:block">
+                              {item.label}
+                              <div className="absolute top-1/2 -left-1 -mt-1 w-2 h-2 bg-slate-800 border-l border-b border-white/10 origin-top-left -rotate-45"></div>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </NavLink>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+        
+        {/* Footer (Estado Operativo) */}
+        <div className={`p-4 border-t border-white/5 transition-all duration-300 mt-auto ${isCollapsed ? 'lg:p-3 lg:flex lg:justify-center' : ''}`}>
+           <div className={`flex items-center gap-2.5 ${isCollapsed ? 'lg:justify-center' : ''} px-2 py-1.5 rounded-md bg-white/[0.02] border border-white/[0.04]`}>
+             <div className="w-2 h-2 rounded-full bg-emerald-500/80 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse shrink-0"></div>
+             <span className={`text-[10px] font-medium text-slate-400 truncate ${isCollapsed ? 'lg:hidden' : ''}`}>
+               Sistema Conectado
+             </span>
+           </div>
+        </div>
+      </aside>
+    </>
+  );
 };
-
-// Helper function to determine if a menu item should be highlighted as active based on URL
-const labelToActive = (path: string, currentPathname: string, selectedPatient: any) => {
-    if (selectedPatient) return false; // When a patient is selected, no sidebar item is "active"
-
-    // Extract the last segment of the url or default to empty string
-    const segments = currentPathname.split('/').filter(Boolean);
-    const lastSegment = segments.length > 1 ? segments[segments.length - 1] : '';
-
-    return lastSegment === path;
-};
-
-export default Sidebar;

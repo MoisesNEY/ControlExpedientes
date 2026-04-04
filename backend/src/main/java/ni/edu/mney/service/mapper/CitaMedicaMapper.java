@@ -14,7 +14,7 @@ import org.mapstruct.*;
 @Mapper(componentModel = "spring")
 public interface CitaMedicaMapper extends EntityMapper<CitaMedicaDTO, CitaMedica> {
     @Mapping(target = "user", source = "user", qualifiedByName = "userLogin")
-    @Mapping(target = "paciente", source = "paciente", qualifiedByName = "pacienteId")
+    @Mapping(target = "paciente", source = "paciente", qualifiedByName = "pacienteSummary")
     CitaMedicaDTO toDto(CitaMedica s);
 
     @Named("userLogin")
@@ -23,8 +23,11 @@ public interface CitaMedicaMapper extends EntityMapper<CitaMedicaDTO, CitaMedica
     @Mapping(target = "login", source = "login")
     UserDTO toDtoUserLogin(User user);
 
-    @Named("pacienteId")
+    @Named("pacienteSummary")
     @BeanMapping(ignoreByDefault = true)
     @Mapping(target = "id", source = "id")
-    PacienteDTO toDtoPacienteId(Paciente paciente);
+    @Mapping(target = "codigo", source = "codigo")
+    @Mapping(target = "nombres", source = "nombres")
+    @Mapping(target = "apellidos", source = "apellidos")
+    PacienteDTO toDtoPacienteSummary(Paciente paciente);
 }

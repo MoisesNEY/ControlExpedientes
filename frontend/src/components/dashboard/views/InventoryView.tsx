@@ -39,7 +39,7 @@ const InventoryView = () => {
                 </div>
                 <div className="bg-primary/10 text-primary px-4 py-2 rounded-xl border border-primary/20 flex items-center gap-2">
                     <span className="material-symbols-outlined text-[18px]">info</span>
-                    <span className="text-[10px] font-black uppercase tracking-widest">Modo Lectura - Médicos</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest">Modo Lectura - Personal Clínico</span>
                 </div>
             </div>
 

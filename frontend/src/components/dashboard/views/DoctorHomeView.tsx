@@ -1,158 +1,224 @@
 import { useEffect, useState } from 'react';
-import { usePatient } from '../../../context/PatientContext';
-import { AppointmentService, type Appointment } from '../../../services/appointment.service';
+import { useNavigate } from 'react-router-dom';
+import {
+    Bar,
+    BarChart,
+    CartesianGrid,
+    Cell,
+    Legend,
+    Line,
+    LineChart,
+    Pie,
+    PieChart,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis,
+} from 'recharts';
 import { useAuth } from '../../../context/AuthContext';
+import { DashboardEmptyState, DashboardLoading, DashboardMetricCard, DashboardPanel } from '../../analytics/DashboardPrimitives';
+import { DashboardService, type DashboardListItem, type DashboardMetrics } from '../../../services/dashboard.service';
+import { AppButton } from '../../ui/AppButton';
 
-const StatCard = ({ label, value, icon, color }: any) => (
-    <div className="bg-white dark:bg-slate-900 p-5 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 flex items-center gap-4 transition-colors">
-        <div className={`${color} size-12 rounded-lg flex items-center justify-center text-white shadow-lg shadow-current/20`}>
-            <span className="material-symbols-outlined">{icon}</span>
-        </div>
-        <div>
-            <p className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">{label}</p>
-            <p className="text-2xl font-black text-slate-900 dark:text-white leading-none mt-1">{value}</p>
-        </div>
-    </div>
-);
+const CARD_ACCENTS = ['bg-amber-500', 'bg-cyan-500', 'bg-emerald-500', 'bg-violet-500'];
+const CARD_ICONS: Record<string, string> = {
+    totalAsignadas: 'calendar_month',
+    enEspera: 'ward',
+    atendidas: 'check_circle',
+    activas: 'stethoscope',
+};
+const STATUS_COLORS = ['#f59e0b', '#0ea5e9', '#22c55e', '#ef4444', '#64748b'];
+const DIAGNOSIS_COLORS = ['#0f766e', '#0284c7', '#7c3aed', '#ea580c', '#e11d48'];
 
-const DoctorHomeView = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
-    const { selectPatient } = usePatient();
+const DoctorHomeView = () => {
     const { user } = useAuth();
-    const [stats, setStats] = useState({ totalToday: 0, attendedToday: 0 });
-    const [appointments, setAppointments] = useState<Appointment[]>([]);
+    const navigate = useNavigate();
+    const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const fetchData = async () => {
-            if (!user?.id) return;
+        const loadDashboard = async () => {
             setLoading(true);
             try {
-                const [statData, appointmentData] = await Promise.all([
-                    AppointmentService.getAppointmentStats(user.id),
-                    AppointmentService.getTodayAppointments(user.id)
-                ]);
-                setStats(statData);
-                setAppointments(appointmentData);
+                setMetrics(await DashboardService.getDoctorDashboard());
             } catch (error) {
-                console.error("Error fetching dashboard data:", error);
+                console.error('Error fetching doctor dashboard:', error);
             } finally {
                 setLoading(false);
             }
         };
 
-        fetchData();
-    }, [user?.id]);
+        loadDashboard();
+        const interval = setInterval(loadDashboard, 30000);
+        return () => clearInterval(interval);
+    }, []);
 
-    const handleAttend = (appointment: Appointment) => {
-        const paciente = appointment.paciente;
-        if (!paciente) return;
-
-        // Map backend patient to frontend PatientContext structure
-        selectPatient({
-            id: `PX-${paciente.id}`,
-            name: `${paciente.nombres || ''} ${paciente.apellidos || ''}`.trim() || 'N/A',
-            age: 'N/A', // Age is unfortunately not in the minimal appointment payload right now
-            gender: 'N/A',
-            status: 'Activo',
-            image: `https://i.pravatar.cc/150?u=${paciente.nombres}`,
-            appointmentId: appointment.id
-        });
-    };
-
-    const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const openConsultation = (item?: DashboardListItem | null) => {
+        if (!item?.id) return;
+        try {
+            localStorage.setItem('activeConsultation', String(item.id));
+        } catch {
+            // ignore
+        }
+        navigate(`/medico/consulta/${item.id}`);
     };
 
     if (loading) {
-        return (
-            <div className="p-8 flex items-center justify-center h-full">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-            </div>
-        );
+        return <DashboardLoading />;
+    }
+
+    if (!metrics) {
+        return <DashboardEmptyState message="No se pudieron cargar las métricas del panel médico." />;
     }
 
     return (
-        <div className="p-4 md:p-8 max-w-5xl mx-auto w-full flex flex-col gap-6 md:gap-8 transition-colors duration-300">
-            {/* Bienvenida */}
-            <div className="flex flex-col gap-1">
-                <h2 className="text-slate-900 dark:text-white text-2xl md:text-3xl font-black tracking-tight">¡Buen día, {user?.firstName || 'Doctor'}!</h2>
-                <p className="text-slate-500 text-sm md:text-base font-medium tracking-tight">Aquí tienes el resumen de tu jornada para hoy, {new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long' })}.</p>
-            </div>
-
-            {/* Estadísticas Rápidas */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-                <StatCard label="Citas Hoy" value={stats.totalToday.toString()} icon="calendar_month" color="bg-primary" />
-                <StatCard label="Pacientes Atendidos" value={stats.attendedToday.toString()} icon="check_circle" color="bg-success" />
-                <StatCard label="Nuevos Expedientes" value="-" icon="person_add" color="bg-orange-500" />
-            </div>
-
-            {/* Agenda Detallada */}
-            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
-                <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center transition-colors">
-                    <h3 className="text-slate-900 dark:text-white font-bold flex items-center gap-2">
-                        <span className="material-symbols-outlined text-primary">list_alt</span>
-                        Agenda del Día
-                    </h3>
-                    <button
-                        onClick={() => onNavigate?.('Citas')}
-                        className="text-xs font-bold text-primary hover:underline transition-all"
-                    >
-                        Ver calendario completo
-                    </button>
+        <div className="p-4 md:p-8 max-w-7xl mx-auto w-full flex flex-col gap-6 md:gap-8 transition-colors duration-300">
+            <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
+                <div className="flex flex-col gap-1">
+                    <h2 className="text-slate-900 dark:text-white text-3xl font-black tracking-tight">Dashboard Médico</h2>
+                    <p className="text-slate-500 text-base font-medium">
+                        Bienvenido, Dr. {user?.lastName || user?.firstName || 'Médico'}. Seguimiento de agenda, consultas y diagnósticos en tiempo real.
+                    </p>
                 </div>
-                <div className="overflow-x-auto scrollbar-hide">
-                    <table className="w-full text-left min-w-[600px]">
-                        <thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-500 uppercase text-[10px] font-black tracking-widest">
-                            <tr>
-                                <th className="px-6 py-4">Hora</th>
-                                <th className="px-6 py-4">Paciente</th>
-                                <th className="px-6 py-4">Motivo</th>
-                                <th className="px-6 py-4">Estado</th>
-                                <th className="px-6 py-4 text-right">Acción</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                            {appointments.map((item) => (
-                                <tr key={item.id} className={`group hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors ${item.estado === 'PROGRAMADA' ? 'bg-primary/5' : ''}`}>
-                                    <td className="px-6 py-4 text-sm font-bold text-slate-900 dark:text-white">{formatDate(item.fechaHora)}</td>
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center gap-2">
-                                            <div className="size-8 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden shadow-inner">
-                                                <img src={`https://i.pravatar.cc/150?u=${item.paciente?.nombres || item.id}`} alt="" />
-                                            </div>
-                                            <span className="text-sm font-semibold text-slate-700 dark:text-slate-300 transition-colors">
-                                                {item.paciente?.nombres} {item.paciente?.apellidos}
-                                            </span>
+                {metrics.spotlight?.id && (
+                    <AppButton icon="stethoscope" onClick={() => openConsultation(metrics.spotlight)}>
+                        Continuar consulta activa
+                    </AppButton>
+                )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-6">
+                {metrics.cards.map((card, index) => (
+                    <DashboardMetricCard
+                        key={card.key}
+                        label={card.label}
+                        value={card.value}
+                        helperText={card.helperText}
+                        icon={CARD_ICONS[card.key] || 'monitoring'}
+                        accent={CARD_ACCENTS[index % CARD_ACCENTS.length]}
+                    />
+                ))}
+            </div>
+
+            {metrics.spotlight && (
+                <div className="rounded-3xl bg-gradient-to-r from-emerald-500 via-emerald-600 to-teal-600 p-6 text-white shadow-xl shadow-emerald-600/20">
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                        <div>
+                            <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-100">Consulta en curso</p>
+                            <h3 className="text-2xl font-black mt-2">{metrics.spotlight.title}</h3>
+                            <p className="text-sm text-emerald-50 mt-2">
+                                {metrics.spotlight.subtitle || 'Paciente actualmente en atención'}
+                                {metrics.spotlight.meta ? ` · ${metrics.spotlight.meta}` : ''}
+                            </p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <span className="px-3 py-1.5 rounded-full bg-white/15 text-xs font-black uppercase tracking-wider">
+                                {metrics.spotlight.status?.replaceAll('_', ' ')}
+                            </span>
+                            <AppButton
+                                variant="outline"
+                                className="border-white/30 text-white hover:bg-white/10"
+                                icon="arrow_forward"
+                                onClick={() => openConsultation(metrics.spotlight)}
+                            >
+                                Abrir consulta
+                            </AppButton>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                <div className="xl:col-span-2">
+                    <DashboardPanel title="Consultas de los Últimos 7 Días" icon="show_chart">
+                        {metrics.primarySeries.length > 0 ? (
+                            <ResponsiveContainer width="100%" height={320}>
+                                <LineChart data={metrics.primarySeries}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                                    <XAxis dataKey="label" tick={{ fontSize: 12 }} />
+                                    <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+                                    <Tooltip />
+                                    <Legend />
+                                    <Line type="monotone" dataKey="value" name="Consultas" stroke="#0ea5e9" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 7 }} />
+                                </LineChart>
+                            </ResponsiveContainer>
+                        ) : (
+                            <DashboardEmptyState message="Todavía no hay consultas registradas en el período reciente." />
+                        )}
+                    </DashboardPanel>
+                </div>
+
+                <DashboardPanel title="Estado de Agenda Hoy" icon="donut_large">
+                    {metrics.secondarySeries.length > 0 ? (
+                        <ResponsiveContainer width="100%" height={320}>
+                            <PieChart>
+                                <Pie data={metrics.secondarySeries} dataKey="value" nameKey="label" innerRadius={60} outerRadius={110} paddingAngle={3}>
+                                    {metrics.secondarySeries.map((entry, index) => (
+                                        <Cell key={entry.label} fill={STATUS_COLORS[index % STATUS_COLORS.length]} />
+                                    ))}
+                                </Pie>
+                                <Tooltip />
+                                <Legend />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    ) : (
+                        <DashboardEmptyState message="No hay citas del médico hoy para distribuir por estado." />
+                    )}
+                </DashboardPanel>
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                <div className="xl:col-span-2">
+                    <DashboardPanel title="Diagnósticos Más Frecuentes" icon="bar_chart">
+                        {metrics.tertiarySeries.length > 0 ? (
+                            <ResponsiveContainer width="100%" height={320}>
+                                <BarChart data={metrics.tertiarySeries} layout="vertical" margin={{ left: 20 }}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                                    <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12 }} />
+                                    <YAxis type="category" dataKey="label" width={140} tick={{ fontSize: 12 }} />
+                                    <Tooltip />
+                                    <Bar dataKey="value" radius={[0, 12, 12, 0]}>
+                                        {metrics.tertiarySeries.map((entry, index) => (
+                                            <Cell key={entry.label} fill={DIAGNOSIS_COLORS[index % DIAGNOSIS_COLORS.length]} />
+                                        ))}
+                                    </Bar>
+                                </BarChart>
+                            </ResponsiveContainer>
+                        ) : (
+                            <DashboardEmptyState message="Aún no hay diagnósticos suficientes para construir el ranking." />
+                        )}
+                    </DashboardPanel>
+                </div>
+
+                <DashboardPanel title="Pacientes Listos para Consulta" icon="ward">
+                    {metrics.queue.length > 0 ? (
+                        <div className="space-y-3">
+                            {metrics.queue.map((item) => (
+                                <button
+                                    key={item.id ?? item.title}
+                                    onClick={() => openConsultation(item)}
+                                    className="w-full text-left rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/30 p-4 hover:border-sky-200 hover:bg-sky-50/60 dark:hover:bg-slate-800 transition-colors"
+                                >
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div>
+                                            <p className="font-bold text-slate-900 dark:text-white text-sm">{item.title}</p>
+                                            <p className="text-xs text-slate-500 mt-1">{item.subtitle || 'Asignado a tu agenda'}</p>
                                         </div>
-                                    </td>
-                                    <td className="px-6 py-4 text-sm text-slate-500 dark:text-slate-400 transition-colors truncate max-w-[200px]">{item.observaciones || 'Sin observaciones'}</td>
-                                    <td className="px-6 py-4">
-                                        <span className={`px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-tight ${item.estado === 'ATENDIDA' ? 'bg-success/10 text-success' :
-                                            item.estado === 'PROGRAMADA' ? 'bg-primary/20 text-primary animate-pulse' :
-                                                'bg-slate-100 dark:bg-slate-800 text-slate-500'
-                                            }`}>
-                                            {item.estado.replace('_', ' ')}
+                                        <span className="px-2.5 py-1 rounded-lg text-[10px] font-black uppercase bg-amber-100 text-amber-600 dark:bg-amber-500/10 dark:text-amber-300">
+                                            {item.status?.replaceAll('_', ' ')}
                                         </span>
-                                    </td>
-                                    <td className="px-6 py-4 text-right">
-                                        <button
-                                            onClick={() => handleAttend(item)}
-                                            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${item.estado === 'PROGRAMADA' ? 'bg-primary text-white shadow-lg shadow-primary/30 hover:scale-105' : 'text-primary hover:bg-primary/10'
-                                                }`}
-                                        >
-                                            {item.estado === 'PROGRAMADA' ? 'Atender' : 'Ver Detalles'}
-                                        </button>
-                                    </td>
-                                </tr>
+                                    </div>
+                                    <div className="flex items-center justify-between mt-3 text-xs text-slate-400">
+                                        <span>{item.timestamp ? new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--'}</span>
+                                        <span className="truncate max-w-[220px]">{item.meta}</span>
+                                    </div>
+                                </button>
                             ))}
-                            {appointments.length === 0 && (
-                                <tr>
-                                    <td colSpan={5} className="px-6 py-10 text-center text-slate-400 italic">No hay citas programadas para hoy.</td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                        </div>
+                    ) : (
+                        <DashboardEmptyState message="No hay pacientes esperando al médico en este momento." />
+                    )}
+                </DashboardPanel>
             </div>
         </div>
     );

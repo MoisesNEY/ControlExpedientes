@@ -1,142 +1,204 @@
 import { useEffect, useState } from 'react';
-import api from '../../../services/api';
+import {
+    Area,
+    AreaChart,
+    Bar,
+    BarChart,
+    CartesianGrid,
+    Cell,
+    Legend,
+    Pie,
+    PieChart,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis,
+} from 'recharts';
+import { DashboardEmptyState, DashboardLoading, DashboardMetricCard, DashboardPanel } from '../../analytics/DashboardPrimitives';
+import { DashboardService, type DashboardMetrics } from '../../../services/dashboard.service';
 
-interface DashboardStats {
-    totalPacientes: number;
-    totalMedicamentos: number;
-    totalCitas: number;
-    lowStockCount: number;
-}
-
-const StatCard = ({ label, value, icon, color, subtitle }: { label: string; value: string; icon: string; color: string; subtitle?: string }) => (
-    <div className="bg-white dark:bg-slate-900 p-5 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 flex items-center gap-4 transition-colors">
-        <div className={`${color} size-12 rounded-lg flex items-center justify-center text-white shadow-lg`}>
-            <span className="material-symbols-outlined">{icon}</span>
-        </div>
-        <div>
-            <p className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">{label}</p>
-            <p className="text-2xl font-black text-slate-900 dark:text-white leading-none mt-1">{value}</p>
-            {subtitle && <p className="text-[10px] text-slate-400 mt-1">{subtitle}</p>}
-        </div>
-    </div>
-);
+const STATUS_COLORS = ['#0ea5e9', '#14b8a6', '#f59e0b', '#8b5cf6', '#ef4444', '#22c55e', '#64748b'];
+const SEX_COLORS = ['#38bdf8', '#fb7185', '#a78bfa'];
+const CARD_ACCENTS = ['bg-sky-500', 'bg-cyan-500', 'bg-violet-500', 'bg-rose-500'];
+const CARD_ICONS: Record<string, string> = {
+    pacientesActivos: 'groups',
+    citasHoy: 'calendar_month',
+    consultasSemana: 'clinical_notes',
+    stockBajo: 'warning',
+};
 
 const AdminHomeView = () => {
-    const [stats, setStats] = useState<DashboardStats>({
-        totalPacientes: 0,
-        totalMedicamentos: 0,
-        totalCitas: 0,
-        lowStockCount: 0,
-    });
-    const [recentAudit, setRecentAudit] = useState<any[]>([]);
+    const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const fetchStats = async () => {
+        const loadDashboard = async () => {
             setLoading(true);
             try {
-                const [pacientes, medicamentos, citas, lowStock, auditoria] = await Promise.all([
-                    api.get('/api/pacientes/count'),
-                    api.get('/api/medicamentos/count'),
-                    api.get('/api/cita-medicas/count'),
-                    api.get('/api/medicamentos/low-stock'),
-                    api.get('/api/auditoria-acciones', { params: { size: 5, sort: 'fecha,desc' } }),
-                ]);
-
-                setStats({
-                    totalPacientes: pacientes.data,
-                    totalMedicamentos: medicamentos.data,
-                    totalCitas: citas.data,
-                    lowStockCount: Array.isArray(lowStock.data) ? lowStock.data.length : 0,
-                });
-                setRecentAudit(auditoria.data || []);
+                setMetrics(await DashboardService.getAdminDashboard());
             } catch (error) {
-                console.error('Error fetching admin stats:', error);
+                console.error('Error fetching admin dashboard:', error);
             } finally {
                 setLoading(false);
             }
         };
 
-        fetchStats();
+        loadDashboard();
     }, []);
 
     if (loading) {
-        return (
-            <div className="p-8 flex items-center justify-center h-full">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600"></div>
-            </div>
-        );
+        return <DashboardLoading />;
+    }
+
+    if (!metrics) {
+        return <DashboardEmptyState message="No se pudieron cargar las métricas de administración." />;
     }
 
     return (
-        <div className="p-4 md:p-8 max-w-6xl mx-auto w-full flex flex-col gap-6 md:gap-8 transition-colors duration-300">
-            {/* Header */}
+        <div className="p-4 md:p-8 max-w-7xl mx-auto w-full flex flex-col gap-6 md:gap-8 transition-colors duration-300">
             <div className="flex flex-col gap-1">
-                <h2 className="text-slate-900 dark:text-white text-2xl md:text-3xl font-black tracking-tight">Panel de Administración</h2>
-                <p className="text-slate-500 text-sm md:text-base font-medium tracking-tight">
-                    Resumen general del sistema — {new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' })}.
+                <h2 className="text-slate-900 dark:text-white text-3xl font-black tracking-tight">Dashboard Administrativo</h2>
+                <p className="text-slate-500 text-base font-medium">
+                    Vista consolidada del sistema con métricas operativas, clínicas y de inventario.
                 </p>
             </div>
 
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-                <StatCard label="Pacientes" value={stats.totalPacientes.toString()} icon="group" color="bg-blue-600" />
-                <StatCard label="Medicamentos" value={stats.totalMedicamentos.toString()} icon="medication" color="bg-emerald-600" />
-                <StatCard label="Citas Totales" value={stats.totalCitas.toString()} icon="calendar_month" color="bg-violet-600" />
-                <StatCard
-                    label="Stock Bajo"
-                    value={stats.lowStockCount.toString()}
-                    icon="warning"
-                    color={stats.lowStockCount > 0 ? 'bg-red-500' : 'bg-slate-400'}
-                    subtitle={stats.lowStockCount > 0 ? 'Requiere atención' : 'Todo en orden'}
-                />
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-6">
+                {metrics.cards.map((card, index) => (
+                    <DashboardMetricCard
+                        key={card.key}
+                        label={card.label}
+                        value={card.value}
+                        helperText={card.helperText}
+                        icon={CARD_ICONS[card.key] || 'monitoring'}
+                        accent={CARD_ACCENTS[index % CARD_ACCENTS.length]}
+                    />
+                ))}
             </div>
 
-            {/* Actividad Reciente */}
-            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
-                <div className="p-6 border-b border-slate-100 dark:border-slate-800">
-                    <h3 className="text-slate-900 dark:text-white font-bold flex items-center gap-2">
-                        <span className="material-symbols-outlined text-amber-600">shield</span>
-                        Actividad Reciente
-                    </h3>
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                <div className="xl:col-span-2">
+                    <DashboardPanel title="Tendencia Semanal de Citas" icon="area_chart">
+                        {metrics.primarySeries.length > 0 ? (
+                            <ResponsiveContainer width="100%" height={320}>
+                                <AreaChart data={metrics.primarySeries}>
+                                    <defs>
+                                        <linearGradient id="appointmentsGradient" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.35} />
+                                            <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0.02} />
+                                        </linearGradient>
+                                    </defs>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                                    <XAxis dataKey="label" tick={{ fontSize: 12 }} />
+                                    <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+                                    <Tooltip />
+                                    <Legend />
+                                    <Area type="monotone" dataKey="value" name="Citas" stroke="#0ea5e9" fill="url(#appointmentsGradient)" strokeWidth={3} />
+                                    <Area type="monotone" dataKey="secondaryValue" name="Atendidas" stroke="#22c55e" fillOpacity={0} strokeWidth={2} />
+                                    <Area type="monotone" dataKey="tertiaryValue" name="Canceladas" stroke="#ef4444" fillOpacity={0} strokeWidth={2} />
+                                </AreaChart>
+                            </ResponsiveContainer>
+                        ) : (
+                            <DashboardEmptyState message="Aún no hay citas suficientes para construir la tendencia semanal." />
+                        )}
+                    </DashboardPanel>
                 </div>
-                <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {recentAudit.length > 0 ? (
-                        recentAudit.map((entry: any) => (
-                            <div key={entry.id} className="px-6 py-4 flex items-center gap-4 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
-                                <div className={`size-8 rounded-lg flex items-center justify-center text-white text-xs font-bold ${
-                                    entry.accion === 'CREAR' ? 'bg-emerald-500' :
-                                    entry.accion === 'EDITAR' || entry.accion === 'ACTUALIZAR' ? 'bg-blue-500' :
-                                    entry.accion === 'ELIMINAR' ? 'bg-red-500' : 'bg-slate-400'
-                                }`}>
-                                    <span className="material-symbols-outlined text-sm">
-                                        {entry.accion === 'CREAR' ? 'add' :
-                                         entry.accion === 'ELIMINAR' ? 'delete' : 'edit'}
+
+                <DashboardPanel title="Estados de Citas Hoy" icon="pie_chart">
+                    {metrics.secondarySeries.length > 0 ? (
+                        <ResponsiveContainer width="100%" height={320}>
+                            <PieChart>
+                                <Pie data={metrics.secondarySeries} dataKey="value" nameKey="label" innerRadius={65} outerRadius={110} paddingAngle={3}>
+                                    {metrics.secondarySeries.map((entry, index) => (
+                                        <Cell key={entry.label} fill={STATUS_COLORS[index % STATUS_COLORS.length]} />
+                                    ))}
+                                </Pie>
+                                <Tooltip />
+                                <Legend />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    ) : (
+                        <DashboardEmptyState message="No hay movimientos de citas hoy para mostrar en este gráfico." />
+                    )}
+                </DashboardPanel>
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                <div className="xl:col-span-2">
+                    <DashboardPanel title="Distribución de Pacientes por Sexo" icon="bar_chart">
+                        {metrics.tertiarySeries.length > 0 ? (
+                            <ResponsiveContainer width="100%" height={300}>
+                                <BarChart data={metrics.tertiarySeries}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                                    <XAxis dataKey="label" tick={{ fontSize: 12 }} />
+                                    <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+                                    <Tooltip />
+                                    <Bar dataKey="value" radius={[12, 12, 0, 0]}>
+                                        {metrics.tertiarySeries.map((entry, index) => (
+                                            <Cell key={entry.label} fill={SEX_COLORS[index % SEX_COLORS.length]} />
+                                        ))}
+                                    </Bar>
+                                </BarChart>
+                            </ResponsiveContainer>
+                        ) : (
+                            <DashboardEmptyState message="Todavía no hay pacientes registrados para mostrar distribución." />
+                        )}
+                    </DashboardPanel>
+                </div>
+
+                <DashboardPanel title="Medicamentos con Stock Bajo" icon="inventory_2">
+                    {metrics.queue.length > 0 ? (
+                        <div className="space-y-3">
+                            {metrics.queue.map((item) => (
+                                <div key={item.id ?? item.title} className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/30 p-4">
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div>
+                                            <p className="font-bold text-slate-900 dark:text-white text-sm">{item.title}</p>
+                                            <p className="text-xs text-slate-500 mt-1">{item.subtitle}</p>
+                                        </div>
+                                        <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase ${item.status === 'CRITICO' ? 'bg-rose-100 text-rose-600 dark:bg-rose-500/10 dark:text-rose-300' : 'bg-amber-100 text-amber-600 dark:bg-amber-500/10 dark:text-amber-300'}`}>
+                                            {item.status}
+                                        </span>
+                                    </div>
+                                    <p className="text-xs text-slate-400 mt-3">{item.meta}</p>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <DashboardEmptyState message="No hay medicamentos en zona crítica de inventario." />
+                    )}
+                </DashboardPanel>
+            </div>
+
+            <DashboardPanel title="Actividad Reciente" icon="shield">
+                {metrics.activity.length > 0 ? (
+                    <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                        {metrics.activity.map((item) => (
+                            <div key={item.id ?? item.title} className="py-4 flex items-center gap-4 first:pt-0 last:pb-0">
+                                <div className={`size-10 rounded-2xl flex items-center justify-center text-white ${item.action === 'ELIMINAR' ? 'bg-rose-500' : item.action === 'CREAR' ? 'bg-emerald-500' : 'bg-sky-500'}`}>
+                                    <span className="material-symbols-outlined text-[18px]">
+                                        {item.action === 'ELIMINAR' ? 'delete' : item.action === 'CREAR' ? 'add' : 'edit'}
                                     </span>
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-semibold text-slate-800 dark:text-white truncate">
-                                        {entry.accion} — {entry.entidad}
-                                    </p>
-                                    <p className="text-[10px] text-slate-400 truncate">{entry.descripcion || 'Sin descripción'}</p>
+                                    <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{item.title}</p>
+                                    <p className="text-xs text-slate-500 truncate mt-1">{item.subtitle}</p>
                                 </div>
-                                <div className="text-right flex-shrink-0">
-                                    <p className="text-[10px] text-slate-400 font-bold">
-                                        {new Date(entry.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}
+                                <div className="text-right shrink-0">
+                                    <p className="text-[11px] font-semibold text-slate-500">
+                                        {item.timestamp ? new Date(item.timestamp).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }) : '--'}
                                     </p>
-                                    <p className="text-[10px] text-slate-300">
-                                        {new Date(entry.fecha).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    <p className="text-[11px] text-slate-400">
+                                        {item.timestamp ? new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--'}
                                     </p>
                                 </div>
                             </div>
-                        ))
-                    ) : (
-                        <div className="px-6 py-10 text-center text-slate-400 italic font-medium">
-                            No hay actividad reciente registrada.
-                        </div>
-                    )}
-                </div>
-            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <DashboardEmptyState message="No hay actividad de auditoría reciente disponible." />
+                )}
+            </DashboardPanel>
         </div>
     );
 };

@@ -2,14 +2,72 @@ import { useState, useEffect } from 'react';
 import { AppointmentService, type Appointment } from '../../../services/appointment.service';
 import { useAuth } from '../../../context/AuthContext';
 import { usePatient } from '../../../context/PatientContext';
+import Avatar from '../../ui/Avatar';
+import { PacienteService } from '../../../services/paciente.service';
+import { useNavigate } from 'react-router-dom';
 
 const AppointmentView = () => {
     const { user } = useAuth();
-    const { selectPatient } = usePatient();
+    const { selectPatient, updateSelectedPatient } = usePatient();
+    const navigate = useNavigate();
     const [appointments, setAppointments] = useState<Appointment[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState<'HOY' | 'TODAS' | 'ATENDIDAS' | 'PENDIENTES'>('HOY');
     const [searchTerm, setSearchTerm] = useState('');
+
+    const openConsultation = (appointment: Appointment) => {
+        const pacienteId = appointment.paciente?.id;
+        const name = `${appointment.paciente?.nombres || ''} ${appointment.paciente?.apellidos || ''}`.trim() || 'Paciente';
+
+        if (!pacienteId) return;
+
+        selectPatient({
+            id: `PX-${pacienteId}`,
+            patientId: pacienteId,
+            name,
+            age: 'N/A',
+            gender: 'N/A',
+            status: 'Activo',
+            appointmentId: appointment.id
+        });
+
+        if (appointment.id) {
+            try { localStorage.setItem('activeConsultation', String(appointment.id)); } catch (e) { /* silent */ }
+            navigate(`/medico/consulta/${appointment.id}`);
+        }
+
+        void (async () => {
+            try {
+                const full = await PacienteService.getById(pacienteId);
+                updateSelectedPatient({
+                    name: `${full.nombres} ${full.apellidos}`.trim() || name,
+                    age: calculateAge(full.fechaNacimiento),
+                    gender: mapSexo(full.sexo),
+                    status: full.activo ? 'Activo' : 'Inactivo',
+                });
+            } catch {
+                // ignore
+            }
+        })();
+    };
+
+    const calculateAge = (birthday?: string) => {
+        if (!birthday) return 'N/A';
+        const b = new Date(birthday);
+        if (Number.isNaN(b.getTime())) return 'N/A';
+        const today = new Date();
+        let years = today.getFullYear() - b.getFullYear();
+        const m = today.getMonth() - b.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < b.getDate())) years--;
+        return `${years} años`;
+    };
+
+    const mapSexo = (sexo?: string) => {
+        if (!sexo) return 'N/A';
+        if (sexo === 'MASCULINO') return 'Masculino';
+        if (sexo === 'FEMENINO') return 'Femenino';
+        return 'Otro';
+    };
 
     useEffect(() => {
         const fetchAppointments = async () => {
@@ -17,8 +75,8 @@ const AppointmentView = () => {
             setLoading(true);
 
             try {
-                // If filtering by upcoming, get todays, otherwise get recent history
-                const data = filter === 'upcoming'
+                // HOY muestra agenda del día, el resto muestra histórico/recientes
+                const data = filter === 'HOY'
                     ? await AppointmentService.getTodayAppointments(user.id)
                     : await AppointmentService.getRecentAppointments(user.id);
 
@@ -27,12 +85,12 @@ const AppointmentView = () => {
                 if (filter === 'ATENDIDAS') {
                     filtered = data.filter(a => a.estado === 'ATENDIDA');
                 } else if (filter === 'PENDIENTES') {
-                    filtered = data.filter(a => a.estado === 'PROGRAMADA');
+                    filtered = data.filter(a => a.estado === 'ESPERANDO_MEDICO' || a.estado === 'EN_CONSULTA');
                 }
 
                 if (searchTerm) {
                     filtered = filtered.filter(a =>
-                        a.paciente.nombre.toLowerCase().includes(searchTerm.toLowerCase())
+                        `${a.paciente?.nombres || ''} ${a.paciente?.apellidos || ''}`.toLowerCase().includes(searchTerm.toLowerCase())
                     );
                 }
 
@@ -48,15 +106,30 @@ const AppointmentView = () => {
     }, [user?.id, filter, searchTerm]);
 
     const handleAttend = (appointment: Appointment) => {
+        openConsultation(appointment);
+    };
+
+    const handleContinueConsultation = (appointment: Appointment) => {
+        openConsultation(appointment);
+    };
+
+    const handleViewRecord = (appointment: Appointment) => {
+        const pacienteId = appointment.paciente?.id;
+        const name = `${appointment.paciente?.nombres || ''} ${appointment.paciente?.apellidos || ''}`.trim() || 'Paciente';
+
+        if (!pacienteId) return;
+
         selectPatient({
-            id: `PX-${appointment.paciente.id}`,
-            name: appointment.paciente.nombre,
-            age: appointment.paciente.fechaNacimiento ? `${new Date().getFullYear() - new Date(appointment.paciente.fechaNacimiento).getFullYear()} años` : 'N/A',
-            gender: appointment.paciente.sexo || 'N/A',
+            id: `PX-${pacienteId}`,
+            patientId: pacienteId,
+            name,
+            age: 'N/A',
+            gender: 'N/A',
             status: 'Activo',
-            image: `https://i.pravatar.cc/150?u=${appointment.paciente.nombre}`,
             appointmentId: appointment.id
         });
+
+        navigate('/medico/registros');
     };
 
     const formatDate = (dateString: string) => {
@@ -72,7 +145,7 @@ const AppointmentView = () => {
             <div className="flex justify-between items-center">
                 <div>
                     <h2 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white">Agenda de Citas</h2>
-                    <p className="text-slate-500 text-xs md:text-sm font-medium">Gestiona tus consultas programadas y pacientes en espera.</p>
+                    <p className="text-slate-500 text-xs md:text-sm font-medium">Gestiona tus consultas en espera y pacientes programados.</p>
                 </div>
             </div>
 
@@ -136,10 +209,13 @@ const AppointmentView = () => {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
-                                                        <img src={`https://i.pravatar.cc/150?u=${a.paciente.nombre}`} alt="" />
-                                                    </div>
-                                                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">{a.paciente.nombre}</span>
+                                                    <Avatar
+                                                        name={`${a.paciente?.nombres || ''} ${a.paciente?.apellidos || ''}`.trim() || 'Paciente'}
+                                                        size="sm"
+                                                    />
+                                                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                                                        {a.paciente?.nombres} {a.paciente?.apellidos}
+                                                    </span>
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 text-xs text-slate-500 dark:text-slate-400 max-w-xs truncate">
@@ -147,25 +223,35 @@ const AppointmentView = () => {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <span className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase ${a.estado === 'ATENDIDA' ? 'bg-success/10 text-success' :
-                                                    a.estado === 'PROGRAMADA' ? 'bg-primary/10 text-primary animate-pulse' :
-                                                        'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                                                    a.estado === 'ESPERANDO_MEDICO' ? 'bg-primary/10 text-primary animate-pulse' :
+                                                        a.estado === 'PROGRAMADA' ? 'bg-blue-100 text-blue-600' :
+                                                            'bg-slate-100 dark:bg-slate-800 text-slate-500'
                                                     }`}>
                                                     {a.estado.replace('_', ' ')}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 text-right">
-                                                {a.estado === 'PROGRAMADA' ? (
-                                                    <button
-                                                        onClick={() => handleAttend(a)}
-                                                        className="px-4 py-2 bg-primary text-white rounded-xl text-xs font-black uppercase shadow-lg shadow-primary/20 hover:scale-105 transition-all"
-                                                    >
-                                                        Atender
-                                                    </button>
-                                                ) : (
-                                                    <button className="text-slate-400 hover:text-primary transition-colors">
+                                                <div className="flex items-center justify-end gap-2">
+                                                    {a.estado === 'ESPERANDO_MEDICO' && (
+                                                        <button
+                                                            onClick={() => handleAttend(a)}
+                                                            className="px-4 py-2 bg-primary text-white rounded-xl text-xs font-black uppercase shadow-lg shadow-primary/20 hover:scale-105 transition-all"
+                                                        >
+                                                            Atender
+                                                        </button>
+                                                    )}
+                                                    {a.estado === 'EN_CONSULTA' && (
+                                                        <button
+                                                            onClick={() => handleContinueConsultation(a)}
+                                                            className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-black uppercase shadow-lg shadow-emerald-600/20 hover:scale-105 transition-all"
+                                                        >
+                                                            Continuar consulta
+                                                        </button>
+                                                    )}
+                                                    <button onClick={() => handleViewRecord(a)} className="text-slate-400 hover:text-primary transition-colors">
                                                         <span className="material-symbols-outlined text-sm">visibility</span>
                                                     </button>
-                                                )}
+                                                </div>
                                             </td>
                                         </tr>
                                     );

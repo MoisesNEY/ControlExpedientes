@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { CitaService, type CitaMedicaDTO } from '../../../services/cita.service';
 import { PacienteService, type PacienteDTO } from '../../../services/paciente.service';
+import { UserService, type PublicUser } from '../../../services/userService';
 
 const emptyCita: CitaMedicaDTO = {
     fechaHora: '',
@@ -13,6 +14,7 @@ const emptyCita: CitaMedicaDTO = {
 const AdminCitasView = () => {
     const [citas, setCitas] = useState<CitaMedicaDTO[]>([]);
     const [pacientes, setPacientes] = useState<PacienteDTO[]>([]);
+    const [medicos, setMedicos] = useState<PublicUser[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState<'TODAS' | 'PROGRAMADA' | 'ATENDIDA' | 'CANCELADA'>('TODAS');
     const [showForm, setShowForm] = useState(false);
@@ -43,8 +45,17 @@ const AdminCitasView = () => {
         }
     };
 
+    const fetchMedicos = async () => {
+        try {
+            const data = await UserService.getMedicos({ size: 200, sort: 'login,asc' });
+            setMedicos(data);
+        } catch (error) {
+            console.error('Error fetching medicos:', error);
+        }
+    };
+
     useEffect(() => { fetchCitas(); }, [filter]);
-    useEffect(() => { fetchPacientes(); }, []);
+    useEffect(() => { fetchPacientes(); fetchMedicos(); }, []);
 
     const openCreate = () => {
         setEditing(null);
@@ -68,6 +79,10 @@ const AdminCitasView = () => {
     const handleSave = async () => {
         if (!form.fechaHora || !form.paciente?.id) {
             alert('Por favor seleccione un paciente y una fecha/hora.');
+            return;
+        }
+        if (!form.user?.id) {
+            alert('Por favor seleccione el médico responsable de la cita.');
             return;
         }
         setSaving(true);
@@ -215,6 +230,22 @@ const AdminCitasView = () => {
                                     <option value="">— Seleccionar paciente —</option>
                                     {pacientes.map(p => (
                                         <option key={p.id} value={p.id}>{p.nombres} {p.apellidos} ({p.codigo})</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Médico *</label>
+                                <select
+                                    value={form.user?.id || ''}
+                                    onChange={e => setForm({ 
+                                        ...form, 
+                                        user: e.target.value ? { id: e.target.value } : undefined 
+                                    })}
+                                    className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-amber-600"
+                                >
+                                    <option value="">— Seleccionar médico —</option>
+                                    {medicos.map(m => (
+                                        <option key={m.id} value={m.id}>{m.login}</option>
                                     ))}
                                 </select>
                             </div>

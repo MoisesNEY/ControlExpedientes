@@ -1,11 +1,13 @@
 id;nombre;descripcion;stock
-1;excepting curiously;insecure;9448
-2;up;bob;12668
-3;minty;blank huzzah;7780
-4;verbally next serene;travel accountability;21562
-5;institutionalize kindheartedly;psst from;7752
-6;instantly uh-huh;ick never;1412
-7;whose;yuck meanwhile technologist;18662
-8;oxygenate;pecan gadzooks;6711
-9;although;obvious;30219
-10;uh-huh coop;suddenly forenenst;7219
+1;Paracetamol 500mg;Analgésico y antipirético;500
+2;Ibuprofeno 400mg;Antiinflamatorio no esteroideo (AINE);300
+3;Amoxicilina 500mg;Antibiótico de amplio espectro;150
+4;Omeprazol 20mg;Inhibidor de la bomba de protones;200
+5;Loratadina 10mg;Antihistamínico no sedante;400
+6;Metformina 850mg;Antidiabético oral;250
+7;Losartán 50mg;Antihipertensivo ARA II;300
+8;Salbutamol Inhalador 100mcg;Broncodilatador de acción corta;80
+9;Azitromicina 500mg;Antibiótico macrólido;120
+10;Diclofenaco 50mg;Antiinflamatorio no esteroideo (AINE);200
+11;Complejo B;Suplemento vitamínico;350
+12;Ciprofloxacino 500mg;Antibiótico fluoroquinolona;100

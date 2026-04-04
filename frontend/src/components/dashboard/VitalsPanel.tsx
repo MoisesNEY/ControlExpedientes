@@ -1,4 +1,4 @@
-import React from 'react';
+// import React from 'react';
 
 const VitalCard = ({ label, value, unit, extra, color = 'primary', showChart = false }: any) => {
     return (

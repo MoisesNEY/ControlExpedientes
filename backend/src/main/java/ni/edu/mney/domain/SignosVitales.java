@@ -6,10 +6,14 @@ import java.io.Serializable;
 import org.hibernate.annotations.Cache;
 import org.hibernate.annotations.CacheConcurrencyStrategy;
 
+import org.hibernate.envers.Audited;
+import org.hibernate.envers.NotAudited;
+
 /**
  * A SignosVitales.
  */
 @Entity
+@Audited
 @Table(name = "signos_vitales")
 @Cache(usage = CacheConcurrencyStrategy.READ_WRITE)
 @SuppressWarnings("common-java:DuplicatedBlocks")
@@ -40,6 +44,7 @@ public class SignosVitales implements Serializable {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JsonIgnoreProperties(value = { "diagnosticos", "tratamientos", "signosVitales", "recetas", "user", "expediente" }, allowSetters = true)
+    @NotAudited
     private ConsultaMedica consulta;
 
     // jhipster-needle-entity-add-field - JHipster will add fields here

@@ -16,9 +16,24 @@ export interface UserAccount {
     authorities: string[];
 }
 
+export interface PublicUser {
+    id: string;
+    login: string;
+}
+
 export const UserService = {
     getAccount: async (): Promise<UserAccount> => {
         const response = await api.get<UserAccount>('/api/account');
+        return response.data;
+    },
+
+    getPublicUsers: async (params?: Record<string, any>): Promise<PublicUser[]> => {
+        const response = await api.get<PublicUser[]>('/api/users', { params });
+        return response.data;
+    },
+
+    getMedicos: async (params?: Record<string, any>): Promise<PublicUser[]> => {
+        const response = await api.get<PublicUser[]>('/api/users/medicos', { params });
         return response.data;
     }
 };
