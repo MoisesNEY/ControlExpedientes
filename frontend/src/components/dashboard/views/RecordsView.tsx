@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { usePatient } from '../../../context/PatientContext';
 import { ExpedienteService } from '../../../services/expediente.service';
 import { ReporteService } from '../../../services/reporte.service';
+import { PacienteService, type PacienteDTO } from '../../../services/paciente.service';
 
 interface TimelineEntry {
     fecha: string;
@@ -18,13 +19,85 @@ interface TimelineEntry {
     };
 }
 
+const calculateAge = (birthday?: string) => {
+    if (!birthday) return 'N/A';
+    const b = new Date(birthday);
+    if (Number.isNaN(b.getTime())) return 'N/A';
+    const today = new Date();
+    let years = today.getFullYear() - b.getFullYear();
+    const m = today.getMonth() - b.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < b.getDate())) years--;
+    return `${years} años`;
+};
+
 const RecordsView = () => {
-    const { selectedPatient } = usePatient();
+    const { selectedPatient, selectPatient } = usePatient();
     const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [downloading, setDownloading] = useState<string | null>(null);
     const [expedienteId, setExpedienteId] = useState<number | null>(null);
+
+    // Inline patient search state
+    const [searchQuery, setSearchQuery] = useState('');
+    const [searchResults, setSearchResults] = useState<PacienteDTO[]>([]);
+    const [searching, setSearching] = useState(false);
+    const [showSearch, setShowSearch] = useState(!selectedPatient);
+    const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    useEffect(() => {
+        setShowSearch(!selectedPatient);
+    }, [selectedPatient]);
+
+    const searchPatients = useCallback((query: string) => {
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+        if (!query.trim()) {
+            setSearchResults([]);
+            setSearching(false);
+            return;
+        }
+        setSearching(true);
+        debounceRef.current = setTimeout(async () => {
+            try {
+                const results = await PacienteService.getAll({
+                    'nombres.contains': query.trim(),
+                    size: 10,
+                    sort: 'nombres,asc',
+                });
+                setSearchResults(results);
+            } catch {
+                setSearchResults([]);
+            } finally {
+                setSearching(false);
+            }
+        }, 300);
+    }, []);
+
+    const handleSearchChange = (value: string) => {
+        setSearchQuery(value);
+        searchPatients(value);
+    };
+
+    const handleSelectPatient = (paciente: PacienteDTO) => {
+        selectPatient({
+            id: String(paciente.id),
+            patientId: paciente.id,
+            name: `${paciente.nombres} ${paciente.apellidos}`,
+            age: calculateAge(paciente.fechaNacimiento),
+            gender: paciente.sexo,
+            status: paciente.activo ? 'Activo' : 'Inactivo',
+        });
+        setSearchQuery('');
+        setSearchResults([]);
+        setShowSearch(false);
+    };
+
+    const handleChangePatient = () => {
+        selectPatient(null);
+        setSearchQuery('');
+        setSearchResults([]);
+        setShowSearch(true);
+    };
 
     useEffect(() => {
         const fetchTimeline = async () => {
@@ -95,12 +168,66 @@ const RecordsView = () => {
         });
     };
 
-    if (!selectedPatient) {
+    if (!selectedPatient || showSearch) {
         return (
-            <div className="p-8 flex flex-col items-center justify-center h-full text-slate-400 bg-slate-50 dark:bg-slate-950/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 m-8">
-                <span className="material-symbols-outlined text-6xl mb-4 opacity-50">quick_reference_all</span>
-                <p className="font-semibold text-lg text-slate-600 dark:text-slate-300">Seleccione un paciente</p>
-                <p className="text-sm mt-2 text-center max-w-sm">Busque y seleccione un paciente en el panel "Pacientes" para ver su Historial Clínico completo.</p>
+            <div className="p-8 flex flex-col items-center justify-center h-full bg-slate-50 dark:bg-slate-950/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 m-8">
+                <span className="material-symbols-outlined text-6xl mb-4 opacity-50 text-slate-400">quick_reference_all</span>
+                <p className="font-semibold text-lg text-slate-600 dark:text-slate-300 mb-1">Buscar paciente</p>
+                <p className="text-sm text-slate-400 mb-6 text-center max-w-sm">Escriba el nombre del paciente para buscar y ver su Historial Clínico.</p>
+
+                <div className="w-full max-w-md relative">
+                    <div className="relative">
+                        <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl">search</span>
+                        <input
+                            type="text"
+                            placeholder="Nombre del paciente..."
+                            value={searchQuery}
+                            onChange={(e) => handleSearchChange(e.target.value)}
+                            className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-sm font-medium"
+                            autoFocus
+                        />
+                        {searching && (
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2">
+                                <span className="animate-spin inline-block w-4 h-4 border-2 border-primary border-t-transparent rounded-full"></span>
+                            </span>
+                        )}
+                    </div>
+
+                    {searchResults.length > 0 && (
+                        <ul className="absolute z-20 mt-2 w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl max-h-64 overflow-y-auto">
+                            {searchResults.map((paciente) => (
+                                <li key={paciente.id}>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleSelectPatient(paciente)}
+                                        className="w-full text-left px-4 py-3 hover:bg-primary/10 dark:hover:bg-primary/20 transition-colors flex items-center gap-3 border-b border-slate-100 dark:border-slate-800 last:border-b-0"
+                                    >
+                                        <span className="bg-primary/10 text-primary rounded-full w-9 h-9 flex items-center justify-center font-bold text-sm shrink-0">
+                                            {paciente.nombres?.charAt(0)}{paciente.apellidos?.charAt(0)}
+                                        </span>
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">
+                                                {paciente.nombres} {paciente.apellidos}
+                                            </p>
+                                            <p className="text-xs text-slate-400 truncate">
+                                                {paciente.cedula ? `Cédula: ${paciente.cedula}` : paciente.codigo} · {calculateAge(paciente.fechaNacimiento)}
+                                            </p>
+                                        </div>
+                                        <span className={`ml-auto text-[10px] font-bold uppercase px-2 py-0.5 rounded-full shrink-0 ${paciente.activo ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}>
+                                            {paciente.activo ? 'Activo' : 'Inactivo'}
+                                        </span>
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+
+                    {searchQuery.trim() && !searching && searchResults.length === 0 && (
+                        <div className="absolute z-20 mt-2 w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl p-4 text-center">
+                            <p className="text-sm text-slate-400 italic">No se encontraron pacientes</p>
+                        </div>
+                    )}
+                </div>
             </div>
         );
     }
@@ -115,6 +242,13 @@ const RecordsView = () => {
                     <p className="text-slate-500 text-xs md:text-sm font-medium">Timeline cronológico de atenciones médicas y tratamientos.</p>
                 </div>
                 <div className="flex gap-2 flex-wrap">
+                    <button
+                        onClick={handleChangePatient}
+                        className="bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-4 py-2 rounded-lg flex items-center gap-2 transition-colors text-sm font-semibold"
+                    >
+                        <span className="material-symbols-outlined text-base">swap_horiz</span>
+                        Cambiar paciente
+                    </button>
                     <button
                         onClick={() => {
                             const pacienteId = selectedPatient.patientId ??
