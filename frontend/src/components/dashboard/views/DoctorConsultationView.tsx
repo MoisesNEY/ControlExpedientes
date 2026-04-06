@@ -8,6 +8,8 @@ import { useAuth } from '../../../context/AuthContext';
 import PrintableReceta from './PrintableReceta';
 import { AppButton } from '../../ui/AppButton';
 import { PatientCard } from '../../ui/PatientCard';
+import { InteraccionService, type InteraccionMedicamentosaDTO } from '../../../services/interaccion.service';
+import DrugInteractionAlert from '../DrugInteractionAlert';
 
 // El backend serializa el campo como "codigoCIE" (mayúsculas)
 interface Diagnostico {
@@ -60,6 +62,7 @@ const DoctorConsultationView = () => {
     const [frecuenciaValue, setFrecuenciaValue] = useState('');
     const [duracionValue, setDuracionValue] = useState('');
     const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
+    const [interacciones, setInteracciones] = useState<InteraccionMedicamentosaDTO[]>([]);
     const [signosVitales, setSignosVitales] = useState<any>(null);
 
     // Cargar datos de la cita y signos vitales
@@ -178,6 +181,18 @@ const DoctorConsultationView = () => {
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
+
+    // Verificar interacciones medicamentosas cuando cambian las prescripciones
+    useEffect(() => {
+        const ids = prescriptions.map((rx) => rx.medicamento.id);
+        if (ids.length < 2) {
+            setInteracciones([]);
+            return;
+        }
+        InteraccionService.verificarInteracciones(ids)
+            .then(setInteracciones)
+            .catch((e) => console.error('Error verificando interacciones:', e));
+    }, [prescriptions]);
 
     const handleAddPrescription = () => {
         if (!selectedMed || !dosisValue || !frecuenciaValue || !duracionValue) return;
@@ -545,6 +560,9 @@ const DoctorConsultationView = () => {
                                     </div>
                                 )}
                             </div>
+
+                            {/* Alertas de interacción medicamentosa */}
+                            <DrugInteractionAlert interacciones={interacciones} onDismiss={() => setInteracciones([])} />
 
                             {/* Lista de recetas */}
                             <div className="flex-1 flex flex-col">

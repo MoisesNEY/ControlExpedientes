@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:ext="http://www.liquibase.org/xml/ns/dbchangelog-ext"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd
+                        http://www.liquibase.org/xml/ns/dbchangelog-ext http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd">
+
+    <!--
+        Added the entity InteraccionMedicamentosa.
+    -->
+    <changeSet id="20260406000002-1" author="jhipster">
+        <createTable tableName="interaccion_medicamentosa">
+            <column name="id" type="bigint">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="medicamento_a_id" type="bigint">
+                <constraints nullable="false" />
+            </column>
+            <column name="medicamento_b_id" type="bigint">
+                <constraints nullable="false" />
+            </column>
+            <column name="severidad" type="varchar(255)">
+                <constraints nullable="false" />
+            </column>
+            <column name="descripcion" type="varchar(2000)">
+                <constraints nullable="false" />
+            </column>
+            <column name="recomendacion" type="varchar(2000)">
+                <constraints nullable="true" />
+            </column>
+            <!-- jhipster-needle-liquibase-add-column - JHipster will add columns here -->
+        </createTable>
+    </changeSet>
+
+    <changeSet id="20260406000002-2" author="jhipster">
+        <addForeignKeyConstraint baseColumnNames="medicamento_a_id"
+                                 baseTableName="interaccion_medicamentosa"
+                                 constraintName="fk_interaccion_medicamentosa__medicamento_a_id"
+                                 referencedColumnNames="id"
+                                 referencedTableName="medicamento"
+                                 />
+
+        <addForeignKeyConstraint baseColumnNames="medicamento_b_id"
+                                 baseTableName="interaccion_medicamentosa"
+                                 constraintName="fk_interaccion_medicamentosa__medicamento_b_id"
+                                 referencedColumnNames="id"
+                                 referencedTableName="medicamento"
+                                 />
+
+        <createIndex indexName="idx_interaccion_medicamentosa_medicamento_a_id" tableName="interaccion_medicamentosa">
+            <column name="medicamento_a_id"/>
+        </createIndex>
+
+        <createIndex indexName="idx_interaccion_medicamentosa_medicamento_b_id" tableName="interaccion_medicamentosa">
+            <column name="medicamento_b_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- jhipster-needle-liquibase-add-changeset - JHipster will add changesets here -->
+</databaseChangeLog>
