@@ -46,7 +46,7 @@ const WaitingRoomView = () => {
     const navigate = useNavigate();
     const [citas, setCitas] = useState<CitaMedicaDTO[]>([]);
     const [loading, setLoading] = useState(true);
-    const [, setTick] = useState(0);
+    const [, setTick] = useState(0); // triggers re-render to update wait-time labels
 
     const fetchCitas = useCallback(async () => {
         try {
