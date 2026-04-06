@@ -1,0 +1,24 @@
+name: Copilot Push Enable
+
+permissions:
+  contents: write
+
+on:
+  workflow_dispatch:
+
+jobs:
+  copilot-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Fetch ramas remotas si es necesario
+        run: git fetch --all
+
+      - name: Configura usuario de Git y remoto para push
+        run: |
+          git config --global user.name "${{ github.actor }}"
+          git config --global user.email "${{ github.actor }}@users.noreply.github.com"
+          git remote set-url origin https://x-access-token:${{ secrets.PUSH_TOKEN }}@github.com/${{ github.repository }}
