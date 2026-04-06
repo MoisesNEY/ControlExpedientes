@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { PacienteService, type PacienteDTO } from '../../../services/paciente.service';
 import { LaboratorioService, type ResultadoLaboratorioDTO } from '../../../services/laboratorio.service';
+import { ReporteService } from '../../../services/reporte.service';
 
 const TIPOS_EXAMEN = [
     'Hemograma Completo',
@@ -68,6 +69,9 @@ const LabResultsView = () => {
     // Feedback
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
+
+    // PDF download
+    const [downloadingPdf, setDownloadingPdf] = useState(false);
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -194,6 +198,19 @@ const LabResultsView = () => {
         setShowDropdown(false);
     };
 
+    const handleDescargarHistorial = async () => {
+        if (!selectedPatient?.id) return;
+        setDownloadingPdf(true);
+        try {
+            await ReporteService.descargarHistorialPdf(selectedPatient.id);
+        } catch (err) {
+            console.error('Error descargando historial:', err);
+            setError('Error al descargar el historial clínico en PDF.');
+        } finally {
+            setDownloadingPdf(false);
+        }
+    };
+
     // ─── Render ────────────────────────────────────────────────────────────────
 
     return (
@@ -239,11 +256,23 @@ const LabResultsView = () => {
                 </div>
 
                 {selectedPatient && (
-                    <div className="mt-3 flex items-center gap-2 text-xs">
+                    <div className="mt-3 flex items-center gap-3 text-xs">
                         <span className="material-symbols-outlined text-success text-base">check_circle</span>
                         <span className="font-semibold text-slate-700 dark:text-slate-300">
                             Paciente seleccionado: <span className="text-primary font-black">{selectedPatient.nombres} {selectedPatient.apellidos}</span>
                         </span>
+                        <button
+                            onClick={handleDescargarHistorial}
+                            disabled={downloadingPdf}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors disabled:opacity-50 text-sm font-semibold ml-auto"
+                        >
+                            {downloadingPdf ? (
+                                <span className="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
+                            ) : (
+                                <span>📄</span>
+                            )}
+                            Descargar Historial Completo (PDF)
+                        </button>
                     </div>
                 )}
             </div>
