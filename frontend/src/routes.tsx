@@ -26,10 +26,12 @@ import AdminAuditoriaView from './components/admin/views/AdminAuditoriaView';
 import NurseDashboard from './pages/NurseDashboard';
 import NurseHomeView from './components/nurse/views/NurseHomeView';
 import TriageView from './components/nurse/views/TriageView';
+import WaitingRoomView from './components/nurse/views/WaitingRoomView';
 
 import ReceptionDashboard from './pages/ReceptionDashboard';
 import ReceptionHomeView from './components/reception/views/ReceptionHomeView';
 import ReceptionAgendaView from './components/reception/views/ReceptionAgendaView';
+import ReceptionExpedientesView from './components/reception/views/ReceptionExpedientesView';
 
 import Unauthorized from './pages/Unauthorized';
 import Login from './pages/Login';
@@ -116,6 +118,7 @@ export const routerConfig: RouteObject[] = [
         children: [
           { index: true, element: <Navigate to="dashboard" replace /> },
           { path: 'dashboard', element: <NurseHomeView /> },
+          { path: 'sala-espera', element: <WaitingRoomView /> },
           { path: 'triage/:citaId', element: <TriageView /> },
           { path: 'inventario', element: <InventoryView /> }
         ]
@@ -131,6 +134,7 @@ export const routerConfig: RouteObject[] = [
           { index: true, element: <Navigate to="dashboard" replace /> },
           { path: 'dashboard', element: <ReceptionHomeView /> },
           { path: 'pacientes', element: <AdminPacientesView /> },
+          { path: 'expedientes', element: <ReceptionExpedientesView /> },
           { path: 'citas', element: <ReceptionAgendaView /> }
         ]
       },

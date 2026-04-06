@@ -18,6 +18,9 @@ const estadoLabel = (estado: string) => {
     switch (estado) {
         case 'PROGRAMADA': return 'Programada';
         case 'EN_SALA_ESPERA': return 'En Sala de Espera';
+        case 'EN_TRIAGE': return 'En Triage';
+        case 'ESPERANDO_MEDICO': return 'Esperando Médico';
+        case 'EN_CONSULTA': return 'En Consulta';
         case 'ATENDIDA': return 'Atendida';
         case 'CANCELADA': return 'Cancelada';
         default: return estado;
@@ -26,13 +29,31 @@ const estadoLabel = (estado: string) => {
 
 const estadoColor = (estado: string) => {
     switch (estado) {
-        case 'ATENDIDA': return 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400';
         case 'PROGRAMADA': return 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400';
         case 'EN_SALA_ESPERA': return 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400';
+        case 'EN_TRIAGE': return 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400';
+        case 'ESPERANDO_MEDICO': return 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400';
+        case 'EN_CONSULTA': return 'bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400';
+        case 'ATENDIDA': return 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400';
         case 'CANCELADA': return 'bg-red-100 dark:bg-red-900/30 text-red-500 dark:text-red-400';
         default: return 'bg-slate-100 dark:bg-slate-800 text-slate-500';
     }
 };
+
+const estadoEmoji = (estado: string) => {
+    switch (estado) {
+        case 'PROGRAMADA': return '🔵';
+        case 'EN_SALA_ESPERA': return '🟡';
+        case 'EN_TRIAGE': return '🟣';
+        case 'ESPERANDO_MEDICO': return '🟠';
+        case 'EN_CONSULTA': return '🔷';
+        case 'ATENDIDA': return '🟢';
+        case 'CANCELADA': return '🔴';
+        default: return '⚪';
+    }
+};
+
+const ALL_ESTADOS = ['PROGRAMADA', 'EN_SALA_ESPERA', 'EN_TRIAGE', 'ESPERANDO_MEDICO', 'EN_CONSULTA', 'ATENDIDA', 'CANCELADA'] as const;
 
 // ─── Main Component ────────────────────────────────────────────────────────────
 const ReceptionAgendaView = () => {
@@ -44,8 +65,9 @@ const ReceptionAgendaView = () => {
     const [medicos, setMedicos] = useState<PublicUser[]>([]);
     const [loading, setLoading] = useState(true);
     const [checkingIn, setCheckingIn] = useState<number | null>(null);
+    const [checkInBanner, setCheckInBanner] = useState<string | null>(null);
 
-    type FilterState = 'TODAS' | 'PROGRAMADA' | 'EN_SALA_ESPERA' | 'ATENDIDA' | 'CANCELADA';
+    type FilterState = 'TODAS' | 'PROGRAMADA' | 'EN_SALA_ESPERA' | 'EN_TRIAGE' | 'ESPERANDO_MEDICO' | 'EN_CONSULTA' | 'ATENDIDA' | 'CANCELADA';
     type DateFilter = 'HOY' | 'SEMANA' | 'TODAS';
 
     const [statusFilter, setStatusFilter] = useState<FilterState>('TODAS');
@@ -165,6 +187,11 @@ const ReceptionAgendaView = () => {
         setCheckingIn(cita.id);
         try {
             await CitaService.patch(cita.id, { estado: 'EN_SALA_ESPERA' as any });
+            const nombrePaciente = cita.paciente?.nombres
+                ? `${cita.paciente.nombres} ${cita.paciente.apellidos || ''}`.trim()
+                : 'Paciente';
+            setCheckInBanner(nombrePaciente);
+            setTimeout(() => setCheckInBanner(null), 4000);
             await fetchCitas();
         } catch (error: any) {
             alert(error?.response?.data?.message || 'Error al registrar el check-in.');
@@ -191,9 +218,29 @@ const ReceptionAgendaView = () => {
         };
     };
 
+    // ── Status counts (computed from loaded citas) ────────────────────────
+    const statusCounts = citas.reduce<Record<string, number>>((acc, c) => {
+        acc[c.estado] = (acc[c.estado] || 0) + 1;
+        return acc;
+    }, {});
+
+    // ── Filter label helper ─────────────────────────────────────────────
+    const filterLabel = (f: FilterState) => {
+        if (f === 'TODAS') return 'Todas';
+        return estadoLabel(f);
+    };
+
     // ─── Render ─────────────────────────────────────────────────────────────────
     return (
         <div className="p-4 md:p-8 space-y-6">
+            {/* Check-in success banner */}
+            {checkInBanner && (
+                <div className="flex items-center gap-2 px-4 py-3 bg-emerald-100 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 rounded-xl text-sm font-bold animate-pulse">
+                    <span className="material-symbols-outlined text-lg">check_circle</span>
+                    ✓ Check-in registrado para {checkInBanner}
+                </div>
+            )}
+
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
@@ -208,6 +255,20 @@ const ReceptionAgendaView = () => {
                     Nueva Cita
                 </button>
             </div>
+
+            {/* Status count badges */}
+            {!loading && citas.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                    {ALL_ESTADOS.map(estado => (
+                        <span
+                            key={estado}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold ${estadoColor(estado)}`}
+                        >
+                            {estadoEmoji(estado)} {estadoLabel(estado)}: {statusCounts[estado] || 0}
+                        </span>
+                    ))}
+                </div>
+            )}
 
             {/* Filters */}
             <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-4 flex flex-col sm:flex-row gap-4 shadow-sm">
@@ -225,13 +286,13 @@ const ReceptionAgendaView = () => {
                 </div>
                 {/* Status filter */}
                 <div className="flex flex-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl gap-1 overflow-x-auto">
-                    {(['TODAS', 'PROGRAMADA', 'EN_SALA_ESPERA', 'ATENDIDA', 'CANCELADA'] as FilterState[]).map(f => (
+                    {(['TODAS', ...ALL_ESTADOS] as FilterState[]).map(f => (
                         <button
                             key={f}
                             onClick={() => setStatusFilter(f)}
                             className={`flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${statusFilter === f ? 'bg-white dark:bg-slate-700 text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
                         >
-                            {f === 'EN_SALA_ESPERA' ? 'En Sala' : f === 'TODAS' ? 'Todas' : f.charAt(0) + f.slice(1).toLowerCase()}
+                            {filterLabel(f)}
                         </button>
                     ))}
                 </div>
