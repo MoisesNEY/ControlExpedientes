@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:ext="http://www.liquibase.org/xml/ns/dbchangelog-ext"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd
+                        http://www.liquibase.org/xml/ns/dbchangelog-ext http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd">
+
+    <!--
+        Seed data for InteraccionMedicamentosa.
+        Each insert is conditional: only runs if BOTH referenced medications exist in the medicamento table.
+    -->
+    <changeSet id="20260406000003-1" author="jhipster" context="faker">
+        <sql dbms="postgresql">
+            DO $$
+            BEGIN
+                -- 1. Ibuprofeno + Aspirina (MODERADA)
+                IF EXISTS (SELECT 1 FROM medicamento WHERE LOWER(nombre) = LOWER('Ibuprofeno'))
+                   AND EXISTS (SELECT 1 FROM medicamento WHERE LOWER(nombre) = LOWER('Aspirina')) THEN
+                    INSERT INTO interaccion_medicamentosa (id, medicamento_a_id, medicamento_b_id, severidad, descripcion, recomendacion)
+                    VALUES (nextval('sequence_generator'),
+                            (SELECT id FROM medicamento WHERE LOWER(nombre) = LOWER('Ibuprofeno') LIMIT 1),
+                            (SELECT id FROM medicamento WHERE LOWER(nombre) = LOWER('Aspirina') LIMIT 1),
+                            'MODERADA',
+                            'El uso concomitante de ibuprofeno y aspirina puede reducir el efecto antiagregante plaquetario de la aspirina y aumentar el riesgo de eventos cardiovasculares.',
+                            'Evitar el uso simultáneo. Si se requiere analgesia, considerar paracetamol como alternativa.');
+                END IF;
+
+                -- 2. Metformina + Alcohol (GRAVE)
+                IF EXISTS (SELECT 1 FROM medicamento WHERE LOWER(nombre) = LOWER('Metformina'))
+                   AND EXISTS (SELECT 1 FROM medicamento WHERE LOWER(nombre) = LOWER('Alcohol')) THEN
+                    INSERT INTO interaccion_medicamentosa (id, medicamento_a_id, medicamento_b_id, severidad, descripcion, recomendacion)
+                    VALUES (nextval('sequence_generator'),
+                            (SELECT id FROM medicamento WHERE LOWER(nombre) = LOWER('Metformina') LIMIT 1),
+                            (SELECT id FROM medicamento WHERE LOWER(nombre) = LOWER('Alcohol') LIMIT 1),
+                            'GRAVE',
+                            'El consumo de alcohol junto con metformina aumenta significativamente el riesgo de acidosis láctica, una condición potencialmente mortal.',
+                            'Contraindicar el consumo de alcohol durante el tratamiento con metformina. Monitorizar niveles de lactato.');
+                END IF;
+
+                -- 3. Warfarina + Aspirina (GRAVE)
+                IF EXISTS (SELECT 1 FROM medicamento WHERE LOWER(nombre) = LOWER('Warfarina'))
+                   AND EXISTS (SELECT 1 FROM medicamento WHERE LOWER(nombre) = LOWER('Aspirina')) THEN
+                    INSERT INTO interaccion_medicamentosa (id, medicamento_a_id, medicamento_b_id, severidad, descripcion, recomendacion)
+                    VALUES (nextval('sequence_generator'),
+                            (SELECT id FROM medicamento WHERE LOWER(nombre) = LOWER('Warfarina') LIMIT 1),
+                            (SELECT id FROM medicamento WHERE LOWER(nombre) = LOWER('Aspirina') LIMIT 1),
+                            'GRAVE',
+                            'La combinación de warfarina con aspirina aumenta significativamente el riesgo de hemorragia gastrointestinal y sangrado en general.',
+                            'Evitar la combinación. Si es necesaria, monitorizar INR frecuentemente y vigilar signos de sangrado.');
+                END IF;
+
+                -- 4. Amoxicilina + Methotrexato (GRAVE)
+                IF EXISTS (SELECT 1 FROM medicamento WHERE LOWER(nombre) = LOWER('Amoxicilina'))
+                   AND EXISTS (SELECT 1 FROM medicamento WHERE LOWER(nombre) = LOWER('Methotrexato')) THEN
+                    INSERT INTO interaccion_medicamentosa (id, medicamento_a_id, medicamento_b_id, severidad, descripcion, recomendacion)
+                    VALUES (nextval('sequence_generator'),
+                            (SELECT id FROM medicamento WHERE LOWER(nombre) = LOWER('Amoxicilina') LIMIT 1),
+                            (SELECT id FROM medicamento WHERE LOWER(nombre) = LOWER('Methotrexato') LIMIT 1),
+                            'GRAVE',
+                            'La amoxicilina puede disminuir la eliminación renal del methotrexato, aumentando sus niveles plasmáticos y el riesgo de toxicidad.',
+                            'Monitorizar niveles de methotrexato y función renal. Considerar antibiótico alternativo.');
+                END IF;
+
+                -- 5. Omeprazol + Clopidogrel (MODERADA)
+                IF EXISTS (SELECT 1 FROM medicamento WHERE LOWER(nombre) = LOWER('Omeprazol'))
+                   AND EXISTS (SELECT 1 FROM medicamento WHERE LOWER(nombre) = LOWER('Clopidogrel')) THEN
+                    INSERT INTO interaccion_medicamentosa (id, medicamento_a_id, medicamento_b_id, severidad, descripcion, recomendacion)
+                    VALUES (nextval('sequence_generator'),
+                            (SELECT id FROM medicamento WHERE LOWER(nombre) = LOWER('Omeprazol') LIMIT 1),
+                            (SELECT id FROM medicamento WHERE LOWER(nombre) = LOWER('Clopidogrel') LIMIT 1),
+                            'MODERADA',
+                            'El omeprazol inhibe la enzima CYP2C19, reduciendo la conversión de clopidogrel a su metabolito activo y disminuyendo su efecto antiagregante.',
+                            'Sustituir omeprazol por pantoprazol, que tiene menor interacción con CYP2C19.');
+                END IF;
+
+                -- 6. Ciprofloxacino + Antiácidos (MODERADA)
+                IF EXISTS (SELECT 1 FROM medicamento WHERE LOWER(nombre) = LOWER('Ciprofloxacino'))
+                   AND EXISTS (SELECT 1 FROM medicamento WHERE LOWER(nombre) = LOWER('Antiácidos')) THEN
+                    INSERT INTO interaccion_medicamentosa (id, medicamento_a_id, medicamento_b_id, severidad, descripcion, recomendacion)
+                    VALUES (nextval('sequence_generator'),
+                            (SELECT id FROM medicamento WHERE LOWER(nombre) = LOWER('Ciprofloxacino') LIMIT 1),
+                            (SELECT id FROM medicamento WHERE LOWER(nombre) = LOWER('Antiácidos') LIMIT 1),
+                            'MODERADA',
+                            'Los antiácidos que contienen aluminio o magnesio reducen la absorción del ciprofloxacino, disminuyendo su eficacia antibacteriana.',
+                            'Administrar ciprofloxacino al menos 2 horas antes o 6 horas después de los antiácidos.');
+                END IF;
+
+                -- 7. Enalapril + Potasio (MODERADA)
+                IF EXISTS (SELECT 1 FROM medicamento WHERE LOWER(nombre) = LOWER('Enalapril'))
+                   AND EXISTS (SELECT 1 FROM medicamento WHERE LOWER(nombre) = LOWER('Potasio')) THEN
+                    INSERT INTO interaccion_medicamentosa (id, medicamento_a_id, medicamento_b_id, severidad, descripcion, recomendacion)
+                    VALUES (nextval('sequence_generator'),
+                            (SELECT id FROM medicamento WHERE LOWER(nombre) = LOWER('Enalapril') LIMIT 1),
+                            (SELECT id FROM medicamento WHERE LOWER(nombre) = LOWER('Potasio') LIMIT 1),
+                            'MODERADA',
+                            'El enalapril reduce la excreción de potasio. La administración conjunta con suplementos de potasio puede causar hiperpotasemia.',
+                            'Monitorizar niveles séricos de potasio. Evitar suplementos de potasio salvo indicación específica.');
+                END IF;
+
+                -- 8. Diclofenaco + Litio (MODERADA)
+                IF EXISTS (SELECT 1 FROM medicamento WHERE LOWER(nombre) = LOWER('Diclofenaco'))
+                   AND EXISTS (SELECT 1 FROM medicamento WHERE LOWER(nombre) = LOWER('Litio')) THEN
+                    INSERT INTO interaccion_medicamentosa (id, medicamento_a_id, medicamento_b_id, severidad, descripcion, recomendacion)
+                    VALUES (nextval('sequence_generator'),
+                            (SELECT id FROM medicamento WHERE LOWER(nombre) = LOWER('Diclofenaco') LIMIT 1),
+                            (SELECT id FROM medicamento WHERE LOWER(nombre) = LOWER('Litio') LIMIT 1),
+                            'MODERADA',
+                            'El diclofenaco puede aumentar los niveles plasmáticos de litio al reducir su eliminación renal, aumentando el riesgo de toxicidad por litio.',
+                            'Monitorizar niveles de litio. Considerar paracetamol como alternativa analgésica.');
+                END IF;
+
+                -- 9. Fluconazol + Warfarina (GRAVE)
+                IF EXISTS (SELECT 1 FROM medicamento WHERE LOWER(nombre) = LOWER('Fluconazol'))
+                   AND EXISTS (SELECT 1 FROM medicamento WHERE LOWER(nombre) = LOWER('Warfarina')) THEN
+                    INSERT INTO interaccion_medicamentosa (id, medicamento_a_id, medicamento_b_id, severidad, descripcion, recomendacion)
+                    VALUES (nextval('sequence_generator'),
+                            (SELECT id FROM medicamento WHERE LOWER(nombre) = LOWER('Fluconazol') LIMIT 1),
+                            (SELECT id FROM medicamento WHERE LOWER(nombre) = LOWER('Warfarina') LIMIT 1),
+                            'GRAVE',
+                            'El fluconazol inhibe el metabolismo de la warfarina a través de CYP2C9, aumentando significativamente el efecto anticoagulante y el riesgo de hemorragia.',
+                            'Reducir la dosis de warfarina y monitorizar INR estrechamente durante y después del tratamiento con fluconazol.');
+                END IF;
+
+                -- 10. Simvastatina + Eritromicina (GRAVE)
+                IF EXISTS (SELECT 1 FROM medicamento WHERE LOWER(nombre) = LOWER('Simvastatina'))
+                   AND EXISTS (SELECT 1 FROM medicamento WHERE LOWER(nombre) = LOWER('Eritromicina')) THEN
+                    INSERT INTO interaccion_medicamentosa (id, medicamento_a_id, medicamento_b_id, severidad, descripcion, recomendacion)
+                    VALUES (nextval('sequence_generator'),
+                            (SELECT id FROM medicamento WHERE LOWER(nombre) = LOWER('Simvastatina') LIMIT 1),
+                            (SELECT id FROM medicamento WHERE LOWER(nombre) = LOWER('Eritromicina') LIMIT 1),
+                            'GRAVE',
+                            'La eritromicina inhibe CYP3A4, aumentando los niveles de simvastatina y el riesgo de rabdomiólisis, una condición potencialmente mortal.',
+                            'Contraindicada la combinación. Suspender simvastatina durante el tratamiento con eritromicina o usar una estatina alternativa.');
+                END IF;
+            END $$;
+        </sql>
+    </changeSet>
+</databaseChangeLog>

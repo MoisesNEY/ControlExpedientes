@@ -13,6 +13,7 @@ import PatientListView from './components/dashboard/views/PatientListView';
 import AppointmentView from './components/dashboard/views/AppointmentView';
 import InventoryView from './components/dashboard/views/InventoryView';
 import RecordsView from './components/dashboard/views/RecordsView';
+import LabResultsView from './components/dashboard/views/LabResultsView';
 
 import AdminDashboard from './pages/AdminDashboard';
 import AdminHomeView from './components/admin/views/AdminHomeView';
@@ -101,7 +102,8 @@ export const routerConfig: RouteObject[] = [
           { path: 'pacientes', element: <PatientListView /> },
           { path: 'citas', element: <AppointmentView /> },
           { path: 'inventario', element: <InventoryView /> },
-          { path: 'registros', element: <RecordsView /> }
+          { path: 'registros', element: <RecordsView /> },
+          { path: 'laboratorio', element: <LabResultsView /> }
         ]
       },
       {

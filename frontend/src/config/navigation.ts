@@ -35,6 +35,7 @@ export const navigationConfig: NavGroup[] = [
       { id: 'med-citas', label: 'Mis Citas', path: '/medico/citas', icon: 'event', requiredRoles: ['ROLE_MEDICO'] },
       { id: 'med-inventario', label: 'Sala Insumos', path: '/medico/inventario', icon: 'inventory', requiredRoles: ['ROLE_MEDICO'] },
       { id: 'med-registros', label: 'Mis Registros', path: '/medico/registros', icon: 'clinical_notes', requiredRoles: ['ROLE_MEDICO'] },
+      { id: 'med-laboratorio', label: 'Laboratorio', path: '/medico/laboratorio', icon: 'science', requiredRoles: ['ROLE_MEDICO'] },
     ]
   },
   {
