@@ -50,4 +50,6 @@ public interface ConsultaMedicaRepository
     List<ConsultaMedica> findAllByFechaConsultaBetween(LocalDate start, LocalDate end);
 
     List<ConsultaMedica> findAllByFechaConsultaBetweenAndUserLogin(LocalDate start, LocalDate end, String login);
+
+    List<ConsultaMedica> findByExpedienteIdOrderByFechaConsultaDesc(Long expedienteId);
 }
