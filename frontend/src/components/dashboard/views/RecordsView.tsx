@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { usePatient } from '../../../context/PatientContext';
 import { ExpedienteService } from '../../../services/expediente.service';
+import { ReporteService } from '../../../services/reporte.service';
 
 interface TimelineEntry {
     fecha: string;
@@ -22,6 +23,8 @@ const RecordsView = () => {
     const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [downloading, setDownloading] = useState<string | null>(null);
+    const [expedienteId, setExpedienteId] = useState<number | null>(null);
 
     useEffect(() => {
         const fetchTimeline = async () => {
@@ -43,9 +46,11 @@ const RecordsView = () => {
 
                 const expediente = await ExpedienteService.getByPacienteId(pacienteId);
                 if (expediente?.id) {
+                    setExpedienteId(expediente.id);
                     const data = await ExpedienteService.getTimeline(expediente.id);
                     setTimeline(data);
                 } else {
+                    setExpedienteId(null);
                     setTimeline([]);
                 }
             } catch (err) {
@@ -59,6 +64,28 @@ const RecordsView = () => {
 
         fetchTimeline();
     }, [selectedPatient]);
+
+    const handleDescargarHistorial = async (pacienteId: number) => {
+        setDownloading('historial-' + pacienteId);
+        try {
+            await ReporteService.descargarHistorialPdf(pacienteId);
+        } catch (error) {
+            console.error('Error descargando historial:', error);
+        } finally {
+            setDownloading(null);
+        }
+    };
+
+    const handleDescargarExpediente = async (expId: number) => {
+        setDownloading('expediente-' + expId);
+        try {
+            await ReporteService.descargarExpedientePdf(expId);
+        } catch (error) {
+            console.error('Error descargando expediente:', error);
+        } finally {
+            setDownloading(null);
+        }
+    };
 
     const formatDate = (dateString: string) => {
         return new Date(dateString).toLocaleDateString('es-ES', {
@@ -86,6 +113,38 @@ const RecordsView = () => {
                         Historial Clínico: <span className="text-primary">{selectedPatient.name}</span>
                     </h2>
                     <p className="text-slate-500 text-xs md:text-sm font-medium">Timeline cronológico de atenciones médicas y tratamientos.</p>
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                    <button
+                        onClick={() => {
+                            const pacienteId = selectedPatient.patientId ??
+                                (selectedPatient.id ? parseInt(selectedPatient.id, 10) : NaN);
+                            if (pacienteId && !Number.isNaN(pacienteId)) handleDescargarHistorial(pacienteId);
+                        }}
+                        disabled={!!downloading}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors disabled:opacity-50 text-sm font-semibold"
+                    >
+                        {downloading?.startsWith('historial') ? (
+                            <span className="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
+                        ) : (
+                            <span>📄</span>
+                        )}
+                        Descargar Historial Clínico (PDF)
+                    </button>
+                    {expedienteId && (
+                        <button
+                            onClick={() => handleDescargarExpediente(expedienteId)}
+                            disabled={!!downloading}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors disabled:opacity-50 text-sm font-semibold"
+                        >
+                            {downloading?.startsWith('expediente') ? (
+                                <span className="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
+                            ) : (
+                                <span>📋</span>
+                            )}
+                            Descargar Expediente (PDF)
+                        </button>
+                    )}
                 </div>
             </div>
 
