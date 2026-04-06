@@ -59,11 +59,19 @@ const RecordsView = () => {
         setSearching(true);
         debounceRef.current = setTimeout(async () => {
             try {
-                const results = await PacienteService.getAll({
-                    'nombres.contains': query.trim(),
-                    size: 10,
-                    sort: 'nombres,asc',
-                });
+                const trimmed = query.trim();
+                const [byNombres, byApellidos] = await Promise.all([
+                    PacienteService.getAll({ 'nombres.contains': trimmed, size: 10, sort: 'nombres,asc' }),
+                    PacienteService.getAll({ 'apellidos.contains': trimmed, size: 10, sort: 'apellidos,asc' }),
+                ]);
+                const seen = new Set<number>();
+                const results: PacienteDTO[] = [];
+                for (const p of [...byNombres, ...byApellidos]) {
+                    if (p.id != null && !seen.has(p.id)) {
+                        seen.add(p.id);
+                        results.push(p);
+                    }
+                }
                 setSearchResults(results);
             } catch {
                 setSearchResults([]);
@@ -210,7 +218,7 @@ const RecordsView = () => {
                                                 {paciente.nombres} {paciente.apellidos}
                                             </p>
                                             <p className="text-xs text-slate-400 truncate">
-                                                {paciente.cedula ? `Cédula: ${paciente.cedula}` : paciente.codigo} · {calculateAge(paciente.fechaNacimiento)}
+                                                {paciente.cedula ? `Cédula: ${paciente.cedula}` : `Código: ${paciente.codigo}`} · {calculateAge(paciente.fechaNacimiento)}
                                             </p>
                                         </div>
                                         <span className={`ml-auto text-[10px] font-bold uppercase px-2 py-0.5 rounded-full shrink-0 ${paciente.activo ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}>
