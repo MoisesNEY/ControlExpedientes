@@ -187,10 +187,10 @@ const ReceptionAgendaView = () => {
         setCheckingIn(cita.id);
         try {
             await CitaService.patch(cita.id, { estado: 'EN_SALA_ESPERA' as any });
-            const pacienteName = cita.paciente?.nombres
+            const nombrePaciente = cita.paciente?.nombres
                 ? `${cita.paciente.nombres} ${cita.paciente.apellidos || ''}`.trim()
                 : 'Paciente';
-            setCheckInBanner(pacienteName);
+            setCheckInBanner(nombrePaciente);
             setTimeout(() => setCheckInBanner(null), 4000);
             await fetchCitas();
         } catch (error: any) {
