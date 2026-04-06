@@ -42,6 +42,7 @@ export const navigationConfig: NavGroup[] = [
     groupName: 'Enfermería',
     items: [
       { id: 'enf-dashboard', label: 'Dashboard', path: '/enfermeria/dashboard', icon: 'dashboard', requiredRoles: ['ROLE_ENFERMERO'] },
+      { id: 'enf-sala-espera', label: 'Sala de Espera', path: '/enfermeria/sala-espera', icon: 'hourglass_top', requiredRoles: ['ROLE_ENFERMERO'] },
       { id: 'enf-inventario', label: 'Insumos', path: '/enfermeria/inventario', icon: 'inventory_2', requiredRoles: ['ROLE_ENFERMERO'] },
     ]
   },
@@ -50,6 +51,7 @@ export const navigationConfig: NavGroup[] = [
     items: [
       { id: 'rec-dashboard', label: 'Dashboard', path: '/recepcion/dashboard', icon: 'dashboard', requiredRoles: ['ROLE_RECEPCION'] },
       { id: 'rec-pacientes', label: 'Registro Base', path: '/recepcion/pacientes', icon: 'how_to_reg', requiredRoles: ['ROLE_RECEPCION'] },
+      { id: 'rec-expedientes', label: 'Expedientes', path: '/recepcion/expedientes', icon: 'folder_shared', requiredRoles: ['ROLE_RECEPCION'] },
       { id: 'rec-citas', label: 'Agenda Citas', path: '/recepcion/citas', icon: 'book_online', requiredRoles: ['ROLE_RECEPCION'] },
     ]
   }

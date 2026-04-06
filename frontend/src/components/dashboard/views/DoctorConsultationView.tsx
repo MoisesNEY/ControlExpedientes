@@ -184,7 +184,7 @@ const DoctorConsultationView = () => {
 
     // Verificar interacciones medicamentosas cuando cambian las prescripciones
     useEffect(() => {
-        const ids = prescriptions.map((rx) => rx.medicamento.id);
+        const ids = prescriptions.map((rx) => rx.medicamento.id).filter((id): id is number => id != null);
         if (ids.length < 2) {
             setInteracciones([]);
             return;
