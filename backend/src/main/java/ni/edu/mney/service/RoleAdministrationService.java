@@ -4,6 +4,7 @@ import jakarta.annotation.PostConstruct;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import ni.edu.mney.domain.Authority;
@@ -128,7 +129,28 @@ public class RoleAdministrationService {
 
     private void ensureSystemRole(String roleName, String description, Set<String> permissions) {
         ensureAuthority(roleName);
-        roleDefinitionRepository.findById(roleName).orElseGet(() -> {
+        roleDefinitionRepository.findById(roleName).map(existing -> {
+            boolean changed = false;
+
+            if (!existing.isSystemRole()) {
+                existing.setSystemRole(true);
+                changed = true;
+            }
+            if (!Objects.equals(existing.getDescription(), description)) {
+                existing.setDescription(description);
+                changed = true;
+            }
+            if (!existing.getPermissions().equals(permissions)) {
+                existing.setPermissions(permissions);
+                changed = true;
+            }
+            if (!existing.getCompositeRoles().isEmpty()) {
+                existing.setCompositeRoles(Set.of());
+                changed = true;
+            }
+
+            return changed ? roleDefinitionRepository.save(existing) : existing;
+        }).orElseGet(() -> {
             RoleDefinition definition = new RoleDefinition();
             definition.setRoleName(roleName);
             definition.setDescription(description);
