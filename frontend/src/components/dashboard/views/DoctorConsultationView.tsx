@@ -9,6 +9,7 @@ import PrintableReceta from './PrintableReceta';
 import { AppButton } from '../../ui/AppButton';
 import { PatientCard } from '../../ui/PatientCard';
 import { InteraccionService, type InteraccionMedicamentosaDTO } from '../../../services/interaccion.service';
+import { ReporteService } from '../../../services/reporte.service';
 import DrugInteractionAlert from '../DrugInteractionAlert';
 
 interface Prescription {
@@ -56,7 +57,7 @@ const DoctorConsultationView = () => {
     const [duracionValue, setDuracionValue] = useState('');
     const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
     const [interacciones, setInteracciones] = useState<InteraccionMedicamentosaDTO[]>([]);
-    const [signosVitales, setSignosVitales] = useState<any>(null);
+    const [signosVitales, setSignosVitales] = useState<Record<string, string | number> | null>(null);
 
     // Cargar datos de la cita y signos vitales
     useEffect(() => {
@@ -65,7 +66,7 @@ const DoctorConsultationView = () => {
         AppointmentService.getById(parseInt(citaId))
             .then(async (citaData) => {
                 setAppointment(citaData);
-                try { localStorage.setItem('activeConsultation', String(citaData.id)); } catch (e) { }
+                try { localStorage.setItem('activeConsultation', String(citaData.id)); } catch {}
 
                 // Si la cita apenas se abre, cambiar a EN_CONSULTA
                 if (citaData.estado === 'ESPERANDO_MEDICO') {
@@ -128,9 +129,12 @@ const DoctorConsultationView = () => {
             setShowCreateModal(false);
             setDiagResults([]);
             setDiagQuery('');
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Error creando diagnóstico:', err);
-            setCreateDiagError(err?.response?.data?.message || 'Error creando diagnóstico.');
+            const message = typeof err === 'object' && err !== null && 'response' in err
+                ? ((err as { response?: { data?: { message?: string } } }).response?.data?.message ?? 'Error creando diagnóstico.')
+                : 'Error creando diagnóstico.';
+            setCreateDiagError(message);
         } finally {
             setCreatingDiag(false);
         }
@@ -218,11 +222,14 @@ const DoctorConsultationView = () => {
                     cantidad: 1,
                 })),
             });
-            try { localStorage.removeItem('activeConsultation'); } catch (e) { }
+            try { localStorage.removeItem('activeConsultation'); } catch {}
             navigate('/medico');
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Error al finalizar consulta:', err);
-            setSaveError(err?.response?.data?.title || 'Error al guardar. Intente de nuevo.');
+            const message = typeof err === 'object' && err !== null && 'response' in err
+                ? ((err as { response?: { data?: { title?: string } } }).response?.data?.title ?? 'Error al guardar. Intente de nuevo.')
+                : 'Error al guardar. Intente de nuevo.';
+            setSaveError(message);
         } finally {
             setIsSaving(false);
         }
@@ -235,17 +242,30 @@ const DoctorConsultationView = () => {
         setIsDownloadingPdf(true);
         setSaveError(null);
         try {
-            const response = await api.get(`/api/reportes/receta/${citaId}`, {
-                responseType: 'blob',
+            if (!appointment?.paciente || !selectedDiagnosis) {
+                setSaveError('Seleccione un diagnóstico y verifique los datos del paciente antes de descargar la receta.');
+                return;
+            }
+            await ReporteService.descargarRecetaPreviewPdf({
+                citaId: Number(citaId),
+                fechaConsulta: new Date().toISOString().slice(0, 10),
+                nombrePaciente: `${appointment.paciente.nombres ?? ''} ${appointment.paciente.apellidos ?? ''}`.trim(),
+                codigoPaciente: `PAC-${String(appointment.paciente.id).padStart(4, '0')}`,
+                motivoConsulta: appointment.observaciones || 'Consulta médica',
+                codigoDiagnostico: selectedDiagnosis.codigoCIE,
+                descripcionDiagnostico: selectedDiagnosis.descripcion,
+                notasMedicas,
+                doctorName,
+                recetas: prescriptions.map((rx) => ({
+                    medicamento: rx.medicamento.nombre,
+                    dosis: rx.dosis,
+                    frecuencia: rx.frecuencia,
+                    duracion: rx.duracion,
+                })),
             });
-            const blob = new Blob([response.data], { type: 'application/pdf' });
-            const url = window.URL.createObjectURL(blob);
-            window.open(url, '_blank');
-            // Liberar memoria después de un momento
-            setTimeout(() => window.URL.revokeObjectURL(url), 10000);
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Error al descargar PDF:', err);
-            setSaveError('Error al generar PDF. Asegúrese de haber finalizado la consulta primero.');
+            setSaveError('Error al generar el PDF de la receta.');
         } finally {
             setIsDownloadingPdf(false);
         }
@@ -279,7 +299,7 @@ const DoctorConsultationView = () => {
                     variant="ghost"
                     size="sm"
                     icon="arrow_back"
-                    onClick={() => { try { localStorage.removeItem('activeConsultation'); } catch (e) {} navigate('/medico'); }}
+                    onClick={() => { try { localStorage.removeItem('activeConsultation'); } catch {} navigate('/medico'); }}
                 >
                     Volver a Sala de Espera
                 </AppButton>
@@ -362,7 +382,7 @@ const DoctorConsultationView = () => {
                 <div className="lg:col-span-2 flex flex-col gap-6">
 
                     {/* Anamnesis / Notas */}
-                    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden">
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col overflow-visible">
                         <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/20 flex items-center gap-2">
                             <span className="material-symbols-outlined text-primary">clinical_notes</span>
                             <h3 className="font-bold text-slate-900 dark:text-white">Anamnesis y Evolución</h3>
@@ -470,7 +490,7 @@ const DoctorConsultationView = () => {
 
                 {/* Columna Derecha: Receta Médica */}
                 <div className="flex flex-col gap-6">
-                    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden h-full">
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col overflow-visible h-full">
                         <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/20 flex items-center gap-2">
                             <span className="material-symbols-outlined text-teal-500">prescriptions</span>
                             <h3 className="font-bold text-slate-900 dark:text-white">Receta Médica</h3>

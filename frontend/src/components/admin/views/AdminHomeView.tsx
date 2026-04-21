@@ -16,6 +16,8 @@ import {
 } from 'recharts';
 import { DashboardEmptyState, DashboardLoading, DashboardMetricCard, DashboardPanel } from '../../analytics/DashboardPrimitives';
 import { DashboardService, type DashboardMetrics } from '../../../services/dashboard.service';
+import { DatabaseAdminService } from '../../../services/database-admin.service';
+import { AppButton } from '../../ui/AppButton';
 
 const STATUS_COLORS = ['#0ea5e9', '#14b8a6', '#f59e0b', '#8b5cf6', '#ef4444', '#22c55e', '#64748b'];
 const SEX_COLORS = ['#38bdf8', '#fb7185', '#a78bfa'];
@@ -30,6 +32,10 @@ const CARD_ICONS: Record<string, string> = {
 const AdminHomeView = () => {
     const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
     const [loading, setLoading] = useState(true);
+    const [isExportingDatabase, setIsExportingDatabase] = useState(false);
+    const [isRestoringDatabase, setIsRestoringDatabase] = useState(false);
+    const [backupFile, setBackupFile] = useState<File | null>(null);
+    const [backupMessage, setBackupMessage] = useState<string | null>(null);
 
     useEffect(() => {
         const loadDashboard = async () => {
@@ -45,6 +51,45 @@ const AdminHomeView = () => {
 
         loadDashboard();
     }, []);
+
+    const handleExportDatabase = async () => {
+        setBackupMessage(null);
+        setIsExportingDatabase(true);
+        try {
+            await DatabaseAdminService.exportDatabase();
+            setBackupMessage('Respaldo generado correctamente.');
+        } catch (error) {
+            console.error('Error exporting database:', error);
+            setBackupMessage('No se pudo generar el respaldo de la base de datos.');
+        } finally {
+            setIsExportingDatabase(false);
+        }
+    };
+
+    const handleRestoreDatabase = async () => {
+        if (!backupFile) {
+            setBackupMessage('Seleccione un archivo .backup o .sql antes de restaurar.');
+            return;
+        }
+
+        const confirmed = window.confirm('Esta acción reemplazará la información actual de la base de datos. ¿Desea continuar?');
+        if (!confirmed) {
+            return;
+        }
+
+        setBackupMessage(null);
+        setIsRestoringDatabase(true);
+        try {
+            await DatabaseAdminService.restoreDatabase(backupFile);
+            setBackupMessage('Restauración ejecutada correctamente.');
+            setBackupFile(null);
+        } catch (error) {
+            console.error('Error restoring database:', error);
+            setBackupMessage('No se pudo restaurar el respaldo. Verifique el archivo y la disponibilidad de las utilidades PostgreSQL.');
+        } finally {
+            setIsRestoringDatabase(false);
+        }
+    };
 
     if (loading) {
         return <DashboardLoading />;
@@ -197,6 +242,59 @@ const AdminHomeView = () => {
                     </div>
                 ) : (
                     <DashboardEmptyState message="No hay actividad de auditoría reciente disponible." />
+                )}
+            </DashboardPanel>
+
+            <DashboardPanel title="Respaldo y restauración" icon="database">
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                    <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/30 p-5 space-y-3">
+                        <div>
+                            <p className="text-sm font-bold text-slate-900 dark:text-white">Exportar base de datos</p>
+                            <p className="text-xs text-slate-500 mt-1">Genera un respaldo completo para recuperación ante fallos o migraciones.</p>
+                        </div>
+                        <AppButton
+                            variant="primary"
+                            size="md"
+                            icon="download"
+                            isLoading={isExportingDatabase}
+                            onClick={handleExportDatabase}
+                        >
+                            Descargar respaldo
+                        </AppButton>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/30 p-5 space-y-3">
+                        <div>
+                            <p className="text-sm font-bold text-slate-900 dark:text-white">Restaurar respaldo</p>
+                            <p className="text-xs text-slate-500 mt-1">Acepta archivos .backup y .sql generados para PostgreSQL.</p>
+                        </div>
+                        <label className="flex flex-col gap-2 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 px-4 py-4 text-sm text-slate-600 dark:text-slate-300 cursor-pointer hover:border-sky-400">
+                            <span className="font-semibold">{backupFile ? backupFile.name : 'Seleccionar archivo de respaldo'}</span>
+                            <span className="text-xs text-slate-400">Formatos soportados: .backup, .sql</span>
+                            <input
+                                type="file"
+                                accept=".backup,.sql"
+                                className="hidden"
+                                onChange={(event) => setBackupFile(event.target.files?.[0] ?? null)}
+                            />
+                        </label>
+                        <AppButton
+                            variant="outline"
+                            size="md"
+                            icon="upload"
+                            isLoading={isRestoringDatabase}
+                            disabled={!backupFile}
+                            onClick={handleRestoreDatabase}
+                        >
+                            Restaurar base de datos
+                        </AppButton>
+                    </div>
+                </div>
+
+                {backupMessage && (
+                    <div className="mt-4 rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3 text-sm font-medium text-sky-700 dark:border-sky-900/40 dark:bg-sky-950/30 dark:text-sky-200">
+                        {backupMessage}
+                    </div>
                 )}
             </DashboardPanel>
         </div>
