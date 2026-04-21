@@ -38,5 +38,6 @@
     <include file="config/liquibase/changelog/20260125005539_added_entity_constraints_HistorialClinico.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/20260125005540_added_entity_constraints_AuditoriaAcciones.xml" relativeToChangelogFile="false"/>
     <!-- jhipster-needle-liquibase-add-constraints-changelog - JHipster will add liquibase constraints changelogs here -->
+    <include file="config/liquibase/changelog/20260421000001_seed_catalog_interacciones_medicamentosas.xml" relativeToChangelogFile="false"/>
     <!-- jhipster-needle-liquibase-add-incremental-changelog - JHipster will add incremental liquibase changelogs here -->
 </databaseChangeLog>
