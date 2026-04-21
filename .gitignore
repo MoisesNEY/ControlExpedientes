@@ -19,3 +19,6 @@ Dockerfile.*
 # Logs
 logs
 *.log
+
+# Local environment files (do not commit)
+backend/.env
