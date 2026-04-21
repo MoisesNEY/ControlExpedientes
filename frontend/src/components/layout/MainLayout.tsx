@@ -118,8 +118,13 @@ export const MainLayout: React.FC = () => {
       .map(group => ({
         ...group,
         items: group.items.filter(item => {
-          const roleAllowed = item.requiredRoles.length > 0 && hasAnyRole(item.requiredRoles);
-          const permissionAllowed = (item.requiredPermissions?.length ?? 0) > 0 && hasAnyPermission(item.requiredPermissions ?? []);
+          const hasRoleRestriction = item.requiredRoles.length > 0;
+          const hasPermissionRestriction = (item.requiredPermissions?.length ?? 0) > 0;
+          if (!hasRoleRestriction && !hasPermissionRestriction) {
+            return true;
+          }
+          const roleAllowed = hasRoleRestriction && hasAnyRole(item.requiredRoles);
+          const permissionAllowed = hasPermissionRestriction && hasAnyPermission(item.requiredPermissions ?? []);
           return roleAllowed || permissionAllowed;
         })
       }))
