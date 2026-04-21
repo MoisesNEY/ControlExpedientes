@@ -117,7 +117,11 @@ export const MainLayout: React.FC = () => {
     return navigationConfig
       .map(group => ({
         ...group,
-        items: group.items.filter(item => hasAnyRole(item.requiredRoles) || hasAnyPermission(item.requiredPermissions ?? []))
+        items: group.items.filter(item => {
+          const roleAllowed = item.requiredRoles.length > 0 && hasAnyRole(item.requiredRoles);
+          const permissionAllowed = (item.requiredPermissions?.length ?? 0) > 0 && hasAnyPermission(item.requiredPermissions ?? []);
+          return roleAllowed || permissionAllowed;
+        })
       }))
       .filter(group => group.items.length > 0);
   }, [hasAnyPermission, hasAnyRole, roles]);

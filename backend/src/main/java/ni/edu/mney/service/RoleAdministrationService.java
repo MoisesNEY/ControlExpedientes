@@ -77,10 +77,28 @@ public class RoleAdministrationService {
         if (roleDefinitionRepository.existsById(request.roleName())) {
             throw new IllegalArgumentException("El rol ya existe.");
         }
-        keycloakAdminService.createRole(request.roleName(), request.description(), normalizePermissions(request.permissions()), normalizeCompositeRoles(request.compositeRoles()));
-        RoleDefinition definition = persistRole(request, false);
         ensureAuthority(request.roleName());
-        return toDto(definition);
+
+        boolean roleCreatedInKeycloak = false;
+        try {
+            keycloakAdminService.createRole(
+                request.roleName(),
+                request.description(),
+                normalizePermissions(request.permissions()),
+                normalizeCompositeRoles(request.compositeRoles())
+            );
+            roleCreatedInKeycloak = true;
+            return toDto(persistRole(request, false));
+        } catch (RuntimeException exception) {
+            if (roleCreatedInKeycloak) {
+                try {
+                    keycloakAdminService.deleteRole(request.roleName());
+                } catch (RuntimeException rollbackException) {
+                    exception.addSuppressed(rollbackException);
+                }
+            }
+            throw exception;
+        }
     }
 
     public RoleDefinitionDTO updateRole(String roleName, RoleUpsertDTO request) {
