@@ -1,4 +1,5 @@
 import type { Appointment } from '../../../services/appointment.service';
+import { buildFullName } from '../../../utils/personName';
 
 interface Prescription {
     medicamento: { nombre: string; descripcion?: string };
@@ -39,7 +40,7 @@ const PrintableReceta = ({
         day: 'numeric',
     });
 
-    const patientName = `${appointment.paciente?.nombres ?? ''} ${appointment.paciente?.apellidos ?? ''}`.trim();
+    const patientName = buildFullName([appointment.paciente?.nombres, appointment.paciente?.apellidos], 'Paciente');
     const patientId = appointment.paciente?.id ? `PAC-${String(appointment.paciente.id).padStart(4, '0')}` : 'N/D';
 
     return (

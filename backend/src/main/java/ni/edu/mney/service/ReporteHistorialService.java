@@ -23,6 +23,7 @@ import ni.edu.mney.repository.PacienteRepository;
 import ni.edu.mney.repository.ResultadoLaboratorioRepository;
 import ni.edu.mney.service.report.PdfReportSupport;
 import ni.edu.mney.service.report.PdfReportSupport.InfoItem;
+import ni.edu.mney.service.report.ReportTextUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
@@ -108,14 +109,14 @@ public class ReporteHistorialService {
                 LocalDate.now()
             );
             PdfReportSupport.addInfoGrid(document, fonts, List.of(
-                new InfoItem("Paciente", paciente.getNombres() + " " + paciente.getApellidos()),
-                new InfoItem("Cédula", paciente.getCedula() != null ? paciente.getCedula() : "N/D"),
+                new InfoItem("Paciente", ReportTextUtils.fullName(paciente.getNombres(), paciente.getApellidos(), "Paciente")),
+                new InfoItem("Cédula", ReportTextUtils.defaultText(paciente.getCedula())),
                 new InfoItem("Sexo", paciente.getSexo() != null ? paciente.getSexo().toString() : "N/D"),
                 new InfoItem("Fecha de nacimiento", paciente.getFechaNacimiento() != null ? paciente.getFechaNacimiento().format(DATE_FMT) : "N/D"),
                 new InfoItem("Estado civil", paciente.getEstadoCivil() != null ? paciente.getEstadoCivil().toString() : "N/D"),
-                new InfoItem("Teléfono", paciente.getTelefono() != null ? paciente.getTelefono() : "N/D"),
-                new InfoItem("Dirección", paciente.getDireccion() != null ? paciente.getDireccion() : "N/D"),
-                new InfoItem("Correo", paciente.getEmail() != null ? paciente.getEmail() : "N/D"),
+                new InfoItem("Teléfono", ReportTextUtils.defaultText(paciente.getTelefono())),
+                new InfoItem("Dirección", ReportTextUtils.defaultText(paciente.getDireccion())),
+                new InfoItem("Correo", ReportTextUtils.defaultText(paciente.getEmail())),
                 new InfoItem("Fecha de apertura", expediente.getFechaApertura() != null ? expediente.getFechaApertura().format(DATE_FMT) : "N/D"),
                 new InfoItem("Total de consultas", String.valueOf(consultas.size()))
             ));
@@ -123,13 +124,15 @@ public class ReporteHistorialService {
             for (ConsultaMedica consulta : consultas) {
                 PdfReportSupport.addSectionTitle(document, fonts, "Consulta del " + consulta.getFechaConsulta().format(DATE_FMT));
 
-                document.add(new Paragraph("Motivo de consulta: " + consulta.getMotivoConsulta(), fonts.normal()));
+                document.add(new Paragraph("Motivo de consulta: " + ReportTextUtils.defaultText(consulta.getMotivoConsulta()), fonts.normal()));
 
                 if (consulta.getNotasMedicas() != null && !consulta.getNotasMedicas().isBlank()) {
                     document.add(new Paragraph("Notas médicas: " + consulta.getNotasMedicas(), fonts.normal()));
                 }
 
-                String doctorName = consulta.getUser() != null ? consulta.getUser().getLogin() : "N/A";
+                String doctorName = consulta.getUser() != null
+                    ? ReportTextUtils.fullName(consulta.getUser().getFirstName(), consulta.getUser().getLastName(), consulta.getUser().getLogin())
+                    : "N/A";
                 document.add(new Paragraph("Doctor: " + doctorName, fonts.normal()));
 
                 if (consulta.getSignosVitales() != null && !consulta.getSignosVitales().isEmpty()) {

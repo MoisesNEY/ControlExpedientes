@@ -12,6 +12,7 @@ import { PatientCard } from '../../ui/PatientCard';
 import { InteraccionService, type InteraccionMedicamentosaDTO } from '../../../services/interaccion.service';
 import { ReporteService } from '../../../services/reporte.service';
 import DrugInteractionAlert from '../DrugInteractionAlert';
+import { buildFullName } from '../../../utils/personName';
 
 interface Prescription {
     medicamento: MedicamentoDTO;
@@ -24,7 +25,9 @@ const DoctorConsultationView = () => {
     const { citaId } = useParams<{ citaId: string }>();
     const navigate = useNavigate();
     const { account, hasAnyRole } = useAuth();
-    const doctorName = account ? `Dr. ${account.firstName} ${account.lastName}`.trim() : 'Médico Tratante';
+    const doctorName = account
+        ? `Dr. ${buildFullName([account.firstName, account.lastName], account.email ?? 'Médico Tratante')}`
+        : 'Médico Tratante';
     const [appointment, setAppointment] = useState<Appointment | null>(null);
     const [loading, setLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
@@ -408,7 +411,7 @@ const DoctorConsultationView = () => {
                     </div>
 
                     {/* Diagnóstico Principal */}
-                    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden">
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col overflow-visible">
                         <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/20 flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <span className="material-symbols-outlined text-rose-500">search_insights</span>

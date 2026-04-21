@@ -19,6 +19,7 @@ import ni.edu.mney.repository.ExpedienteClinicoRepository;
 import ni.edu.mney.service.dto.ReporteRecetaPreviewRequestDTO;
 import ni.edu.mney.service.report.PdfReportSupport;
 import ni.edu.mney.service.report.PdfReportSupport.InfoItem;
+import ni.edu.mney.service.report.ReportTextUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -121,7 +122,7 @@ public class ReporteRecetaService {
         return new RecetaReportData(
                 citaId,
                 consulta.getFechaConsulta(),
-                (paciente.getNombres() + " " + paciente.getApellidos()).trim(),
+                ReportTextUtils.fullName(paciente.getNombres(), paciente.getApellidos(), "Paciente"),
                 paciente.getCodigo(),
                 paciente.getCedula(),
                 consulta.getMotivoConsulta(),
@@ -129,9 +130,10 @@ public class ReporteRecetaService {
                 principal != null ? principal.getDescripcion() : null,
                 consulta.getNotasMedicas(),
                 consulta.getUser() != null
-                        ? ((consulta.getUser().getFirstName() + " " + consulta.getUser().getLastName()).trim().isBlank()
-                                ? consulta.getUser().getLogin()
-                                : (consulta.getUser().getFirstName() + " " + consulta.getUser().getLastName()).trim())
+                        ? ReportTextUtils.fullName(
+                                consulta.getUser().getFirstName(),
+                                consulta.getUser().getLastName(),
+                                consulta.getUser().getLogin())
                         : "Médico Tratante",
                 consulta.getRecetas() == null ? List.of() : consulta.getRecetas().stream()
                         .map(receta -> new RecetaItem(
@@ -211,7 +213,7 @@ public class ReporteRecetaService {
     }
 
     private String defaultText(String value) {
-        return value != null && !value.isBlank() ? value : "N/D";
+        return ReportTextUtils.defaultText(value);
     }
 
     private record RecetaReportData(
