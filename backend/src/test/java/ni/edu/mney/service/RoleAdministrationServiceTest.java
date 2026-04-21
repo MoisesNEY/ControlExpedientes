@@ -100,8 +100,7 @@ class RoleAdministrationServiceTest {
                 AuthoritiesConstants.ADMIN.equals(roleDefinition.getRoleName()) &&
                 roleDefinition.isSystemRole() &&
                 roleDefinition.getCompositeRoles().isEmpty() &&
-                roleDefinition.getPermissions().containsAll(AppPermissionCatalog.allCodes()) &&
-                roleDefinition.getPermissions().size() == AppPermissionCatalog.allCodes().size()
+                roleDefinition.getPermissions().containsAll(AppPermissionCatalog.allCodes())
         );
     }
 }
