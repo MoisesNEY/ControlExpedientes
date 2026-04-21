@@ -23,6 +23,7 @@ import ni.edu.mney.service.dto.DatabaseBackupFrequency;
 import ni.edu.mney.service.dto.DatabaseBackupHistoryItemDTO;
 import ni.edu.mney.service.dto.DatabaseBackupSettingsDTO;
 import ni.edu.mney.service.dto.DatabaseBackupSummaryDTO;
+import ni.edu.mney.service.dto.NotificacionDTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -55,9 +56,11 @@ public class DatabaseBackupService {
 
     private final ObjectMapper objectMapper;
     private final Object backupLock = new Object();
+    private final NotificacionService notificacionService;
 
-    public DatabaseBackupService(ObjectMapper objectMapper) {
+    public DatabaseBackupService(ObjectMapper objectMapper, NotificacionService notificacionService) {
         this.objectMapper = objectMapper;
+        this.notificacionService = notificacionService;
     }
 
     @PostConstruct
@@ -100,6 +103,7 @@ public class DatabaseBackupService {
         synchronized (backupLock) {
             StoredBackup storedBackup = createBackup(BackupTrigger.MANUAL);
             updateBackupAudit(storedBackup, false);
+            publishBackupNotification(storedBackup, false);
             return readBackupFile(storedBackup);
         }
     }
@@ -119,6 +123,7 @@ public class DatabaseBackupService {
             try {
                 backupFile.transferTo(tempFile);
                 executeRestore(tempFile, plainSql, jdbc);
+                publishRestoreNotification(originalName);
             } catch (IOException e) {
                 throw new IllegalStateException("No se pudo procesar el archivo de respaldo.", e);
             } finally {
@@ -134,6 +139,7 @@ public class DatabaseBackupService {
                     storedBackup,
                     storedBackup.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(SQL_EXTENSION),
                     ParsedJdbcUrl.parse(datasourceUrl));
+            publishRestoreNotification(filename);
         }
     }
 
@@ -157,16 +163,20 @@ public class DatabaseBackupService {
             }
 
             LocalDateTime currentTime = now();
-            LocalDateTime nextExecution = computeNextExecution(settings, currentTime);
-            settings.setNextExecutionAt(nextExecution);
-
-            if (nextExecution == null || currentTime.isBefore(nextExecution)) {
+            LocalDateTime scheduledExecution = settings.getNextExecutionAt();
+            if (scheduledExecution == null) {
+                settings.setNextExecutionAt(computeNextExecution(settings, currentTime));
                 persistSettings(settings);
+                return;
+            }
+
+            if (currentTime.isBefore(scheduledExecution)) {
                 return;
             }
 
             StoredBackup storedBackup = createBackup(BackupTrigger.AUTOMATIC);
             updateBackupAudit(storedBackup, true);
+            publishBackupNotification(storedBackup, true);
         }
     }
 
@@ -290,6 +300,31 @@ public class DatabaseBackupService {
         }
         settings.setNextExecutionAt(computeNextExecution(settings, storedBackup.createdAt().plusSeconds(1)));
         persistSettings(settings);
+    }
+
+    private void publishBackupNotification(StoredBackup storedBackup, boolean automaticExecution) {
+        NotificacionDTO notification = new NotificacionDTO();
+        notification.setTipo(automaticExecution ? "RESPALDO_AUTOMATICO" : "RESPALDO_MANUAL");
+        notification.setMensaje(
+            automaticExecution
+                ? "Se generó un respaldo automático de la base de datos."
+                : "Se generó un respaldo manual de la base de datos."
+        );
+        notification.setPacienteNombre("Sistema");
+        notification.setRutaAccion("/admin/base-datos");
+        notification.setArchivoDescarga(storedBackup.filename());
+        notification.setAccionLabel("Descargar respaldo");
+        notificacionService.notificarSistemaAdministrativo(notification);
+    }
+
+    private void publishRestoreNotification(String sourceName) {
+        NotificacionDTO notification = new NotificacionDTO();
+        notification.setTipo("RESTAURACION_BASE_DATOS");
+        notification.setMensaje("Se restauró la base de datos usando " + sourceName + ".");
+        notification.setPacienteNombre("Sistema");
+        notification.setRutaAccion("/admin/base-datos");
+        notification.setAccionLabel("Revisar historial");
+        notificacionService.notificarSistemaAdministrativo(notification);
     }
 
     private void applySettings(StoredSettings settings, DatabaseBackupSettingsDTO request) {

@@ -27,6 +27,7 @@
     <include file="config/liquibase/changelog/20260406000001_added_entity_ResultadoLaboratorio.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/20260406000002_added_entity_InteraccionMedicamentosa.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/20260406000003_seed_InteraccionMedicamentosa.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/20260421000002_add_role_definition_tables.xml" relativeToChangelogFile="false"/>
     <!-- jhipster-needle-liquibase-add-changelog - JHipster will add liquibase changelogs here -->
     <include file="config/liquibase/changelog/20260125005530_added_entity_constraints_Paciente.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/20260125005532_added_entity_constraints_ConsultaMedica.xml" relativeToChangelogFile="false"/>

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { AppointmentService, type Appointment } from '../../services/appointment.service';
+import { DatabaseAdminService } from '../../services/database-admin.service';
 import type { Notificacion } from '../../hooks/useWebSocket';
 
 interface NavbarProps {
@@ -22,7 +23,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onDismissNotification,
   onClearNotifications,
 }) => {
-  const { user, roles, logout, hasAnyRole } = useAuth();
+  const { user, roles, logout, hasAnyRole, hasAnyPermission } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -122,6 +123,15 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const handleNotificationNavigate = (notification: Notificacion) => {
     if (!notification.citaId) {
+      if (notification.archivoDescarga && hasAnyPermission(['admin.database.export'])) {
+        void DatabaseAdminService.downloadStoredBackup(notification.archivoDescarga);
+      }
+      if (notification.rutaAccion) {
+        setNotificationPanelMessage(null);
+        setIsNotificationsOpen(false);
+        navigate(notification.rutaAccion);
+        return;
+      }
       setNotificationPanelMessage('Esta notificación no tiene un destino asociado.');
       return;
     }
@@ -231,6 +241,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                         <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{notification.pacienteNombre || 'Notificación'}</p>
                         <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{notification.mensaje}</p>
                         <p className="text-[11px] text-slate-400 mt-2">{new Date(notification.timestamp).toLocaleString('es-NI')}</p>
+                        {notification.accionLabel && (
+                          <p className="mt-2 text-[11px] font-black uppercase tracking-widest text-sky-500">
+                            {notification.accionLabel}
+                          </p>
+                        )}
                       </button>
                       <button
                         onClick={() => onDismissNotification(index)}
