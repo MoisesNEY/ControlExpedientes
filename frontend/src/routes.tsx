@@ -23,6 +23,7 @@ import AdminCitasView from './components/admin/views/AdminCitasView';
 import AdminExpedientesView from './components/admin/views/AdminExpedientesView';
 import AdminAuditoriaView from './components/admin/views/AdminAuditoriaView';
 import AdminInteraccionesView from './components/admin/views/AdminInteraccionesView';
+import AdminDatabaseView from './components/admin/views/AdminDatabaseView';
 import DiagnosticoCatalogView from './components/shared/views/DiagnosticoCatalogView';
 
 import NurseDashboard from './pages/NurseDashboard';
@@ -91,6 +92,7 @@ export const routerConfig: RouteObject[] = [
           { path: 'diagnosticos', element: <DiagnosticoCatalogView /> },
           { path: 'citas', element: <AdminCitasView /> },
           { path: 'expedientes', element: <AdminExpedientesView /> },
+          { path: 'base-datos', element: <AdminDatabaseView /> },
           { path: 'auditoria', element: <AdminAuditoriaView /> }
         ]
       },

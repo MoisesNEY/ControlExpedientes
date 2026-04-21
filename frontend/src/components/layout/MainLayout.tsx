@@ -44,7 +44,7 @@ export const MainLayout: React.FC = () => {
   const location = useLocation();
 
   // WebSocket: suscribirse a notificaciones de sala de espera
-  const { notificaciones, clearNotificacion } = useWebSocket('/topic/espera');
+  const { notificaciones, clearNotificacion, clearAll } = useWebSocket('/topic/espera');
 
   const toggleSidebar = useCallback(() => {
     if (isMobile) {
@@ -127,6 +127,9 @@ export const MainLayout: React.FC = () => {
         <Navbar 
           isSidebarCollapsed={isSidebarCollapsed} 
           onToggleSidebar={toggleSidebar} 
+          notifications={notificaciones}
+          onDismissNotification={clearNotificacion}
+          onClearNotifications={clearAll}
         />
 
         {/* Slot dinámico donde caen las vistas internas de cada módulo */}

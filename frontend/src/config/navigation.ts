@@ -26,6 +26,7 @@ export const navigationConfig: NavGroup[] = [
       { id: 'admin-diagnosticos', label: 'Diagnósticos', path: '/admin/diagnosticos', icon: 'diagnosis', requiredRoles: ['ROLE_ADMIN'] },
       { id: 'admin-citas', label: 'Gestión Citas', path: '/admin/citas', icon: 'calendar_month', requiredRoles: ['ROLE_ADMIN'] },
       { id: 'admin-expedientes', label: 'Expedientes', path: '/admin/expedientes', icon: 'folder_open', requiredRoles: ['ROLE_ADMIN'] },
+      { id: 'admin-database', label: 'Base de Datos', path: '/admin/base-datos', icon: 'database', requiredRoles: ['ROLE_ADMIN'] },
       { id: 'admin-audit', label: 'Auditoría', path: '/admin/auditoria', icon: 'security', requiredRoles: ['ROLE_ADMIN'] },
     ]
   },
