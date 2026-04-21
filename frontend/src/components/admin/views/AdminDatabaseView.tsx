@@ -227,7 +227,7 @@ const AdminDatabaseView = () => {
       <div className="flex flex-col gap-1">
         <h2 className="text-slate-900 dark:text-white text-3xl font-black tracking-tight">Administración de base de datos</h2>
         <p className="text-slate-500 text-base font-medium">
-          La restauración ahora exige tu contraseña actual y la confirmación explícita RESTAURAR para evitar ejecuciones accidentales.
+          La restauración ahora exige tu contraseña actual y la confirmación explícita RESTAURAR para evitar ejecuciones accidentales. Los respaldos automáticos se descargan automáticamente solo cuando tienes sesión activa, WebSocket conectado y permiso de exportación.
         </p>
       </div>
 

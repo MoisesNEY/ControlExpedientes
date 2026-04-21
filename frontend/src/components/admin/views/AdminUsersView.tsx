@@ -8,6 +8,8 @@ import {
   type RoleDefinition,
 } from '../../../services/admin-security.service';
 
+const defaultRequiredActions = ['UPDATE_PASSWORD'];
+
 const emptyUserForm: ManagedUserPayload = {
   login: '',
   firstName: '',
@@ -17,7 +19,7 @@ const emptyUserForm: ManagedUserPayload = {
   roles: [],
   password: '',
   temporaryPassword: true,
-  requiredActions: ['UPDATE_PASSWORD'],
+  requiredActions: defaultRequiredActions,
 };
 
 const AdminUsersView = () => {
@@ -66,7 +68,7 @@ const AdminUsersView = () => {
       roles: user.roles,
       password: '',
       temporaryPassword: true,
-      requiredActions: user.requiredActions.length ? user.requiredActions : ['UPDATE_PASSWORD'],
+      requiredActions: user.requiredActions.length ? user.requiredActions : defaultRequiredActions,
     });
     setMessage(null);
   };

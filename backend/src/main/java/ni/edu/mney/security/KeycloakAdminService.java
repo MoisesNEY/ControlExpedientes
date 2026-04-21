@@ -2,15 +2,21 @@ package ni.edu.mney.security;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -26,7 +32,12 @@ import org.springframework.web.util.UriUtils;
 @Component
 public class KeycloakAdminService {
 
+    private static final Logger LOG = LoggerFactory.getLogger(KeycloakAdminService.class);
+    private static final int MAX_PASSWORD_VALIDATION_FAILURES = 5;
+    private static final Duration PASSWORD_VALIDATION_WINDOW = Duration.ofMinutes(5);
+
     private final RestTemplate restTemplate = new RestTemplate();
+    private final Map<String, ValidationAttempt> failedPasswordValidations = new ConcurrentHashMap<>();
 
     @Value("${spring.security.oauth2.client.provider.oidc.issuer-uri}")
     private String issuerUri;
@@ -40,10 +51,10 @@ public class KeycloakAdminService {
     @Value("${application.keycloak-admin.client-id:admin-cli}")
     private String adminClientId;
 
-    @Value("${application.keycloak-admin.username:admin}")
+    @Value("${application.keycloak-admin.username:}")
     private String adminUsername;
 
-    @Value("${application.keycloak-admin.password:admin}")
+    @Value("${application.keycloak-admin.password:}")
     private String adminPassword;
 
     public void createRole(String roleName, String description, Set<String> permissions, Set<String> compositeRoles) {
@@ -155,6 +166,10 @@ public class KeycloakAdminService {
         if (password == null || password.isBlank()) {
             return false;
         }
+        if (isTemporarilyBlocked(username)) {
+            LOG.warn("Se bloqueó temporalmente la revalidación de credenciales para {}", username);
+            return false;
+        }
         try {
             MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
             body.add("grant_type", "password");
@@ -165,8 +180,16 @@ public class KeycloakAdminService {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
             ResponseEntity<Map> response = restTemplate.exchange(tokenEndpoint(), HttpMethod.POST, new HttpEntity<>(body, headers), Map.class);
-            return response.getBody() != null && response.getBody().containsKey("access_token");
+            boolean valid = response.getBody() != null && response.getBody().containsKey("access_token");
+            if (valid) {
+                failedPasswordValidations.remove(username);
+            } else {
+                registerFailedValidation(username);
+            }
+            return valid;
         } catch (Exception error) {
+            registerFailedValidation(username);
+            LOG.warn("Falló la revalidación de credenciales para {}", username);
             return false;
         }
     }
@@ -303,7 +326,7 @@ public class KeycloakAdminService {
         if (body == null) {
             throw new IllegalStateException("No se encontró el rol " + roleName + " en Keycloak.");
         }
-        return new LinkedHashMap<>((Map<String, Object>) body);
+        return safeObjectMap(body);
     }
 
     private <T> ResponseEntity<T> exchange(String url, HttpMethod method, Object body, Class<T> responseType) {
@@ -316,6 +339,9 @@ public class KeycloakAdminService {
     }
 
     private String requestAdminAccessToken() {
+        if (adminUsername == null || adminUsername.isBlank() || adminPassword == null || adminPassword.isBlank()) {
+            throw new IllegalStateException("Configura KEYCLOAK_ADMIN_USERNAME y KEYCLOAK_ADMIN_PASSWORD para administrar roles y usuarios.");
+        }
         MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
         body.add("grant_type", "password");
         body.add("client_id", adminClientId);
@@ -381,6 +407,41 @@ public class KeycloakAdminService {
         }
         return collection.stream().map(String::valueOf).distinct().sorted().toList();
     }
+
+    private Map<String, Object> safeObjectMap(Map<?, ?> source) {
+        Map<String, Object> converted = new LinkedHashMap<>();
+        for (Map.Entry<?, ?> entry : source.entrySet()) {
+            if (!(entry.getKey() instanceof String key)) {
+                continue;
+            }
+            converted.put(key, entry.getValue());
+        }
+        return converted;
+    }
+
+    private boolean isTemporarilyBlocked(String username) {
+        ValidationAttempt attempt = failedPasswordValidations.get(username);
+        if (attempt == null) {
+            return false;
+        }
+        if (attempt.expiresAt().isBefore(Instant.now())) {
+            failedPasswordValidations.remove(username);
+            return false;
+        }
+        return attempt.failures() >= MAX_PASSWORD_VALIDATION_FAILURES;
+    }
+
+    private void registerFailedValidation(String username) {
+        failedPasswordValidations.compute(username, (key, current) -> {
+            Instant now = Instant.now();
+            if (current == null || current.expiresAt().isBefore(now)) {
+                return new ValidationAttempt(1, now.plus(PASSWORD_VALIDATION_WINDOW));
+            }
+            return new ValidationAttempt(current.failures() + 1, current.expiresAt());
+        });
+    }
+
+    private record ValidationAttempt(int failures, Instant expiresAt) {}
 
     public record ManagedKeycloakUser(
         String id,

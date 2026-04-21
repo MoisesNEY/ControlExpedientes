@@ -12,6 +12,7 @@ import ni.edu.mney.repository.AuthorityRepository;
 import ni.edu.mney.repository.RoleDefinitionRepository;
 import ni.edu.mney.security.AppPermission;
 import ni.edu.mney.security.AppPermissionCatalog;
+import ni.edu.mney.security.AuthoritiesConstants;
 import ni.edu.mney.security.KeycloakAdminService;
 import ni.edu.mney.service.dto.PermissionDefinitionDTO;
 import ni.edu.mney.service.dto.RoleDefinitionDTO;
@@ -25,11 +26,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class RoleAdministrationService {
 
     private static final List<String> SYSTEM_ROLES = List.of(
-        "ROLE_ADMIN",
-        "ROLE_MEDICO",
-        "ROLE_ENFERMERO",
-        "ROLE_RECEPCION",
-        "ROLE_USER"
+        AuthoritiesConstants.ADMIN,
+        AuthoritiesConstants.MEDICO,
+        AuthoritiesConstants.ENFERMERO,
+        AuthoritiesConstants.RECEPCION,
+        AuthoritiesConstants.USER
     );
 
     private final RoleDefinitionRepository roleDefinitionRepository;
@@ -48,11 +49,11 @@ public class RoleAdministrationService {
 
     @PostConstruct
     void initializeDefaults() {
-        ensureSystemRole("ROLE_ADMIN", "Administrador del sistema", AppPermissionCatalog.allCodes());
-        ensureSystemRole("ROLE_MEDICO", "Acceso clínico para personal médico", Set.of());
-        ensureSystemRole("ROLE_ENFERMERO", "Acceso operativo para enfermería", Set.of());
-        ensureSystemRole("ROLE_RECEPCION", "Acceso operativo para recepción", Set.of());
-        ensureSystemRole("ROLE_USER", "Rol base de plataforma", Set.of());
+        ensureSystemRole(AuthoritiesConstants.ADMIN, "Administrador del sistema", AppPermissionCatalog.allCodes());
+        ensureSystemRole(AuthoritiesConstants.MEDICO, "Acceso clínico para personal médico", Set.of());
+        ensureSystemRole(AuthoritiesConstants.ENFERMERO, "Acceso operativo para enfermería", Set.of());
+        ensureSystemRole(AuthoritiesConstants.RECEPCION, "Acceso operativo para recepción", Set.of());
+        ensureSystemRole(AuthoritiesConstants.USER, "Rol base de plataforma", Set.of());
     }
 
     @Transactional(readOnly = true)
