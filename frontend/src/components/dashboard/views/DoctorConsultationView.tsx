@@ -4,6 +4,7 @@ import { AppointmentService, type Appointment } from '../../../services/appointm
 import { DiagnosticoService, type Diagnostico as DiagnosticoCatalogo } from '../../../services/diagnostico.service';
 import { MedicamentoService, type MedicamentoDTO } from '../../../services/medicamento.service';
 import api from '../../../services/api';
+import type { SignosVitalesDTO } from '../../../services/signosVitales.service';
 import { useAuth } from '../../../context/AuthContext';
 import PrintableReceta from './PrintableReceta';
 import { AppButton } from '../../ui/AppButton';
@@ -57,7 +58,7 @@ const DoctorConsultationView = () => {
     const [duracionValue, setDuracionValue] = useState('');
     const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
     const [interacciones, setInteracciones] = useState<InteraccionMedicamentosaDTO[]>([]);
-    const [signosVitales, setSignosVitales] = useState<Record<string, string | number> | null>(null);
+    const [signosVitales, setSignosVitales] = useState<SignosVitalesDTO | null>(null);
 
     // Cargar datos de la cita y signos vitales
     useEffect(() => {
@@ -66,7 +67,7 @@ const DoctorConsultationView = () => {
         AppointmentService.getById(parseInt(citaId))
             .then(async (citaData) => {
                 setAppointment(citaData);
-                try { localStorage.setItem('activeConsultation', String(citaData.id)); } catch {}
+                try { localStorage.setItem('activeConsultation', String(citaData.id)); } catch { void 0; }
 
                 // Si la cita apenas se abre, cambiar a EN_CONSULTA
                 if (citaData.estado === 'ESPERANDO_MEDICO') {
@@ -222,7 +223,7 @@ const DoctorConsultationView = () => {
                     cantidad: 1,
                 })),
             });
-            try { localStorage.removeItem('activeConsultation'); } catch {}
+            try { localStorage.removeItem('activeConsultation'); } catch { void 0; }
             navigate('/medico');
         } catch (err: unknown) {
             console.error('Error al finalizar consulta:', err);
@@ -299,7 +300,7 @@ const DoctorConsultationView = () => {
                     variant="ghost"
                     size="sm"
                     icon="arrow_back"
-                    onClick={() => { try { localStorage.removeItem('activeConsultation'); } catch {} navigate('/medico'); }}
+                    onClick={() => { try { localStorage.removeItem('activeConsultation'); } catch { void 0; } navigate('/medico'); }}
                 >
                     Volver a Sala de Espera
                 </AppButton>

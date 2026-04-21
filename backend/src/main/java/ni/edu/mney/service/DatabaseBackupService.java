@@ -109,7 +109,7 @@ public class DatabaseBackupService {
         processBuilder.redirectErrorStream(true);
 
         try {
-            LOG.info("Ejecutando comando de respaldo/restauración PostgreSQL: {}", command.getFirst());
+            LOG.info("Ejecutando comando de respaldo/restauración PostgreSQL: {}", command.get(0));
             Process process = processBuilder.start();
             String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
             int exitCode = process.waitFor();

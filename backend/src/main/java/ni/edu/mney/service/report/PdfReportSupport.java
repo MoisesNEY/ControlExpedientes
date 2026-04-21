@@ -1,6 +1,5 @@
 package ni.edu.mney.service.report;
 
-import com.lowagie.text.BaseColor;
 import com.lowagie.text.Document;
 import com.lowagie.text.DocumentException;
 import com.lowagie.text.Element;
@@ -11,16 +10,17 @@ import com.lowagie.text.Paragraph;
 import com.lowagie.text.Rectangle;
 import com.lowagie.text.pdf.PdfPCell;
 import com.lowagie.text.pdf.PdfPTable;
+import java.awt.Color;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 public final class PdfReportSupport {
 
-    private static final BaseColor BRAND = new BaseColor(2, 132, 197);
-    private static final BaseColor BRAND_SOFT = new BaseColor(224, 242, 254);
-    private static final BaseColor BORDER = new BaseColor(203, 213, 225);
-    private static final BaseColor TEXT_MUTED = new BaseColor(100, 116, 139);
+    private static final Color BRAND = new Color(2, 132, 197);
+    private static final Color BRAND_SOFT = new Color(224, 242, 254);
+    private static final Color BORDER = new Color(203, 213, 225);
+    private static final Color TEXT_MUTED = new Color(100, 116, 139);
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     private PdfReportSupport() {}
@@ -34,11 +34,11 @@ public final class PdfReportSupport {
         return new Fonts(
                 FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18, BRAND),
                 FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, BRAND),
-                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11, BaseColor.WHITE),
-                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11, BaseColor.BLACK),
+                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11, Color.WHITE),
+                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11, Color.BLACK),
                 FontFactory.getFont(FontFactory.HELVETICA, 10, TEXT_MUTED),
-                FontFactory.getFont(FontFactory.HELVETICA, 11, BaseColor.BLACK),
-                FontFactory.getFont(FontFactory.HELVETICA, 10, BaseColor.BLACK));
+                FontFactory.getFont(FontFactory.HELVETICA, 11, Color.BLACK),
+                FontFactory.getFont(FontFactory.HELVETICA, 10, Color.BLACK));
     }
 
     public static void addHeader(
@@ -125,7 +125,7 @@ public final class PdfReportSupport {
         PdfPCell cell = new PdfPCell(new Paragraph(message, fonts.small()));
         cell.setPadding(12f);
         cell.setBorderColor(BORDER);
-        cell.setBackgroundColor(new BaseColor(248, 250, 252));
+        cell.setBackgroundColor(new Color(248, 250, 252));
         PdfPTable table = new PdfPTable(1);
         table.setWidthPercentage(100);
         table.addCell(cell);
