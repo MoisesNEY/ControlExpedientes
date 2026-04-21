@@ -4,6 +4,7 @@ import ni.edu.mney.security.AuthoritiesConstants;
 import ni.edu.mney.service.ReporteExpedienteService;
 import ni.edu.mney.service.ReporteHistorialService;
 import ni.edu.mney.service.ReporteRecetaService;
+import ni.edu.mney.service.dto.ReporteRecetaPreviewRequestDTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
@@ -56,6 +57,36 @@ public class ReporteResource {
         return ResponseEntity.ok()
                 .headers(headers)
                 .body(pdfBytes);
+    }
+
+    @GetMapping(value = "/receta/consulta/{consultaId}", produces = MediaType.APPLICATION_PDF_VALUE)
+    @PreAuthorize("hasAnyAuthority('" + AuthoritiesConstants.ADMIN + "', '" + AuthoritiesConstants.MEDICO + "')")
+    public ResponseEntity<byte[]> obtenerRecetaPdfPorConsulta(@PathVariable("consultaId") Long consultaId) {
+        LOG.debug("REST request para obtener PDF de receta, ConsultaMedica ID: {}", consultaId);
+
+        byte[] pdfBytes = reporteRecetaService.generarRecetaPdfPorConsulta(consultaId);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentDispositionFormData("inline", "receta-consulta-" + consultaId + ".pdf");
+        headers.setCacheControl("must-revalidate, post-check=0, pre-check=0");
+
+        return ResponseEntity.ok().headers(headers).body(pdfBytes);
+    }
+
+    @PostMapping(value = "/receta/preview", produces = MediaType.APPLICATION_PDF_VALUE)
+    @PreAuthorize("hasAnyAuthority('" + AuthoritiesConstants.ADMIN + "', '" + AuthoritiesConstants.MEDICO + "')")
+    public ResponseEntity<byte[]> obtenerRecetaPreviewPdf(@RequestBody ReporteRecetaPreviewRequestDTO request) {
+        LOG.debug("REST request para obtener PDF preliminar de receta, CitaMedica ID: {}", request.getCitaId());
+
+        byte[] pdfBytes = reporteRecetaService.generarRecetaPreviewPdf(request);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentDispositionFormData(
+                "inline",
+                "receta-preliminar-" + (request.getCitaId() != null ? request.getCitaId() : "consulta") + ".pdf");
+        headers.setCacheControl("must-revalidate, post-check=0, pre-check=0");
+
+        return ResponseEntity.ok().headers(headers).body(pdfBytes);
     }
 
     /**

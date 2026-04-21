@@ -1,16 +1,12 @@
 package ni.edu.mney.service;
 
-import com.lowagie.text.Document;
 import com.lowagie.text.DocumentException;
-import com.lowagie.text.Element;
-import com.lowagie.text.Font;
-import com.lowagie.text.FontFactory;
 import com.lowagie.text.Paragraph;
-import com.lowagie.text.Phrase;
 import com.lowagie.text.pdf.PdfPCell;
 import com.lowagie.text.pdf.PdfPTable;
 import com.lowagie.text.pdf.PdfWriter;
 import java.io.ByteArrayOutputStream;
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import ni.edu.mney.domain.ConsultaMedica;
@@ -25,6 +21,8 @@ import ni.edu.mney.repository.ConsultaMedicaRepository;
 import ni.edu.mney.repository.ExpedienteClinicoRepository;
 import ni.edu.mney.repository.PacienteRepository;
 import ni.edu.mney.repository.ResultadoLaboratorioRepository;
+import ni.edu.mney.service.report.PdfReportSupport;
+import ni.edu.mney.service.report.PdfReportSupport.InfoItem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
@@ -95,169 +93,128 @@ public class ReporteHistorialService {
         List<ResultadoLaboratorio> resultados
     ) {
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-            Document document = new Document();
+            com.lowagie.text.Document document = PdfReportSupport.newDocument();
             PdfWriter.getInstance(document, baos);
             document.open();
 
-            Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18);
-            Font headerFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12);
-            Font subheaderFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 14);
-            Font normalFont = FontFactory.getFont(FontFactory.HELVETICA, 12);
-            Font smallFont = FontFactory.getFont(FontFactory.HELVETICA, 10);
-
-            // --- Header ---
-            Paragraph title = new Paragraph("Ministerio de Salud - Historial Clínico Completo", titleFont);
-            title.setAlignment(Element.ALIGN_CENTER);
-            title.setSpacingAfter(20f);
-            document.add(title);
-
-            // --- Patient Information ---
-            document.add(new Paragraph("Información del Paciente", subheaderFont));
-            document.add(new Paragraph(" ", smallFont));
-            document.add(new Paragraph("Nombre completo: " + paciente.getNombres() + " " + paciente.getApellidos(), normalFont));
-            if (paciente.getCedula() != null) {
-                document.add(new Paragraph("Cédula: " + paciente.getCedula(), normalFont));
-            }
-            document.add(new Paragraph("Sexo: " + (paciente.getSexo() != null ? paciente.getSexo() : "N/A"), normalFont));
-            document.add(new Paragraph(
-                "Fecha de Nacimiento: " + (paciente.getFechaNacimiento() != null ? paciente.getFechaNacimiento().format(DATE_FMT) : "N/A"),
-                normalFont
-            ));
-            document.add(new Paragraph("Estado Civil: " + (paciente.getEstadoCivil() != null ? paciente.getEstadoCivil() : "N/A"), normalFont));
-            document.add(new Paragraph("Teléfono: " + (paciente.getTelefono() != null ? paciente.getTelefono() : "N/A"), normalFont));
-            document.add(new Paragraph("Dirección: " + (paciente.getDireccion() != null ? paciente.getDireccion() : "N/A"), normalFont));
-            document.add(new Paragraph("Email: " + (paciente.getEmail() != null ? paciente.getEmail() : "N/A"), normalFont));
-            document.add(new Paragraph(" ", smallFont));
-            document.add(new Paragraph("Número de Expediente: " + expediente.getNumeroExpediente(), normalFont));
-            document.add(new Paragraph(
-                "Fecha de Apertura: " + (expediente.getFechaApertura() != null ? expediente.getFechaApertura().format(DATE_FMT) : "N/A"),
-                normalFont
+            PdfReportSupport.Fonts fonts = PdfReportSupport.fonts();
+            PdfReportSupport.addHeader(
+                document,
+                fonts,
+                "Historial clínico",
+                "Seguimiento completo de atenciones y laboratorios",
+                "Expediente",
+                expediente.getNumeroExpediente(),
+                LocalDate.now()
+            );
+            PdfReportSupport.addInfoGrid(document, fonts, List.of(
+                new InfoItem("Paciente", paciente.getNombres() + " " + paciente.getApellidos()),
+                new InfoItem("Cédula", paciente.getCedula() != null ? paciente.getCedula() : "N/D"),
+                new InfoItem("Sexo", paciente.getSexo() != null ? paciente.getSexo().toString() : "N/D"),
+                new InfoItem("Fecha de nacimiento", paciente.getFechaNacimiento() != null ? paciente.getFechaNacimiento().format(DATE_FMT) : "N/D"),
+                new InfoItem("Estado civil", paciente.getEstadoCivil() != null ? paciente.getEstadoCivil().toString() : "N/D"),
+                new InfoItem("Teléfono", paciente.getTelefono() != null ? paciente.getTelefono() : "N/D"),
+                new InfoItem("Dirección", paciente.getDireccion() != null ? paciente.getDireccion() : "N/D"),
+                new InfoItem("Correo", paciente.getEmail() != null ? paciente.getEmail() : "N/D"),
+                new InfoItem("Fecha de apertura", expediente.getFechaApertura() != null ? expediente.getFechaApertura().format(DATE_FMT) : "N/D"),
+                new InfoItem("Total de consultas", String.valueOf(consultas.size()))
             ));
 
-            // --- Consultations ---
             for (ConsultaMedica consulta : consultas) {
-                document.add(new Paragraph(" ", normalFont));
-                addSeparatorLine(document);
+                PdfReportSupport.addSectionTitle(document, fonts, "Consulta del " + consulta.getFechaConsulta().format(DATE_FMT));
 
-                Paragraph consultaTitle = new Paragraph(
-                    "Consulta del " + consulta.getFechaConsulta().format(DATE_FMT),
-                    subheaderFont
-                );
-                consultaTitle.setSpacingAfter(8f);
-                document.add(consultaTitle);
-
-                document.add(new Paragraph("Motivo de Consulta: " + consulta.getMotivoConsulta(), normalFont));
+                document.add(new Paragraph("Motivo de consulta: " + consulta.getMotivoConsulta(), fonts.normal()));
 
                 if (consulta.getNotasMedicas() != null && !consulta.getNotasMedicas().isBlank()) {
-                    document.add(new Paragraph("Notas Médicas: " + consulta.getNotasMedicas(), normalFont));
+                    document.add(new Paragraph("Notas médicas: " + consulta.getNotasMedicas(), fonts.normal()));
                 }
 
                 String doctorName = consulta.getUser() != null ? consulta.getUser().getLogin() : "N/A";
-                document.add(new Paragraph("Doctor: " + doctorName, normalFont));
-                document.add(new Paragraph(" ", smallFont));
+                document.add(new Paragraph("Doctor: " + doctorName, fonts.normal()));
 
-                // Signos Vitales
                 if (consulta.getSignosVitales() != null && !consulta.getSignosVitales().isEmpty()) {
-                    document.add(new Paragraph("Signos Vitales:", headerFont));
-                    document.add(new Paragraph(" ", smallFont));
+                    PdfReportSupport.addSectionTitle(document, fonts, "Signos vitales");
 
-                    PdfPTable svTable = new PdfPTable(5);
-                    svTable.setWidthPercentage(100);
-                    svTable.setWidths(new float[] { 1f, 1f, 1.5f, 1f, 1f });
-
-                    String[] svHeaders = { "Peso (kg)", "Altura (m)", "Presión Arterial", "Temp. (°C)", "FC (lpm)" };
-                    for (String h : svHeaders) {
-                        PdfPCell cell = new PdfPCell(new Phrase(h, headerFont));
-                        cell.setPadding(5f);
-                        svTable.addCell(cell);
-                    }
+                    PdfPTable svTable = PdfReportSupport.createTable(
+                        fonts,
+                        new float[] { 1f, 1f, 1.5f, 1f, 1f },
+                        "Peso (kg)",
+                        "Altura (m)",
+                        "Presión arterial",
+                        "Temp. (°C)",
+                        "FC (lpm)"
+                    );
 
                     for (SignosVitales sv : consulta.getSignosVitales()) {
-                        svTable.addCell(new Phrase(sv.getPeso() != null ? sv.getPeso().toString() : "-", normalFont));
-                        svTable.addCell(new Phrase(sv.getAltura() != null ? sv.getAltura().toString() : "-", normalFont));
-                        svTable.addCell(new Phrase(sv.getPresionArterial() != null ? sv.getPresionArterial() : "-", normalFont));
-                        svTable.addCell(new Phrase(sv.getTemperatura() != null ? sv.getTemperatura().toString() : "-", normalFont));
-                        svTable.addCell(new Phrase(
-                            sv.getFrecuenciaCardiaca() != null ? sv.getFrecuenciaCardiaca().toString() : "-", normalFont
+                        svTable.addCell(PdfReportSupport.createBodyCell(sv.getPeso() != null ? sv.getPeso().toString() : "-", fonts.small()));
+                        svTable.addCell(PdfReportSupport.createBodyCell(sv.getAltura() != null ? sv.getAltura().toString() : "-", fonts.small()));
+                        svTable.addCell(PdfReportSupport.createBodyCell(sv.getPresionArterial() != null ? sv.getPresionArterial() : "-", fonts.small()));
+                        svTable.addCell(PdfReportSupport.createBodyCell(sv.getTemperatura() != null ? sv.getTemperatura().toString() : "-", fonts.small()));
+                        svTable.addCell(PdfReportSupport.createBodyCell(
+                            sv.getFrecuenciaCardiaca() != null ? sv.getFrecuenciaCardiaca().toString() : "-", fonts.small()
                         ));
                     }
                     document.add(svTable);
-                    document.add(new Paragraph(" ", smallFont));
                 }
 
-                // Diagnósticos
                 if (consulta.getDiagnosticos() != null && !consulta.getDiagnosticos().isEmpty()) {
-                    document.add(new Paragraph("Diagnósticos:", headerFont));
+                    PdfReportSupport.addSectionTitle(document, fonts, "Diagnósticos");
                     for (Diagnostico d : consulta.getDiagnosticos()) {
                         String cie = d.getCodigoCIE() != null ? "[" + d.getCodigoCIE() + "] " : "";
-                        document.add(new Paragraph("  - " + cie + d.getDescripcion(), normalFont));
+                        document.add(new Paragraph("• " + cie + d.getDescripcion(), fonts.normal()));
                     }
-                    document.add(new Paragraph(" ", smallFont));
                 }
 
-                // Tratamientos
                 if (consulta.getTratamientos() != null && !consulta.getTratamientos().isEmpty()) {
-                    document.add(new Paragraph("Tratamientos:", headerFont));
+                    PdfReportSupport.addSectionTitle(document, fonts, "Tratamientos");
                     for (Tratamiento t : consulta.getTratamientos()) {
                         String duracion = t.getDuracionDias() != null ? " (" + t.getDuracionDias() + " días)" : "";
-                        document.add(new Paragraph("  - " + t.getIndicaciones() + duracion, normalFont));
+                        document.add(new Paragraph("• " + t.getIndicaciones() + duracion, fonts.normal()));
                     }
-                    document.add(new Paragraph(" ", smallFont));
                 }
 
-                // Recetas
                 if (consulta.getRecetas() != null && !consulta.getRecetas().isEmpty()) {
-                    document.add(new Paragraph("Recetas:", headerFont));
-                    document.add(new Paragraph(" ", smallFont));
+                    PdfReportSupport.addSectionTitle(document, fonts, "Recetas");
 
-                    PdfPTable recetaTable = new PdfPTable(4);
-                    recetaTable.setWidthPercentage(100);
-                    recetaTable.setWidths(new float[] { 3f, 1.5f, 2.5f, 1.5f });
-
-                    String[] recetaHeaders = { "Medicamento", "Dosis", "Frecuencia", "Duración" };
-                    for (String h : recetaHeaders) {
-                        PdfPCell cell = new PdfPCell(new Phrase(h, headerFont));
-                        cell.setPadding(5f);
-                        recetaTable.addCell(cell);
-                    }
+                    PdfPTable recetaTable = PdfReportSupport.createTable(
+                        fonts,
+                        new float[] { 3f, 1.5f, 2.5f, 1.5f },
+                        "Medicamento",
+                        "Dosis",
+                        "Frecuencia",
+                        "Duración"
+                    );
 
                     for (Receta r : consulta.getRecetas()) {
                         String nombreMed = r.getMedicamento() != null ? r.getMedicamento().getNombre() : "N/A";
-                        recetaTable.addCell(new Phrase(nombreMed, normalFont));
-                        recetaTable.addCell(new Phrase(r.getDosis(), normalFont));
-                        recetaTable.addCell(new Phrase(r.getFrecuencia(), normalFont));
-                        recetaTable.addCell(new Phrase(r.getDuracion(), normalFont));
+                        recetaTable.addCell(PdfReportSupport.createBodyCell(nombreMed, fonts.normal()));
+                        recetaTable.addCell(PdfReportSupport.createBodyCell(r.getDosis(), fonts.small()));
+                        recetaTable.addCell(PdfReportSupport.createBodyCell(r.getFrecuencia(), fonts.small()));
+                        recetaTable.addCell(PdfReportSupport.createBodyCell(r.getDuracion(), fonts.small()));
                     }
                     document.add(recetaTable);
                 }
             }
 
-            // --- Lab Results ---
             if (!resultados.isEmpty()) {
-                document.add(new Paragraph(" ", normalFont));
-                addSeparatorLine(document);
+                PdfReportSupport.addSectionTitle(document, fonts, "Resultados de laboratorio");
 
-                Paragraph labTitle = new Paragraph("Resultados de Laboratorio", subheaderFont);
-                labTitle.setSpacingAfter(8f);
-                document.add(labTitle);
-
-                PdfPTable labTable = new PdfPTable(5);
-                labTable.setWidthPercentage(100);
-                labTable.setWidths(new float[] { 2.5f, 2f, 2f, 1f, 1.5f });
-
-                String[] labHeaders = { "Tipo Examen", "Resultado", "Valor Referencia", "Unidad", "Fecha" };
-                for (String h : labHeaders) {
-                    PdfPCell cell = new PdfPCell(new Phrase(h, headerFont));
-                    cell.setPadding(5f);
-                    labTable.addCell(cell);
-                }
+                PdfPTable labTable = PdfReportSupport.createTable(
+                    fonts,
+                    new float[] { 2.5f, 2f, 2f, 1f, 1.5f },
+                    "Tipo examen",
+                    "Resultado",
+                    "Valor referencia",
+                    "Unidad",
+                    "Fecha"
+                );
 
                 for (ResultadoLaboratorio rl : resultados) {
-                    labTable.addCell(new Phrase(rl.getTipoExamen(), normalFont));
-                    labTable.addCell(new Phrase(rl.getResultado(), normalFont));
-                    labTable.addCell(new Phrase(rl.getValorReferencia() != null ? rl.getValorReferencia() : "-", normalFont));
-                    labTable.addCell(new Phrase(rl.getUnidad() != null ? rl.getUnidad() : "-", normalFont));
-                    labTable.addCell(new Phrase(rl.getFechaExamen().format(DATE_FMT), normalFont));
+                    labTable.addCell(PdfReportSupport.createBodyCell(rl.getTipoExamen(), fonts.normal()));
+                    labTable.addCell(PdfReportSupport.createBodyCell(rl.getResultado(), fonts.small()));
+                    labTable.addCell(PdfReportSupport.createBodyCell(rl.getValorReferencia() != null ? rl.getValorReferencia() : "-", fonts.small()));
+                    labTable.addCell(PdfReportSupport.createBodyCell(rl.getUnidad() != null ? rl.getUnidad() : "-", fonts.small()));
+                    labTable.addCell(PdfReportSupport.createBodyCell(rl.getFechaExamen().format(DATE_FMT), fonts.small()));
                 }
                 document.add(labTable);
             }
@@ -271,12 +228,4 @@ public class ReporteHistorialService {
         }
     }
 
-    private void addSeparatorLine(Document document) throws DocumentException {
-        Paragraph line = new Paragraph(
-            "─────────────────────────────────────────────────────────────────────────",
-            FontFactory.getFont(FontFactory.HELVETICA, 8)
-        );
-        line.setSpacingAfter(5f);
-        document.add(line);
-    }
 }

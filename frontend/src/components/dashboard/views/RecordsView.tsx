@@ -5,6 +5,7 @@ import { ReporteService } from '../../../services/reporte.service';
 import { PacienteService, type PacienteDTO } from '../../../services/paciente.service';
 
 interface TimelineEntry {
+    consultaId?: number;
     fecha: string;
     profesional: string;
     motivo: string;
@@ -168,6 +169,17 @@ const RecordsView = () => {
         }
     };
 
+    const handleDescargarReceta = async (consultaId: number) => {
+        setDownloading('receta-' + consultaId);
+        try {
+            await ReporteService.descargarRecetaPdfPorConsulta(consultaId);
+        } catch (error) {
+            console.error('Error descargando receta:', error);
+        } finally {
+            setDownloading(null);
+        }
+    };
+
     const formatDate = (dateString: string) => {
         return new Date(dateString).toLocaleDateString('es-ES', {
             day: '2-digit',
@@ -178,12 +190,12 @@ const RecordsView = () => {
 
     if (!selectedPatient || showSearch) {
         return (
-            <div className="p-8 flex flex-col items-center justify-center h-full bg-slate-50 dark:bg-slate-950/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 m-8">
+            <div className="p-8 flex flex-col items-center justify-start min-h-[calc(100vh-180px)] bg-slate-50 dark:bg-slate-950/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 m-8">
                 <span className="material-symbols-outlined text-6xl mb-4 opacity-50 text-slate-400">quick_reference_all</span>
                 <p className="font-semibold text-lg text-slate-600 dark:text-slate-300 mb-1">Buscar paciente</p>
                 <p className="text-sm text-slate-400 mb-6 text-center max-w-sm">Escriba el nombre del paciente para buscar y ver su Historial Clínico.</p>
 
-                <div className="w-full max-w-md relative">
+                <div className="w-full max-w-md">
                     <div className="relative">
                         <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl">search</span>
                         <input
@@ -202,7 +214,7 @@ const RecordsView = () => {
                     </div>
 
                     {searchResults.length > 0 && (
-                        <ul className="absolute z-20 mt-2 w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl max-h-64 overflow-y-auto">
+                        <ul className="mt-3 w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl max-h-64 overflow-y-auto">
                             {searchResults.map((paciente) => (
                                 <li key={paciente.id}>
                                     <button
@@ -231,7 +243,7 @@ const RecordsView = () => {
                     )}
 
                     {searchQuery.trim() && !searching && searchResults.length === 0 && (
-                        <div className="absolute z-20 mt-2 w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl p-4 text-center">
+                        <div className="mt-3 w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl p-4 text-center">
                             <p className="text-sm text-slate-400 italic">No se encontraron pacientes</p>
                         </div>
                     )}
@@ -323,15 +335,30 @@ const RecordsView = () => {
                                         <span className="material-symbols-outlined text-9xl">medical_services</span>
                                     </div>
 
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div>
+                                     <div className="flex justify-between items-start mb-4">
+                                         <div>
                                             <span className="bg-primary/10 text-primary font-black text-xs px-3 py-1 rounded-full uppercase tracking-wider inline-block mb-2">
                                                 {formatDate(entry.fecha)}
                                             </span>
                                             <h3 className="text-lg font-bold text-slate-900 dark:text-white capitalize">{entry.motivo}</h3>
-                                            <p className="text-slate-500 text-sm font-medium mt-1">Atendido por: Dr/a. {entry.profesional}</p>
-                                        </div>
-                                    </div>
+                                             <p className="text-slate-500 text-sm font-medium mt-1">Atendido por: Dr/a. {entry.profesional}</p>
+                                         </div>
+                                        {entry.consultaId && entry.recetas && entry.recetas.length > 0 && (
+                                            <button
+                                                type="button"
+                                                onClick={() => handleDescargarReceta(entry.consultaId!)}
+                                                disabled={!!downloading}
+                                                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50"
+                                            >
+                                                {downloading === `receta-${entry.consultaId}` ? (
+                                                    <span className="animate-spin inline-block w-4 h-4 border-2 border-slate-500 border-t-transparent rounded-full"></span>
+                                                ) : (
+                                                    <span className="material-symbols-outlined text-base">download</span>
+                                                )}
+                                                Descargar receta
+                                            </button>
+                                        )}
+                                     </div>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
                                         {/* Diagnósticos */}

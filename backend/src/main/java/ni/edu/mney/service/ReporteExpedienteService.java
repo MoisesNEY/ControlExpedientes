@@ -1,16 +1,12 @@
 package ni.edu.mney.service;
 
-import com.lowagie.text.Document;
 import com.lowagie.text.DocumentException;
-import com.lowagie.text.Element;
-import com.lowagie.text.Font;
-import com.lowagie.text.FontFactory;
 import com.lowagie.text.Paragraph;
-import com.lowagie.text.Phrase;
 import com.lowagie.text.pdf.PdfPCell;
 import com.lowagie.text.pdf.PdfPTable;
 import com.lowagie.text.pdf.PdfWriter;
 import java.io.ByteArrayOutputStream;
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
@@ -20,6 +16,8 @@ import ni.edu.mney.domain.Paciente;
 import ni.edu.mney.repository.ConsultaMedicaRepository;
 import ni.edu.mney.repository.ExpedienteClinicoRepository;
 import ni.edu.mney.repository.PacienteRepository;
+import ni.edu.mney.service.report.PdfReportSupport;
+import ni.edu.mney.service.report.PdfReportSupport.InfoItem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -91,94 +89,64 @@ public class ReporteExpedienteService {
         long totalRecetas
     ) {
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-            Document document = new Document();
+            com.lowagie.text.Document document = PdfReportSupport.newDocument();
             PdfWriter.getInstance(document, baos);
             document.open();
 
-            Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18);
-            Font headerFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12);
-            Font subheaderFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 14);
-            Font normalFont = FontFactory.getFont(FontFactory.HELVETICA, 12);
-            Font smallFont = FontFactory.getFont(FontFactory.HELVETICA, 10);
-
-            // --- Header ---
-            Paragraph title = new Paragraph("Ministerio de Salud - Expediente Clínico", titleFont);
-            title.setAlignment(Element.ALIGN_CENTER);
-            title.setSpacingAfter(20f);
-            document.add(title);
-
-            // --- Patient Information ---
-            document.add(new Paragraph("Información del Paciente", subheaderFont));
-            document.add(new Paragraph(" ", smallFont));
-            document.add(new Paragraph("Nombre completo: " + paciente.getNombres() + " " + paciente.getApellidos(), normalFont));
-            if (paciente.getCedula() != null) {
-                document.add(new Paragraph("Cédula: " + paciente.getCedula(), normalFont));
-            }
-            document.add(new Paragraph("Sexo: " + (paciente.getSexo() != null ? paciente.getSexo() : "N/A"), normalFont));
-            document.add(new Paragraph(
-                "Fecha de Nacimiento: " + (paciente.getFechaNacimiento() != null ? paciente.getFechaNacimiento().format(DATE_FMT) : "N/A"),
-                normalFont
+            PdfReportSupport.Fonts fonts = PdfReportSupport.fonts();
+            PdfReportSupport.addHeader(
+                document,
+                fonts,
+                "Expediente clínico",
+                "Resumen consolidado del expediente del paciente",
+                "Expediente",
+                expediente.getNumeroExpediente(),
+                LocalDate.now()
+            );
+            PdfReportSupport.addInfoGrid(document, fonts, List.of(
+                new InfoItem("Paciente", paciente.getNombres() + " " + paciente.getApellidos()),
+                new InfoItem("Cédula", paciente.getCedula() != null ? paciente.getCedula() : "N/D"),
+                new InfoItem("Sexo", paciente.getSexo() != null ? paciente.getSexo().toString() : "N/D"),
+                new InfoItem("Fecha de nacimiento", paciente.getFechaNacimiento() != null ? paciente.getFechaNacimiento().format(DATE_FMT) : "N/D"),
+                new InfoItem("Estado civil", paciente.getEstadoCivil() != null ? paciente.getEstadoCivil().toString() : "N/D"),
+                new InfoItem("Teléfono", paciente.getTelefono() != null ? paciente.getTelefono() : "N/D"),
+                new InfoItem("Dirección", paciente.getDireccion() != null ? paciente.getDireccion() : "N/D"),
+                new InfoItem("Correo", paciente.getEmail() != null ? paciente.getEmail() : "N/D"),
+                new InfoItem("Fecha de apertura", expediente.getFechaApertura() != null ? expediente.getFechaApertura().format(DATE_FMT) : "N/D"),
+                new InfoItem("Observaciones", expediente.getObservaciones() != null && !expediente.getObservaciones().isBlank() ? expediente.getObservaciones() : "Sin observaciones")
             ));
-            document.add(new Paragraph("Estado Civil: " + (paciente.getEstadoCivil() != null ? paciente.getEstadoCivil() : "N/A"), normalFont));
-            document.add(new Paragraph("Teléfono: " + (paciente.getTelefono() != null ? paciente.getTelefono() : "N/A"), normalFont));
-            document.add(new Paragraph("Dirección: " + (paciente.getDireccion() != null ? paciente.getDireccion() : "N/A"), normalFont));
-            document.add(new Paragraph("Email: " + (paciente.getEmail() != null ? paciente.getEmail() : "N/A"), normalFont));
 
-            // --- Expediente Information ---
-            document.add(new Paragraph(" ", normalFont));
-            addSeparatorLine(document);
-            document.add(new Paragraph("Datos del Expediente", subheaderFont));
-            document.add(new Paragraph(" ", smallFont));
-            document.add(new Paragraph("Número de Expediente: " + expediente.getNumeroExpediente(), normalFont));
-            document.add(new Paragraph(
-                "Fecha de Apertura: " + (expediente.getFechaApertura() != null ? expediente.getFechaApertura().format(DATE_FMT) : "N/A"),
-                normalFont
-            ));
-            if (expediente.getObservaciones() != null && !expediente.getObservaciones().isBlank()) {
-                document.add(new Paragraph("Observaciones: " + expediente.getObservaciones(), normalFont));
-            }
-
-            // --- Summary Statistics ---
-            document.add(new Paragraph(" ", normalFont));
-            addSeparatorLine(document);
-            document.add(new Paragraph("Estadísticas del Expediente", subheaderFont));
-            document.add(new Paragraph(" ", smallFont));
-            document.add(new Paragraph("Total de consultas: " + allConsultas.size(), normalFont));
+            PdfReportSupport.addSectionTitle(document, fonts, "Resumen del expediente");
+            document.add(new Paragraph("Total de consultas: " + allConsultas.size(), fonts.normal()));
 
             if (!allConsultas.isEmpty()) {
                 ConsultaMedica ultimaConsulta = allConsultas.stream()
                     .max(Comparator.comparing(ConsultaMedica::getFechaConsulta))
                     .orElse(allConsultas.get(0));
                 document.add(new Paragraph(
-                    "Última consulta: " + ultimaConsulta.getFechaConsulta().format(DATE_FMT), normalFont
+                    "Última consulta: " + ultimaConsulta.getFechaConsulta().format(DATE_FMT), fonts.normal()
                 ));
             }
-            document.add(new Paragraph("Total de recetas (últimas 5 consultas): " + totalRecetas, normalFont));
+            document.add(new Paragraph("Total de recetas (últimas 5 consultas): " + totalRecetas, fonts.normal()));
 
-            // --- Last 5 Consultations ---
             if (!last5.isEmpty()) {
-                document.add(new Paragraph(" ", normalFont));
-                addSeparatorLine(document);
-                document.add(new Paragraph("Últimas Consultas", subheaderFont));
-                document.add(new Paragraph(" ", smallFont));
+                PdfReportSupport.addSectionTitle(document, fonts, "Últimas consultas");
 
-                PdfPTable table = new PdfPTable(4);
-                table.setWidthPercentage(100);
-                table.setWidths(new float[] { 1.5f, 3f, 2f, 2f });
-
-                String[] headers = { "Fecha", "Motivo de Consulta", "Doctor", "Diagnósticos" };
-                for (String h : headers) {
-                    PdfPCell cell = new PdfPCell(new Phrase(h, headerFont));
-                    cell.setPadding(6f);
-                    table.addCell(cell);
-                }
+                PdfPTable table = PdfReportSupport.createTable(
+                    fonts,
+                    new float[] { 1.5f, 3f, 2f, 2f },
+                    "Fecha",
+                    "Motivo de consulta",
+                    "Doctor",
+                    "Diagnósticos"
+                );
 
                 for (ConsultaMedica c : last5) {
-                    table.addCell(new Phrase(c.getFechaConsulta().format(DATE_FMT), normalFont));
-                    table.addCell(new Phrase(c.getMotivoConsulta(), normalFont));
+                    table.addCell(PdfReportSupport.createBodyCell(c.getFechaConsulta().format(DATE_FMT), fonts.normal()));
+                    table.addCell(PdfReportSupport.createBodyCell(c.getMotivoConsulta(), fonts.small()));
 
                     String doctor = c.getUser() != null ? c.getUser().getLogin() : "N/A";
-                    table.addCell(new Phrase(doctor, normalFont));
+                    table.addCell(PdfReportSupport.createBodyCell(doctor, fonts.small()));
 
                     StringBuilder diags = new StringBuilder();
                     if (c.getDiagnosticos() != null) {
@@ -190,7 +158,7 @@ public class ReporteExpedienteService {
                             diags.append(d.getDescripcion());
                         });
                     }
-                    table.addCell(new Phrase(diags.length() > 0 ? diags.toString() : "-", smallFont));
+                    table.addCell(PdfReportSupport.createBodyCell(diags.length() > 0 ? diags.toString() : "-", fonts.small()));
                 }
                 document.add(table);
             }
@@ -204,12 +172,4 @@ public class ReporteExpedienteService {
         }
     }
 
-    private void addSeparatorLine(Document document) throws DocumentException {
-        Paragraph line = new Paragraph(
-            "─────────────────────────────────────────────────────────────────────────",
-            FontFactory.getFont(FontFactory.HELVETICA, 8)
-        );
-        line.setSpacingAfter(5f);
-        document.add(line);
-    }
 }

@@ -49,12 +49,19 @@
    ESTILOS DE IMPRESIÓN — Solo para receta médica
    ============================================================ */
 @media print {
-    /* Ocultar TODA la aplicación */
-    body > * {
-        display: none !important;
+    #root {
+        display: block !important;
     }
 
-    /* Mostrar solo el div de receta imprimible */
+    #root * {
+        visibility: hidden !important;
+    }
+
+    #printable-receta,
+    #printable-receta * {
+        visibility: visible !important;
+    }
+
     #printable-receta {
         display: block !important;
         position: fixed !important;

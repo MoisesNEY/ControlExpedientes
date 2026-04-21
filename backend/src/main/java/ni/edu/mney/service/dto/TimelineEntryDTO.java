@@ -9,12 +9,21 @@ import java.util.List;
  */
 public class TimelineEntryDTO implements Serializable {
 
+    private Long consultaId;
     private LocalDate fecha;
     private String profesional;
     private String motivo;
     private List<String> diagnosticos;
     private List<String> recetas;
     private SignosVitalesDTO signosVitales;
+
+    public Long getConsultaId() {
+        return consultaId;
+    }
+
+    public void setConsultaId(Long consultaId) {
+        this.consultaId = consultaId;
+    }
 
     public LocalDate getFecha() {
         return fecha;
