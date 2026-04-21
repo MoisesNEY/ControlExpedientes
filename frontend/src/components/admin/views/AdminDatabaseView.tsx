@@ -23,6 +23,7 @@ const FREQUENCY_OPTIONS: Array<{ value: DatabaseBackupFrequency; label: string; 
     { value: 'WEEKLY', label: 'Semanal', description: 'Permite elegir el día de la semana y la hora del respaldo.' },
     { value: 'INTERVAL_HOURS', label: 'Intervalo', description: 'Ejecuta respaldos automáticos cada cierta cantidad de horas.' },
 ];
+const MAX_INTERVAL_HOURS = 720;
 
 const defaultSettings: DatabaseBackupSettings = {
     enabled: false,
@@ -305,7 +306,7 @@ const AdminDatabaseView = () => {
                             <input
                                 type="number"
                                 min={1}
-                                max={720}
+                                max={MAX_INTERVAL_HOURS}
                                 value={settings.intervalHours ?? 24}
                                 onChange={(event) => setSettings((current) => ({ ...current, intervalHours: Number(event.target.value) || 24 }))}
                                 className="mt-2 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-sky-500"

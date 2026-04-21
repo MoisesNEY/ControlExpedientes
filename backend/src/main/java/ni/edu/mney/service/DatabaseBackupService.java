@@ -38,6 +38,8 @@ public class DatabaseBackupService {
     private static final String BACKUP_EXTENSION = ".backup";
     private static final String SQL_EXTENSION = ".sql";
     private static final String SETTINGS_FILENAME = "backup-settings.json";
+    private static final int DEFAULT_INTERVAL_HOURS = 24;
+    private static final int MAX_INTERVAL_HOURS = 720;
 
     @Value("${spring.datasource.url}")
     private String datasourceUrl;
@@ -141,6 +143,11 @@ public class DatabaseBackupService {
         }
     }
 
+    /**
+     * Revisa periódicamente si ya llegó la próxima hora programada para ejecutar
+     * un respaldo automático. El poll se ejecuta cada minuto por defecto, pero
+     * la fecha exacta se calcula con la configuración guardada por el administrador.
+     */
     @Scheduled(fixedDelayString = "${application.database-backup.scheduler-delay-ms:60000}")
     public void executeScheduledBackup() {
         synchronized (backupLock) {
@@ -296,9 +303,9 @@ public class DatabaseBackupService {
 
     private Integer normalizeInterval(Integer intervalHours) {
         if (intervalHours == null || intervalHours < 1) {
-            return 24;
+            return DEFAULT_INTERVAL_HOURS;
         }
-        return Math.min(intervalHours, 720);
+        return Math.min(intervalHours, MAX_INTERVAL_HOURS);
     }
 
     private List<DatabaseBackupHistoryItemDTO> listStoredBackups() {
@@ -355,6 +362,12 @@ public class DatabaseBackupService {
                 settings.getLastBackupFilename());
     }
 
+    /**
+     * Calcula la próxima ejecución automática a partir de la configuración actual.
+     * Para DAILY usa la siguiente ocurrencia de la hora configurada, para WEEKLY
+     * usa el próximo día/hora indicado y para INTERVAL_HOURS parte de la última
+     * ejecución automática registrada o de la primera hora configurada del día.
+     */
     private LocalDateTime computeNextExecution(StoredSettings settings, LocalDateTime reference) {
         if (!settings.isEnabled()) {
             return null;
@@ -425,7 +438,7 @@ public class DatabaseBackupService {
         settings.setFrequency(DatabaseBackupFrequency.DAILY);
         settings.setTime(LocalTime.of(2, 0));
         settings.setDayOfWeek(DayOfWeek.MONDAY);
-        settings.setIntervalHours(24);
+        settings.setIntervalHours(DEFAULT_INTERVAL_HOURS);
         return settings;
     }
 
@@ -492,7 +505,7 @@ public class DatabaseBackupService {
 
         private boolean enabled;
         private DatabaseBackupFrequency frequency = DatabaseBackupFrequency.DAILY;
-        private Integer intervalHours = 24;
+        private Integer intervalHours = DEFAULT_INTERVAL_HOURS;
         private DayOfWeek dayOfWeek = DayOfWeek.MONDAY;
         private LocalTime time = LocalTime.of(2, 0);
         private LocalDateTime lastBackupAt;

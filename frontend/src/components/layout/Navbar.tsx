@@ -27,6 +27,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const navigate = useNavigate();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [notificationPanelMessage, setNotificationPanelMessage] = useState<string | null>(null);
   const [activeConsultation, setActiveConsultation] = useState<Appointment | null>(null);
   const profileRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
@@ -120,11 +121,13 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   const handleNotificationNavigate = (notification: Notificacion) => {
-    setIsNotificationsOpen(false);
-
     if (!notification.citaId) {
+      setNotificationPanelMessage('Esta notificación no tiene un destino asociado.');
       return;
     }
+
+    setNotificationPanelMessage(null);
+    setIsNotificationsOpen(false);
 
     if (hasAnyRole(['ROLE_MEDICO'])) {
       navigate(`/medico/consulta/${notification.citaId}`);
@@ -209,6 +212,12 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </button>
               )}
             </div>
+
+            {notificationPanelMessage && (
+              <div className="px-5 py-3 text-xs font-medium text-amber-700 bg-amber-50 border-b border-amber-100 dark:bg-amber-500/10 dark:text-amber-200 dark:border-amber-500/20">
+                {notificationPanelMessage}
+              </div>
+            )}
 
             {notifications.length > 0 ? (
               <div className="max-h-[360px] overflow-y-auto">
