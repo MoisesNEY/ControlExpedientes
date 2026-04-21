@@ -11,7 +11,7 @@
         Each insert is conditional: only runs if BOTH referenced medications exist in the medicamento table.
     -->
     <changeSet id="20260406000003-1" author="jhipster" context="faker">
-        <sql dbms="postgresql">
+        <sql dbms="postgresql" splitStatements="false" stripComments="false">
             DO $$
             BEGIN
                 -- 1. Ibuprofeno + Aspirina (MODERADA)
