@@ -1,10 +1,14 @@
 package ni.edu.mney.web.rest;
 
+import jakarta.validation.Valid;
 import ni.edu.mney.security.AppPermissionCatalog;
 import ni.edu.mney.service.CredentialValidationService;
 import ni.edu.mney.service.DatabaseBackupService;
+import ni.edu.mney.service.dto.ActionConfirmationDTO;
 import ni.edu.mney.service.dto.DatabaseBackupSettingsDTO;
+import ni.edu.mney.service.dto.DatabaseBackupSettingsUpdateRequestDTO;
 import ni.edu.mney.service.dto.DatabaseBackupSummaryDTO;
+import ni.edu.mney.service.dto.StoredBackupRestoreRequestDTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
@@ -15,6 +19,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -34,10 +39,11 @@ public class AdminDatabaseResource {
         this.credentialValidationService = credentialValidationService;
     }
 
-    @GetMapping("/export")
+    @PostMapping("/export")
     @PreAuthorize("@permissionSecurityService.hasPermission('" + AppPermissionCatalog.ADMIN_DATABASE_EXPORT + "')")
-    public ResponseEntity<byte[]> exportDatabase() {
+    public ResponseEntity<byte[]> exportDatabase(@Valid @RequestBody ActionConfirmationDTO confirmation) {
         LOG.debug("REST request para exportar respaldo de base de datos");
+        validateConfirmation(confirmation, "EXPORTAR");
         DatabaseBackupService.BackupFile backup = databaseBackupService.exportDatabase();
 
         HttpHeaders headers = new HttpHeaders();
@@ -56,26 +62,30 @@ public class AdminDatabaseResource {
 
     @PutMapping("/settings")
     @PreAuthorize("@permissionSecurityService.hasPermission('" + AppPermissionCatalog.ADMIN_DATABASE_VIEW + "')")
-    public ResponseEntity<DatabaseBackupSettingsDTO> updateSettings(@RequestBody DatabaseBackupSettingsDTO settings) {
+    public ResponseEntity<DatabaseBackupSettingsDTO> updateSettings(@Valid @RequestBody DatabaseBackupSettingsUpdateRequestDTO request) {
         LOG.debug("REST request para actualizar configuración de respaldos automáticos");
-        return ResponseEntity.ok(databaseBackupService.updateSettings(settings));
+        validateConfirmation(request.confirmation(), "PROGRAMAR");
+        return ResponseEntity.ok(databaseBackupService.updateSettings(request.settings()));
     }
 
     @PostMapping(value = "/restore", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("@permissionSecurityService.hasPermission('" + AppPermissionCatalog.ADMIN_DATABASE_RESTORE + "')")
-    public ResponseEntity<Void> restoreDatabase(@RequestParam("file") MultipartFile file, @RequestParam("password") String password) {
+    public ResponseEntity<Void> restoreDatabase(
+        @RequestPart("file") MultipartFile file,
+        @Valid @RequestPart("confirmation") ActionConfirmationDTO confirmation
+    ) {
         LOG.debug("REST request para restaurar respaldo de base de datos");
-        validatePassword(password);
+        validateConfirmation(confirmation, "RESTAURAR");
         databaseBackupService.restoreDatabase(file);
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/restore/stored")
     @PreAuthorize("@permissionSecurityService.hasPermission('" + AppPermissionCatalog.ADMIN_DATABASE_RESTORE + "')")
-    public ResponseEntity<Void> restoreStoredBackup(@RequestParam("filename") String filename, @RequestParam("password") String password) {
-        LOG.debug("REST request para restaurar respaldo almacenado {}", filename);
-        validatePassword(password);
-        databaseBackupService.restoreStoredBackup(filename);
+    public ResponseEntity<Void> restoreStoredBackup(@Valid @RequestBody StoredBackupRestoreRequestDTO request) {
+        LOG.debug("REST request para restaurar respaldo almacenado {}", request.filename());
+        validateConfirmation(request.confirmation(), "RESTAURAR");
+        databaseBackupService.restoreStoredBackup(request.filename());
         return ResponseEntity.ok().build();
     }
 
@@ -92,9 +102,15 @@ public class AdminDatabaseResource {
         return ResponseEntity.ok().headers(headers).body(backup.content());
     }
 
-    private void validatePassword(String password) {
-        if (!credentialValidationService.validateCurrentUserPassword(password)) {
-            throw new IllegalArgumentException("Debe confirmar su contraseña actual para restaurar la base de datos.");
+    private void validateConfirmation(ActionConfirmationDTO confirmation, String expectedWord) {
+        if (confirmation == null) {
+            throw new IllegalArgumentException("Debe confirmar la operación con sus credenciales.");
+        }
+        if (!expectedWord.equalsIgnoreCase(confirmation.confirmationWord())) {
+            throw new IllegalArgumentException("La palabra de confirmación no es válida para esta operación.");
+        }
+        if (!credentialValidationService.validateCurrentUserCredentials(confirmation.username(), confirmation.password())) {
+            throw new IllegalArgumentException("Debe confirmar su usuario y contraseña actual para ejecutar la operación.");
         }
     }
 }

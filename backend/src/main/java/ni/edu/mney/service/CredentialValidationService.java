@@ -13,9 +13,14 @@ public class CredentialValidationService {
         this.keycloakAdminService = keycloakAdminService;
     }
 
-    public boolean validateCurrentUserPassword(String password) {
+    public boolean validateCurrentUserCredentials(String username, String password) {
         return SecurityUtils.getCurrentUserLogin()
-            .map(login -> keycloakAdminService.validateUserCredentials(login, password))
+            .filter(currentLogin -> currentLogin.equalsIgnoreCase(username == null ? "" : username.trim()))
+            .map(currentLogin -> keycloakAdminService.validateUserCredentials(currentLogin, password))
             .orElse(false);
+    }
+
+    public boolean validateCurrentUserPassword(String password) {
+        return SecurityUtils.getCurrentUserLogin().map(login -> validateCurrentUserCredentials(login, password)).orElse(false);
     }
 }

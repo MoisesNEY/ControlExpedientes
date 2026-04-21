@@ -45,17 +45,37 @@ const AdminRolesView = () => {
   }, []);
 
   const editableRoles = useMemo(() => roles.filter(role => !role.systemRole), [roles]);
+  const rolePermissionMap = useMemo(
+    () => new Map(roles.map(role => [role.roleName, role.permissions])),
+    [roles]
+  );
+  const inheritedPermissions = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          form.compositeRoles.flatMap(roleName => rolePermissionMap.get(roleName) ?? [])
+        )
+      ),
+    [form.compositeRoles, rolePermissionMap]
+  );
+  const inheritedPermissionSet = useMemo(() => new Set(inheritedPermissions), [inheritedPermissions]);
+  const effectivePermissions = useMemo(
+    () => Array.from(new Set([...inheritedPermissions, ...form.permissions])),
+    [form.permissions, inheritedPermissions]
+  );
+  const effectivePermissionSet = useMemo(() => new Set(effectivePermissions), [effectivePermissions]);
 
   const toggleSelection = (collection: string[], value: string) =>
     collection.includes(value) ? collection.filter(item => item !== value) : [...collection, value];
 
   const startEditing = (role: RoleDefinition) => {
     setEditingRole(role.roleName);
+    const inheritedRolePermissions = new Set(role.compositeRoles.flatMap(roleName => rolePermissionMap.get(roleName) ?? []));
     setForm({
       roleName: role.roleName,
       description: role.description ?? '',
       compositeRoles: role.compositeRoles,
-      permissions: role.permissions,
+      permissions: role.permissions.filter(permission => !inheritedRolePermissions.has(permission)),
     });
     setMessage(null);
   };
@@ -69,11 +89,15 @@ const AdminRolesView = () => {
     setSaving(true);
     setMessage(null);
     try {
+      const payload: RolePayload = {
+        ...form,
+        permissions: effectivePermissions,
+      };
       if (editingRole) {
-        await AdminSecurityService.updateRole(editingRole, form);
+        await AdminSecurityService.updateRole(editingRole, payload);
         setMessage(`Rol ${editingRole} actualizado correctamente.`);
       } else {
-        await AdminSecurityService.createRole(form);
+        await AdminSecurityService.createRole(payload);
         setMessage(`Rol ${form.roleName} creado correctamente.`);
       }
       resetForm();
@@ -219,6 +243,7 @@ const AdminRolesView = () => {
 
             <div>
               <p className="text-xs font-black uppercase tracking-widest text-slate-500">Roles base compuestos</p>
+              <p className="mt-1 text-xs text-slate-500">Al seleccionar un rol base, sus permisos se marcan automáticamente y puedes agregar más permisos manualmente.</p>
               <div className="mt-3 grid grid-cols-1 gap-2">
                 {availableCompositeRoles.map(roleName => (
                   <label key={roleName} className="flex items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-2.5 text-sm">
@@ -240,14 +265,15 @@ const AdminRolesView = () => {
             </div>
 
             <div>
-              <p className="text-xs font-black uppercase tracking-widest text-slate-500">Permisos administrativos</p>
+              <p className="text-xs font-black uppercase tracking-widest text-slate-500">Permisos</p>
               <div className="mt-3 space-y-2">
                 {permissions.map(permission => (
                   <label key={permission.code} className="block rounded-2xl border border-slate-200 dark:border-slate-800 px-4 py-3">
                     <div className="flex items-start gap-3">
                       <input
                         type="checkbox"
-                        checked={form.permissions.includes(permission.code)}
+                        checked={effectivePermissionSet.has(permission.code)}
+                        disabled={inheritedPermissionSet.has(permission.code)}
                         onChange={() =>
                           setForm(current => ({
                             ...current,
@@ -259,6 +285,9 @@ const AdminRolesView = () => {
                       <div>
                         <p className="font-bold text-slate-900 dark:text-white text-sm">{permission.label}</p>
                         <p className="text-xs text-slate-500 mt-1">{permission.description}</p>
+                        {inheritedPermissionSet.has(permission.code) && (
+                          <p className="text-[11px] text-emerald-600 dark:text-emerald-300 mt-2">Incluido automáticamente por el rol base seleccionado.</p>
+                        )}
                         <p className="text-[11px] font-mono text-slate-400 mt-2">{permission.code}</p>
                       </div>
                     </div>

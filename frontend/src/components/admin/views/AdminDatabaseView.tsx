@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { AppButton } from '../../ui/AppButton';
 import { useAuth } from '../../../context/AuthContext';
 import {
+  type ActionConfirmationPayload,
   DatabaseAdminService,
   type DatabaseBackupFrequency,
   type DatabaseBackupHistoryItem,
@@ -26,6 +27,7 @@ const FREQUENCY_OPTIONS: Array<{ value: DatabaseBackupFrequency; label: string; 
 ];
 
 const MAX_INTERVAL_HOURS = 720;
+type ConfirmationActionType = 'export' | 'restore-upload' | 'restore-stored' | 'save-settings';
 
 const defaultSettings: DatabaseBackupSettings = {
   enabled: false,
@@ -37,6 +39,13 @@ const defaultSettings: DatabaseBackupSettings = {
   lastAutomaticExecutionAt: null,
   nextExecutionAt: null,
   lastBackupFilename: null,
+};
+
+const confirmationKeywordByAction: Record<ConfirmationActionType, string> = {
+  export: 'EXPORTAR',
+  'restore-upload': 'RESTAURAR',
+  'restore-stored': 'RESTAURAR',
+  'save-settings': 'PROGRAMAR',
 };
 
 const normalizeTimeValue = (value?: string | null) => (value ? value.slice(0, 5) : '02:00');
@@ -58,7 +67,7 @@ const formatBytes = (value: number) => {
 };
 
 const AdminDatabaseView = () => {
-  const { hasAnyRole, hasPermission } = useAuth();
+  const { hasAnyRole, hasPermission, user } = useAuth();
   const canView = hasAnyRole(['ROLE_ADMIN']) || hasPermission('admin.database.view');
   const canExport = hasAnyRole(['ROLE_ADMIN']) || hasPermission('admin.database.export');
   const canRestore = hasAnyRole(['ROLE_ADMIN']) || hasPermission('admin.database.restore');
@@ -66,8 +75,6 @@ const AdminDatabaseView = () => {
   const [summary, setSummary] = useState<DatabaseBackupSummary | null>(null);
   const [settings, setSettings] = useState<DatabaseBackupSettings>(defaultSettings);
   const [backupFile, setBackupFile] = useState<File | null>(null);
-  const [restorePassword, setRestorePassword] = useState('');
-  const [confirmationText, setConfirmationText] = useState('');
   const [loading, setLoading] = useState(true);
   const [savingSettings, setSavingSettings] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -75,8 +82,12 @@ const AdminDatabaseView = () => {
   const [restoringStoredFile, setRestoringStoredFile] = useState<string | null>(null);
   const [downloadingStoredFile, setDownloadingStoredFile] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [pendingAction, setPendingAction] = useState<{ type: ConfirmationActionType; backup?: DatabaseBackupHistoryItem } | null>(null);
+  const [confirmationUsername, setConfirmationUsername] = useState('');
+  const [confirmationPassword, setConfirmationPassword] = useState('');
+  const [confirmationWord, setConfirmationWord] = useState('');
 
-  const loadSummary = async () => {
+  const loadSummary = useCallback(async () => {
     if (!canView && !canExport && !canRestore) {
       return;
     }
@@ -97,39 +108,57 @@ const AdminDatabaseView = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [canExport, canRestore, canView]);
 
   useEffect(() => {
     void loadSummary();
-  }, [canExport, canRestore, canView]);
+  }, [loadSummary]);
 
-  const resetRestoreConfirmation = () => {
-    setRestorePassword('');
-    setConfirmationText('');
+  const openConfirmationModal = (type: ConfirmationActionType, backup?: DatabaseBackupHistoryItem) => {
+    setPendingAction({ type, backup });
+    setConfirmationUsername(user?.preferred_username ?? '');
+    setConfirmationPassword('');
+    setConfirmationWord('');
+    setMessage(null);
   };
 
-  const validateRestoreAttempt = () => {
-    if (!canRestore) {
-      setMessage('No tienes permisos para restaurar respaldos.');
-      return false;
-    }
-    if (!restorePassword.trim()) {
-      setMessage('Debes escribir tu contraseña actual para restaurar.');
-      return false;
-    }
-    if (confirmationText.trim().toUpperCase() !== 'RESTAURAR') {
-      setMessage('Escribe RESTAURAR para confirmar la acción.');
-      return false;
-    }
-    return true;
+  const closeConfirmationModal = () => {
+    setPendingAction(null);
+    setConfirmationPassword('');
+    setConfirmationWord('');
   };
 
-  const handleExport = async () => {
+  const buildConfirmationPayload = (): ActionConfirmationPayload | null => {
+    if (!pendingAction) {
+      return null;
+    }
+    if (!confirmationUsername.trim()) {
+      setMessage('Debes escribir tu usuario actual para confirmar.');
+      return null;
+    }
+    if (!confirmationPassword.trim()) {
+      setMessage('Debes escribir tu contraseña actual para confirmar.');
+      return null;
+    }
+    const expectedWord = confirmationKeywordByAction[pendingAction.type];
+    if (confirmationWord.trim().toUpperCase() !== expectedWord) {
+      setMessage(`Escribe ${expectedWord} para confirmar la acción.`);
+      return null;
+    }
+    return {
+      username: confirmationUsername.trim(),
+      password: confirmationPassword,
+      confirmationWord: confirmationWord.trim().toUpperCase(),
+    };
+  };
+
+  const handleExport = async (confirmation: ActionConfirmationPayload) => {
     setMessage(null);
     setExporting(true);
     try {
-      await DatabaseAdminService.exportDatabase();
+      await DatabaseAdminService.exportDatabase(confirmation);
       setMessage('Respaldo generado, almacenado y descargado correctamente.');
+      closeConfirmationModal();
       await loadSummary();
     } catch (error) {
       console.error('Error exportando base de datos:', error);
@@ -139,15 +168,19 @@ const AdminDatabaseView = () => {
     }
   };
 
-  const handleSaveSettings = async () => {
+  const handleSaveSettings = async (confirmation: ActionConfirmationPayload) => {
     setMessage(null);
     setSavingSettings(true);
     try {
       await DatabaseAdminService.saveSettings({
-        ...settings,
-        time: normalizeTimeValue(settings.time),
+        settings: {
+          ...settings,
+          time: normalizeTimeValue(settings.time),
+        },
+        confirmation,
       });
       setMessage('Programación automática actualizada.');
+      closeConfirmationModal();
       await loadSummary();
     } catch (error) {
       console.error('Error guardando configuración de respaldos:', error);
@@ -157,21 +190,17 @@ const AdminDatabaseView = () => {
     }
   };
 
-  const handleRestoreUpload = async () => {
-    if (!backupFile) {
-      setMessage('Seleccione un archivo .backup o .sql antes de restaurar.');
-      return;
-    }
-    if (!validateRestoreAttempt()) {
-      return;
-    }
-
+  const handleRestoreUpload = async (confirmation: ActionConfirmationPayload) => {
     setMessage(null);
     setRestoringUpload(true);
     try {
-      await DatabaseAdminService.restoreDatabase(backupFile, restorePassword);
+      if (!backupFile) {
+        setMessage('Seleccione un archivo .backup o .sql antes de restaurar.');
+        return;
+      }
+      await DatabaseAdminService.restoreDatabase(backupFile, confirmation);
       setBackupFile(null);
-      resetRestoreConfirmation();
+      closeConfirmationModal();
       setMessage('Restauración desde archivo ejecutada correctamente.');
       await loadSummary();
     } catch (error) {
@@ -182,16 +211,12 @@ const AdminDatabaseView = () => {
     }
   };
 
-  const handleRestoreStoredBackup = async (backup: DatabaseBackupHistoryItem) => {
-    if (!validateRestoreAttempt()) {
-      return;
-    }
-
+  const handleRestoreStoredBackup = async (backup: DatabaseBackupHistoryItem, confirmation: ActionConfirmationPayload) => {
     setMessage(null);
     setRestoringStoredFile(backup.filename);
     try {
-      await DatabaseAdminService.restoreStoredBackup(backup.filename, restorePassword);
-      resetRestoreConfirmation();
+      await DatabaseAdminService.restoreStoredBackup(backup.filename, confirmation);
+      closeConfirmationModal();
       setMessage(`Restauración ejecutada con ${backup.filename}.`);
       await loadSummary();
     } catch (error) {
@@ -214,6 +239,73 @@ const AdminDatabaseView = () => {
     }
   };
 
+  const handleConfirmAction = async () => {
+    if (!pendingAction) {
+      return;
+    }
+
+    if (pendingAction.type === 'restore-upload' && !backupFile) {
+      setMessage('Seleccione un archivo .backup o .sql antes de restaurar.');
+      return;
+    }
+
+    const confirmation = buildConfirmationPayload();
+    if (!confirmation) {
+      return;
+    }
+
+    if (pendingAction.type === 'export') {
+      await handleExport(confirmation);
+      return;
+    }
+
+    if (pendingAction.type === 'save-settings') {
+      await handleSaveSettings(confirmation);
+      return;
+    }
+
+    if (pendingAction.type === 'restore-upload') {
+      await handleRestoreUpload(confirmation);
+      return;
+    }
+
+    if (pendingAction.backup) {
+      await handleRestoreStoredBackup(pendingAction.backup, confirmation);
+    }
+  };
+
+  const getConfirmationCopy = () => {
+    if (!pendingAction) {
+      return null;
+    }
+
+    if (pendingAction.type === 'export') {
+      return {
+        title: 'Confirmar exportación',
+        description: 'Se generará un respaldo inmediato, se guardará en el servidor y también se descargará en tu equipo.',
+      };
+    }
+
+    if (pendingAction.type === 'save-settings') {
+      return {
+        title: 'Confirmar programación automática',
+        description: 'Se actualizará la configuración del respaldo automático con los valores actuales del formulario.',
+      };
+    }
+
+    if (pendingAction.type === 'restore-upload') {
+      return {
+        title: 'Confirmar restauración desde archivo',
+        description: `Se reemplazará la base de datos actual usando ${backupFile?.name ?? 'el archivo seleccionado'}.`,
+      };
+    }
+
+    return {
+      title: 'Confirmar restauración',
+      description: `Se reemplazará la base de datos actual con el respaldo ${pendingAction.backup?.filename ?? ''}.`,
+    };
+  };
+
   if (!canView && !canExport && !canRestore) {
     return (
       <div className="rounded-3xl border border-amber-200 bg-amber-50 px-6 py-5 text-sm font-medium text-amber-700">
@@ -227,7 +319,7 @@ const AdminDatabaseView = () => {
       <div className="flex flex-col gap-1">
         <h2 className="text-slate-900 dark:text-white text-3xl font-black tracking-tight">Administración de base de datos</h2>
         <p className="text-slate-500 text-base font-medium">
-          La restauración ahora exige tu contraseña actual y la confirmación explícita RESTAURAR para evitar ejecuciones accidentales. Los respaldos automáticos se descargan automáticamente solo cuando tienes sesión activa, WebSocket conectado y permiso de exportación.
+          Las acciones sensibles se confirman desde una ventana segura con información de impacto, usuario, contraseña y palabra de confirmación antes de ejecutarse.
         </p>
       </div>
 
@@ -255,40 +347,9 @@ const AdminDatabaseView = () => {
             <h3 className="text-lg font-black text-slate-900 dark:text-white">Respaldo manual</h3>
             <p className="text-sm text-slate-500 mt-1">Genera un respaldo inmediato, lo descarga en tu equipo y lo conserva en el historial del servidor.</p>
           </div>
-          <AppButton variant="primary" icon="download" isLoading={exporting} onClick={handleExport}>
+          <AppButton variant="primary" icon="download" isLoading={exporting} onClick={() => openConfirmationModal('export')}>
             Exportar base de datos
           </AppButton>
-        </div>
-      )}
-
-      {(canRestore || canView) && (
-        <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm space-y-5">
-          <div className="flex flex-col gap-1">
-            <h3 className="text-lg font-black text-slate-900 dark:text-white">Confirmación reforzada para restaurar</h3>
-            <p className="text-sm text-slate-500">Antes de restaurar, vuelve a escribir tu contraseña actual y confirma la palabra RESTAURAR.</p>
-          </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/40 p-4">
-              <label className="text-xs font-black uppercase tracking-widest text-slate-500">Contraseña actual</label>
-              <input
-                type="password"
-                value={restorePassword}
-                onChange={event => setRestorePassword(event.target.value)}
-                className="mt-2 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-sky-500"
-                placeholder="Escribe tu contraseña para confirmar"
-              />
-            </div>
-            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/40 p-4">
-              <label className="text-xs font-black uppercase tracking-widest text-slate-500">Texto de confirmación</label>
-              <input
-                type="text"
-                value={confirmationText}
-                onChange={event => setConfirmationText(event.target.value)}
-                className="mt-2 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-sky-500"
-                placeholder="Escribe RESTAURAR"
-              />
-            </div>
-          </div>
         </div>
       )}
 
@@ -303,7 +364,7 @@ const AdminDatabaseView = () => {
             <span className="text-xs text-slate-400">Formatos soportados: .backup, .sql</span>
             <input type="file" accept=".backup,.sql" className="hidden" onChange={event => setBackupFile(event.target.files?.[0] ?? null)} />
           </label>
-          <AppButton variant="danger" icon="upload" disabled={!backupFile} isLoading={restoringUpload} onClick={handleRestoreUpload}>
+          <AppButton variant="danger" icon="upload" disabled={!backupFile} isLoading={restoringUpload} onClick={() => openConfirmationModal('restore-upload')}>
             Restaurar desde archivo
           </AppButton>
         </div>
@@ -405,7 +466,7 @@ const AdminDatabaseView = () => {
             </div>
           </div>
 
-          <AppButton variant="primary" icon="save" isLoading={savingSettings} onClick={handleSaveSettings}>
+          <AppButton variant="primary" icon="save" isLoading={savingSettings} onClick={() => openConfirmationModal('save-settings')}>
             Guardar programación
           </AppButton>
         </div>
@@ -451,7 +512,7 @@ const AdminDatabaseView = () => {
                           size="sm"
                           icon="restart_alt"
                           isLoading={restoringStoredFile === backup.filename}
-                          onClick={() => handleRestoreStoredBackup(backup)}
+                          onClick={() => openConfirmationModal('restore-stored', backup)}
                         >
                           Restaurar
                         </AppButton>
@@ -472,6 +533,80 @@ const AdminDatabaseView = () => {
           {message}
         </div>
       )}
+
+      {pendingAction && (() => {
+        const copy = getConfirmationCopy();
+        const expectedWord = confirmationKeywordByAction[pendingAction.type];
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={closeConfirmationModal} />
+            <div className="relative w-full max-w-lg rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl">
+              <div className="flex items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 px-6 py-5">
+                <div>
+                  <h3 className="text-lg font-black text-slate-900 dark:text-white">{copy?.title}</h3>
+                  <p className="mt-1 text-sm text-slate-500">{copy?.description}</p>
+                </div>
+                <button onClick={closeConfirmationModal} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+                  <span className="material-symbols-outlined">close</span>
+                </button>
+              </div>
+
+              <div className="space-y-4 px-6 py-5">
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-200">
+                  Esta acción es sensible. Debes confirmar tu usuario, contraseña y escribir <span className="font-black">{expectedWord}</span> para continuar.
+                </div>
+
+                <div className="grid grid-cols-1 gap-4">
+                  <div>
+                    <label className="text-xs font-black uppercase tracking-widest text-slate-500">Usuario</label>
+                    <input
+                      type="text"
+                      value={confirmationUsername}
+                      onChange={event => setConfirmationUsername(event.target.value)}
+                      className="mt-2 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-sky-500"
+                      placeholder="Tu usuario actual"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-black uppercase tracking-widest text-slate-500">Contraseña actual</label>
+                    <input
+                      type="password"
+                      value={confirmationPassword}
+                      onChange={event => setConfirmationPassword(event.target.value)}
+                      className="mt-2 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-sky-500"
+                      placeholder="Escribe tu contraseña"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-black uppercase tracking-widest text-slate-500">Palabra de confirmación</label>
+                    <input
+                      type="text"
+                      value={confirmationWord}
+                      onChange={event => setConfirmationWord(event.target.value)}
+                      className="mt-2 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-sky-500"
+                      placeholder={`Escribe ${expectedWord}`}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 border-t border-slate-100 dark:border-slate-800 px-6 py-5">
+                <AppButton variant="ghost" onClick={closeConfirmationModal}>
+                  Cancelar
+                </AppButton>
+                <AppButton
+                  variant={pendingAction.type.startsWith('restore') ? 'danger' : 'primary'}
+                  icon={pendingAction.type.startsWith('restore') ? 'restart_alt' : 'verified_user'}
+                  isLoading={exporting || savingSettings || restoringUpload || Boolean(restoringStoredFile)}
+                  onClick={() => void handleConfirmAction()}
+                >
+                  Confirmar
+                </AppButton>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };
