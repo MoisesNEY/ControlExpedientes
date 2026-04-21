@@ -42,7 +42,7 @@ export const MainLayout: React.FC = () => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const downloadedBackupsRef = useRef<Set<string>>(new Set());
 
-  const { hasAnyRole, hasAnyPermission, hasPermission, roles, user } = useAuth();
+  const { hasAnyRole, hasAnyPermission, hasPermission, user } = useAuth();
   const location = useLocation();
 
   const notificationTopics = useMemo(() => {
@@ -124,7 +124,7 @@ export const MainLayout: React.FC = () => {
         })
       }))
       .filter(group => group.items.length > 0);
-  }, [hasAnyPermission, hasAnyRole, roles]);
+  }, [hasAnyPermission, hasAnyRole]);
 
   useEffect(() => {
     const latestNotification = notificaciones[0];

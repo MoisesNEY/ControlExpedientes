@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { AppButton } from '../../ui/AppButton';
 import { useAuth } from '../../../context/AuthContext';
 import {
@@ -87,7 +87,7 @@ const AdminDatabaseView = () => {
   const [confirmationPassword, setConfirmationPassword] = useState('');
   const [confirmationWord, setConfirmationWord] = useState('');
 
-  const loadSummary = async () => {
+  const loadSummary = useCallback(async () => {
     if (!canView && !canExport && !canRestore) {
       return;
     }
@@ -108,11 +108,11 @@ const AdminDatabaseView = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [canExport, canRestore, canView]);
 
   useEffect(() => {
     void loadSummary();
-  }, [canExport, canRestore, canView]);
+  }, [loadSummary]);
 
   const openConfirmationModal = (type: ConfirmationActionType, backup?: DatabaseBackupHistoryItem) => {
     setPendingAction({ type, backup });
