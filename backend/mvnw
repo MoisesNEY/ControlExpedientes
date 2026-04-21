@@ -32,6 +32,18 @@
 set -euf
 [ "${MVNW_VERBOSE-}" != debug ] || set -x
 
+# Load local .env if present (for development). Variables will be exported
+# so they are visible to the Maven process. This keeps secrets local when
+# you run ./mvnw without extra steps.
+script_dir="$(cd "$(dirname "$0")" && pwd -P)"
+if [ -f "$script_dir/.env" ]; then
+  # export variables from .env
+  set -a
+  # shellcheck disable=SC1090
+  . "$script_dir/.env"
+  set +a
+fi
+
 # OS specific support.
 native_path() { printf %s\\n "$1"; }
 case "$(uname)" in
