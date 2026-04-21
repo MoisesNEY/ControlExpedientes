@@ -96,9 +96,17 @@ public class FinalizarConsultaService {
             Diagnostico diag = diagnosticoRepository.findById(request.getDiagnosticoPrincipalId())
                     .orElse(null);
             if (diag != null) {
-                diag.setConsulta(consulta);
-                diagnosticoRepository.save(diag);
-                LOG.debug("Diagnóstico ID {} vinculado a consulta ID {}", diag.getId(), consulta.getId());
+                Diagnostico diagnosticoConsulta = new Diagnostico();
+                diagnosticoConsulta.setCodigoCIE(diag.getCodigoCIE());
+                diagnosticoConsulta.setDescripcion(diag.getDescripcion());
+                diagnosticoConsulta.setConsulta(consulta);
+                diagnosticoRepository.save(diagnosticoConsulta);
+                LOG.debug(
+                    "Diagnóstico catálogo ID {} copiado a consulta ID {} como diagnóstico ID {}",
+                    diag.getId(),
+                    consulta.getId(),
+                    diagnosticoConsulta.getId()
+                );
             }
         }
 

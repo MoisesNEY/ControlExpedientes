@@ -22,6 +22,8 @@ import AdminMedicamentosView from './components/admin/views/AdminMedicamentosVie
 import AdminCitasView from './components/admin/views/AdminCitasView';
 import AdminExpedientesView from './components/admin/views/AdminExpedientesView';
 import AdminAuditoriaView from './components/admin/views/AdminAuditoriaView';
+import AdminInteraccionesView from './components/admin/views/AdminInteraccionesView';
+import DiagnosticoCatalogView from './components/shared/views/DiagnosticoCatalogView';
 
 import NurseDashboard from './pages/NurseDashboard';
 import NurseHomeView from './components/nurse/views/NurseHomeView';
@@ -85,6 +87,8 @@ export const routerConfig: RouteObject[] = [
           { path: 'dashboard', element: <AdminHomeView /> },
           { path: 'pacientes', element: <AdminPacientesView /> },
           { path: 'medicamentos', element: <AdminMedicamentosView /> },
+          { path: 'interacciones', element: <AdminInteraccionesView /> },
+          { path: 'diagnosticos', element: <DiagnosticoCatalogView /> },
           { path: 'citas', element: <AdminCitasView /> },
           { path: 'expedientes', element: <AdminExpedientesView /> },
           { path: 'auditoria', element: <AdminAuditoriaView /> }
@@ -101,6 +105,7 @@ export const routerConfig: RouteObject[] = [
           { index: true, element: <Navigate to="dashboard" replace /> },
           { path: 'dashboard', element: <DoctorHomeView /> },
           { path: 'consulta/:citaId', element: <DoctorConsultationView /> },
+          { path: 'diagnosticos', element: <DiagnosticoCatalogView /> },
           { path: 'pacientes', element: <PatientListView /> },
           { path: 'citas', element: <AppointmentView /> },
           { path: 'inventario', element: <InventoryView /> },

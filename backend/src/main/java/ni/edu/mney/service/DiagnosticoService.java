@@ -115,6 +115,36 @@ public class DiagnosticoService {
     @Cacheable(cacheNames = "ni.edu.mney.service.DiagnosticoService.search")
     public Page<DiagnosticoDTO> search(String query, Pageable pageable) {
         LOG.debug("Request to search Diagnosticos for query {}", query);
-        return diagnosticoRepository.search(query, pageable).map(diagnosticoMapper::toDto);
+        return diagnosticoRepository.search(normalize(query), pageable).map(diagnosticoMapper::toDto);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<DiagnosticoDTO> findReusableCatalogMatch(DiagnosticoDTO diagnosticoDTO) {
+        String codigo = normalize(diagnosticoDTO.getCodigoCIE());
+        if (codigo != null) {
+            Optional<DiagnosticoDTO> byCodigo = diagnosticoRepository
+                .findFirstByConsultaIsNullAndCodigoCIEIgnoreCase(codigo)
+                .map(diagnosticoMapper::toDto);
+            if (byCodigo.isPresent()) {
+                return byCodigo;
+            }
+        }
+
+        String descripcion = normalize(diagnosticoDTO.getDescripcion());
+        if (descripcion != null) {
+            return diagnosticoRepository
+                .findFirstByConsultaIsNullAndDescripcionIgnoreCase(descripcion)
+                .map(diagnosticoMapper::toDto);
+        }
+
+        return Optional.empty();
+    }
+
+    private String normalize(String value) {
+        if (value == null) {
+            return null;
+        }
+        String normalized = value.trim();
+        return normalized.isEmpty() ? null : normalized;
     }
 }

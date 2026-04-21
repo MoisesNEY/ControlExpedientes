@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AppointmentService, type Appointment } from '../../../services/appointment.service';
-import { DiagnosticoService } from '../../../services/diagnostico.service';
+import { DiagnosticoService, type Diagnostico as DiagnosticoCatalogo } from '../../../services/diagnostico.service';
 import { MedicamentoService, type MedicamentoDTO } from '../../../services/medicamento.service';
 import api from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
@@ -10,13 +10,6 @@ import { AppButton } from '../../ui/AppButton';
 import { PatientCard } from '../../ui/PatientCard';
 import { InteraccionService, type InteraccionMedicamentosaDTO } from '../../../services/interaccion.service';
 import DrugInteractionAlert from '../DrugInteractionAlert';
-
-// El backend serializa el campo como "codigoCIE" (mayúsculas)
-interface Diagnostico {
-    id: number;
-    codigoCIE: string;
-    descripcion: string;
-}
 
 interface Prescription {
     medicamento: MedicamentoDTO;
@@ -40,8 +33,8 @@ const DoctorConsultationView = () => {
 
     // Diagnóstico Autocomplete
     const [diagQuery, setDiagQuery] = useState('');
-    const [diagResults, setDiagResults] = useState<Diagnostico[]>([]);
-    const [selectedDiagnosis, setSelectedDiagnosis] = useState<Diagnostico | null>(null);
+    const [diagResults, setDiagResults] = useState<DiagnosticoCatalogo[]>([]);
+    const [selectedDiagnosis, setSelectedDiagnosis] = useState<DiagnosticoCatalogo | null>(null);
     const [isDiagSearching, setIsDiagSearching] = useState(false);
     const diagDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -109,7 +102,7 @@ const DoctorConsultationView = () => {
                 setIsDiagSearching(true);
                 try {
                     const results = await DiagnosticoService.search(diagQuery);
-                    setDiagResults(results as unknown as Diagnostico[]);
+                    setDiagResults(results);
                 } catch (e) {
                     console.error('Error buscando diagnóstico:', e);
                 } finally {
@@ -130,13 +123,8 @@ const DoctorConsultationView = () => {
         setCreatingDiag(true);
         setCreateDiagError(null);
         try {
-            const created: any = await DiagnosticoService.create(newDiagCodigo.trim(), newDiagDescripcion.trim());
-            const mapped: Diagnostico = {
-                id: created.id,
-                codigoCIE: created.codigoCie10 || created.codigoCIE || newDiagCodigo.trim(),
-                descripcion: created.descripcion || newDiagDescripcion.trim()
-            };
-            setSelectedDiagnosis(mapped);
+            const created = await DiagnosticoService.create(newDiagCodigo.trim(), newDiagDescripcion.trim());
+            setSelectedDiagnosis(created);
             setShowCreateModal(false);
             setDiagResults([]);
             setDiagQuery('');
