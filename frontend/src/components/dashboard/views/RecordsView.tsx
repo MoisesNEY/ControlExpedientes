@@ -343,21 +343,21 @@ const RecordsView = () => {
                                             <h3 className="text-lg font-bold text-slate-900 dark:text-white capitalize">{entry.motivo}</h3>
                                              <p className="text-slate-500 text-sm font-medium mt-1">Atendido por: Dr/a. {entry.profesional}</p>
                                          </div>
-                                         {entry.consultaId && entry.recetas && entry.recetas.length > 0 && (
-                                             <button
-                                                 type="button"
-                                                 onClick={() => handleDescargarReceta(entry.consultaId!)}
-                                                 disabled={!!downloading}
-                                                 className="inline-flex items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50"
-                                             >
-                                                 {downloading === `receta-${entry.consultaId}` ? (
-                                                     <span className="animate-spin inline-block w-4 h-4 border-2 border-slate-500 border-t-transparent rounded-full"></span>
-                                                 ) : (
-                                                     <span className="material-symbols-outlined text-base">download</span>
-                                                 )}
-                                                 Descargar receta
-                                             </button>
-                                         )}
+                                        {entry.consultaId && entry.recetas && entry.recetas.length > 0 && (
+                                            <button
+                                                type="button"
+                                                onClick={() => handleDescargarReceta(entry.consultaId!)}
+                                                disabled={!!downloading}
+                                                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50"
+                                            >
+                                                {downloading === `receta-${entry.consultaId}` ? (
+                                                    <span className="animate-spin inline-block w-4 h-4 border-2 border-slate-500 border-t-transparent rounded-full"></span>
+                                                ) : (
+                                                    <span className="material-symbols-outlined text-base">download</span>
+                                                )}
+                                                Descargar receta
+                                            </button>
+                                        )}
                                      </div>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">

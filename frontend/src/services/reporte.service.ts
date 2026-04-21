@@ -1,4 +1,5 @@
 import api from './api';
+import { downloadBlob, getFilenameFromDisposition } from '../utils/download';
 
 interface RecetaPreviewPayload {
     citaId?: number;
@@ -55,20 +56,3 @@ export const ReporteService = {
         downloadBlob(response.data, getFilenameFromDisposition(response.headers['content-disposition']) ?? `expediente-${expedienteId}.pdf`);
     },
 };
-
-function downloadBlob(blob: Blob, filename: string) {
-    const url = window.URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', filename);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.URL.revokeObjectURL(url);
-}
-
-function getFilenameFromDisposition(contentDisposition?: string): string | null {
-    if (!contentDisposition) return null;
-    const match = contentDisposition.match(/filename="?([^"]+)"?/i);
-    return match?.[1] ?? null;
-}
