@@ -8,6 +8,7 @@ import ni.edu.mney.domain.Authority;
 import ni.edu.mney.domain.User;
 import ni.edu.mney.repository.AuthorityRepository;
 import ni.edu.mney.repository.UserRepository;
+import ni.edu.mney.security.PermissionAuthorityService;
 import ni.edu.mney.security.SecurityUtils;
 import ni.edu.mney.service.dto.AdminUserDTO;
 import ni.edu.mney.service.dto.UserDTO;
@@ -38,11 +39,14 @@ public class UserService {
 
     private final CacheManager cacheManager;
 
+    private final PermissionAuthorityService permissionAuthorityService;
+
     public UserService(UserRepository userRepository, AuthorityRepository authorityRepository,
-            CacheManager cacheManager) {
+            CacheManager cacheManager, PermissionAuthorityService permissionAuthorityService) {
         this.userRepository = userRepository;
         this.authorityRepository = authorityRepository;
         this.cacheManager = cacheManager;
+        this.permissionAuthorityService = permissionAuthorityService;
     }
 
     /**
@@ -170,6 +174,7 @@ public class UserService {
                         .getAuthorities()
                         .stream()
                         .map(GrantedAuthority::getAuthority)
+                        .filter(authority -> authority.startsWith("ROLE_"))
                         .map(authority -> {
                             Authority auth = new Authority();
                             auth.setName(authority);
@@ -177,7 +182,9 @@ public class UserService {
                         })
                         .collect(Collectors.toSet()));
 
-        return new AdminUserDTO(syncUserWithIdP(attributes, user));
+        AdminUserDTO adminUserDTO = new AdminUserDTO(syncUserWithIdP(attributes, user));
+        adminUserDTO.setPermissions(permissionAuthorityService.extractPermissions(authToken.getAuthorities()));
+        return adminUserDTO;
     }
 
     private static User getUser(Map<String, Object> details) {

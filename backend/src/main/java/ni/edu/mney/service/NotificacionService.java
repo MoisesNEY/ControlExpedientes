@@ -43,4 +43,9 @@ public class NotificacionService {
         LOG.debug("Enviando notificación WebSocket a médico {}: {}", medicoLogin, notificacion);
         messagingTemplate.convertAndSend("/topic/medico/" + medicoLogin, notificacion);
     }
+
+    public void notificarSistemaAdministrativo(NotificacionDTO notificacion) {
+        LOG.debug("Enviando notificación de sistema administrativo: {}", notificacion);
+        messagingTemplate.convertAndSend("/topic/admin/system", notificacion);
+    }
 }

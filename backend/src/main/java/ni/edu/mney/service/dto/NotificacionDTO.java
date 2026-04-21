@@ -13,6 +13,9 @@ public class NotificacionDTO implements Serializable {
     private Long citaId;
     private String pacienteNombre;
     private String medicoLogin;
+    private String rutaAccion;
+    private String archivoDescarga;
+    private String accionLabel;
     private ZonedDateTime timestamp;
 
     public NotificacionDTO() {
@@ -67,6 +70,30 @@ public class NotificacionDTO implements Serializable {
         this.medicoLogin = medicoLogin;
     }
 
+    public String getRutaAccion() {
+        return rutaAccion;
+    }
+
+    public void setRutaAccion(String rutaAccion) {
+        this.rutaAccion = rutaAccion;
+    }
+
+    public String getArchivoDescarga() {
+        return archivoDescarga;
+    }
+
+    public void setArchivoDescarga(String archivoDescarga) {
+        this.archivoDescarga = archivoDescarga;
+    }
+
+    public String getAccionLabel() {
+        return accionLabel;
+    }
+
+    public void setAccionLabel(String accionLabel) {
+        this.accionLabel = accionLabel;
+    }
+
     public ZonedDateTime getTimestamp() {
         return timestamp;
     }
@@ -82,6 +109,7 @@ public class NotificacionDTO implements Serializable {
                 ", mensaje='" + mensaje + '\'' +
                 ", citaId=" + citaId +
                 ", pacienteNombre='" + pacienteNombre + '\'' +
+                ", rutaAccion='" + rutaAccion + '\'' +
                 '}';
     }
 }

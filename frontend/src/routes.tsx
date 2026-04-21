@@ -24,6 +24,8 @@ import AdminExpedientesView from './components/admin/views/AdminExpedientesView'
 import AdminAuditoriaView from './components/admin/views/AdminAuditoriaView';
 import AdminInteraccionesView from './components/admin/views/AdminInteraccionesView';
 import AdminDatabaseView from './components/admin/views/AdminDatabaseView';
+import AdminUsersView from './components/admin/views/AdminUsersView';
+import AdminRolesView from './components/admin/views/AdminRolesView';
 import DiagnosticoCatalogView from './components/shared/views/DiagnosticoCatalogView';
 
 import NurseDashboard from './pages/NurseDashboard';
@@ -44,7 +46,7 @@ import Login from './pages/Login';
  * Evalúa los roles desde AuthContext y redirige al dashboard correspondiente.
  */
 const RootRedirect: React.FC = () => {
-  const { isAuthenticated, hasRole, loading } = useAuth();
+  const { isAuthenticated, hasRole, hasPermission, loading } = useAuth();
 
   // Evitar redirecciones prematuras hasta que se confirme el estado de autenticación
   if (loading) return null;
@@ -55,6 +57,9 @@ const RootRedirect: React.FC = () => {
   if (hasRole('ROLE_MEDICO')) return <Navigate to="/medico/dashboard" replace />;
   if (hasRole('ROLE_ENFERMERO')) return <Navigate to="/enfermeria/dashboard" replace />;
   if (hasRole('ROLE_RECEPCION')) return <Navigate to="/recepcion/dashboard" replace />;
+  if (hasPermission('admin.users.manage')) return <Navigate to="/admin/usuarios" replace />;
+  if (hasPermission('admin.roles.manage')) return <Navigate to="/admin/roles" replace />;
+  if (hasPermission('admin.database.view')) return <Navigate to="/admin/base-datos" replace />;
 
   return <Navigate to="/unauthorized" replace />;
 };
@@ -79,21 +84,26 @@ export const routerConfig: RouteObject[] = [
       {
         path: 'admin',
         element: (
-          <ProtectedSlot requiredRoles={['ROLE_ADMIN']}>
+          <ProtectedSlot
+            requiredRoles={['ROLE_ADMIN']}
+            requiredPermissions={['admin.users.manage', 'admin.roles.manage', 'admin.database.view', 'admin.database.export', 'admin.database.restore']}
+          >
             <AdminDashboard />
           </ProtectedSlot>
         ),
         children: [
           { index: true, element: <Navigate to="dashboard" replace /> },
-          { path: 'dashboard', element: <AdminHomeView /> },
-          { path: 'pacientes', element: <AdminPacientesView /> },
-          { path: 'medicamentos', element: <AdminMedicamentosView /> },
-          { path: 'interacciones', element: <AdminInteraccionesView /> },
-          { path: 'diagnosticos', element: <DiagnosticoCatalogView /> },
-          { path: 'citas', element: <AdminCitasView /> },
-          { path: 'expedientes', element: <AdminExpedientesView /> },
-          { path: 'base-datos', element: <AdminDatabaseView /> },
-          { path: 'auditoria', element: <AdminAuditoriaView /> }
+          { path: 'dashboard', element: <ProtectedSlot requiredRoles={['ROLE_ADMIN']}><AdminHomeView /></ProtectedSlot> },
+          { path: 'pacientes', element: <ProtectedSlot requiredRoles={['ROLE_ADMIN']}><AdminPacientesView /></ProtectedSlot> },
+          { path: 'medicamentos', element: <ProtectedSlot requiredRoles={['ROLE_ADMIN']}><AdminMedicamentosView /></ProtectedSlot> },
+          { path: 'interacciones', element: <ProtectedSlot requiredRoles={['ROLE_ADMIN']}><AdminInteraccionesView /></ProtectedSlot> },
+          { path: 'diagnosticos', element: <ProtectedSlot requiredRoles={['ROLE_ADMIN']}><DiagnosticoCatalogView /></ProtectedSlot> },
+          { path: 'citas', element: <ProtectedSlot requiredRoles={['ROLE_ADMIN']}><AdminCitasView /></ProtectedSlot> },
+          { path: 'expedientes', element: <ProtectedSlot requiredRoles={['ROLE_ADMIN']}><AdminExpedientesView /></ProtectedSlot> },
+          { path: 'usuarios', element: <ProtectedSlot requiredPermissions={['admin.users.manage']}><AdminUsersView /></ProtectedSlot> },
+          { path: 'roles', element: <ProtectedSlot requiredPermissions={['admin.roles.manage']}><AdminRolesView /></ProtectedSlot> },
+          { path: 'base-datos', element: <ProtectedSlot requiredRoles={['ROLE_ADMIN']} requiredPermissions={['admin.database.view']}><AdminDatabaseView /></ProtectedSlot> },
+          { path: 'auditoria', element: <ProtectedSlot requiredRoles={['ROLE_ADMIN']}><AdminAuditoriaView /></ProtectedSlot> }
         ]
       },
       {

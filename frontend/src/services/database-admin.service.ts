@@ -46,9 +46,10 @@ export const DatabaseAdminService = {
         downloadBlob(response.data, getFilenameFromDisposition(response.headers['content-disposition']) ?? `control-expedientes-backup-${Date.now()}.backup`);
     },
 
-    restoreDatabase: async (file: File): Promise<void> => {
+    restoreDatabase: async (file: File, password: string): Promise<void> => {
         const formData = new FormData();
         formData.append('file', file);
+        formData.append('password', password);
         await api.post('/api/admin/database/restore', formData, {
             headers: {
                 'Content-Type': 'multipart/form-data',
@@ -56,9 +57,9 @@ export const DatabaseAdminService = {
         });
     },
 
-    restoreStoredBackup: async (filename: string): Promise<void> => {
+    restoreStoredBackup: async (filename: string, password: string): Promise<void> => {
         await api.post('/api/admin/database/restore/stored', null, {
-            params: { filename },
+            params: { filename, password },
         });
     },
 

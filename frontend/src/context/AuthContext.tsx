@@ -18,13 +18,16 @@ export interface AuthState {
   isAuthenticated: boolean;
   user: User | null;
   roles: string[];
-  account: { authorities: string[]; firstName?: string; lastName?: string; email?: string } | null;
+  permissions: string[];
+  account: { authorities: string[]; permissions: string[]; firstName?: string; lastName?: string; email?: string } | null;
   loading: boolean;
 
   login: (username: string, password?: string) => Promise<{success: boolean, error?: string}>;
   logout: () => void;
   hasRole: (role: string) => boolean;
   hasAnyRole: (roles: string[]) => boolean;
+  hasPermission: (permission: string) => boolean;
+  hasAnyPermission: (permissions: string[]) => boolean;
 }
 
 const AuthContext = createContext<AuthState | undefined>(undefined);
@@ -34,7 +37,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [loading, setLoading] = useState(true); // Empieza cargando para verificar sesión
   const [user, setUser] = useState<User | null>(null);
   const [roles, setRoles] = useState<string[]>([]);
-  const [account, setAccount] = useState<{ authorities: string[]; firstName?: string; lastName?: string; email?: string } | null>(null);
+  const [permissions, setPermissions] = useState<string[]>([]);
+  const [account, setAccount] = useState<{ authorities: string[]; permissions: string[]; firstName?: string; lastName?: string; email?: string } | null>(null);
 
   /**
    * Obtiene los datos de la sesión activa desde /api/account (BFF).
@@ -49,11 +53,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setIsAuthenticated(true);
       setAccount({
         authorities: acc.authorities || [],
+        permissions: acc.permissions || [],
         firstName: acc.firstName,
         lastName: acc.lastName,
         email: acc.email,
       });
       setRoles(acc.authorities || []);
+      setPermissions(acc.permissions || []);
       setUser({
         id: acc.id?.toString() || acc.login,
         name: `${acc.firstName || ''} ${acc.lastName || ''}`.trim() || acc.login,
@@ -69,6 +75,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setIsAuthenticated(false);
       setUser(null);
       setRoles([]);
+      setPermissions([]);
       setAccount(null);
       return false;
     }
@@ -114,6 +121,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setIsAuthenticated(false);
     setUser(null);
     setRoles([]);
+    setPermissions([]);
     setAccount(null);
   };
 
@@ -126,8 +134,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return requiredRoles.some((role) => roles.includes(role));
   };
 
+  const hasPermission = (permission: string) => {
+    return permissions.includes(permission);
+  };
+
+  const hasAnyPermission = (requiredPermissions: string[]) => {
+    if (requiredPermissions.length === 0) return true;
+    return requiredPermissions.some((permission) => permissions.includes(permission));
+  };
+
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, roles, account, loading, login, logout, hasRole, hasAnyRole }}>
+    <AuthContext.Provider
+      value={{ isAuthenticated, user, roles, permissions, account, loading, login, logout, hasRole, hasAnyRole, hasPermission, hasAnyPermission }}
+    >
       {children}
     </AuthContext.Provider>
   );

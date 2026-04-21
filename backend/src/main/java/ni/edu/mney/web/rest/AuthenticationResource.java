@@ -4,6 +4,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import java.util.*;
+import java.util.stream.Collectors;
+import ni.edu.mney.security.PermissionAuthorityService;
 import ni.edu.mney.service.UserService;
 import ni.edu.mney.service.dto.AdminUserDTO;
 import ni.edu.mney.web.rest.vm.LoginVM;
@@ -53,11 +55,13 @@ public class AuthenticationResource {
 
     private final JwtDecoder jwtDecoder;
     private final UserService userService;
+    private final PermissionAuthorityService permissionAuthorityService;
     private final RestTemplate restTemplate = new RestTemplate();
 
-    public AuthenticationResource(JwtDecoder jwtDecoder, UserService userService) {
+    public AuthenticationResource(JwtDecoder jwtDecoder, UserService userService, PermissionAuthorityService permissionAuthorityService) {
         this.jwtDecoder = jwtDecoder;
         this.userService = userService;
+        this.permissionAuthorityService = permissionAuthorityService;
     }
 
     /**
@@ -154,21 +158,13 @@ public class AuthenticationResource {
      * Extract authorities/roles from the Keycloak JWT claims.
      */
     private Collection<GrantedAuthority> extractAuthorities(Jwt jwt) {
-        List<GrantedAuthority> authorities = new ArrayList<>();
-
-        // Extract from realm_access.roles (Keycloak standard)
         Map<String, Object> realmAccess = jwt.getClaim("realm_access");
-        if (realmAccess != null) {
-            @SuppressWarnings("unchecked")
-            List<String> roles = (List<String>) realmAccess.get("roles");
-            if (roles != null) {
-                roles.stream()
-                        .filter(role -> role.startsWith("ROLE_"))
-                        .map(SimpleGrantedAuthority::new)
-                        .forEach(authorities::add);
-            }
-        }
-
-        return authorities;
+        List<String> roles = realmAccess == null
+            ? List.of()
+            : ((List<?>) realmAccess.getOrDefault("roles", List.of())).stream()
+                .map(String::valueOf)
+                .filter(role -> role.startsWith("ROLE_"))
+                .collect(Collectors.toList());
+        return new ArrayList<>(permissionAuthorityService.buildAuthorities(roles));
     }
 }

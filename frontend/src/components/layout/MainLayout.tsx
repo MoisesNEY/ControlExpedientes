@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Navbar } from './Navbar';
@@ -6,6 +6,7 @@ import { navigationConfig } from '../../config/navigation';
 import { useAuth } from '../../context/AuthContext';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import ToastNotification from '../ui/ToastNotification';
+import { DatabaseAdminService } from '../../services/database-admin.service';
 
 const SIDEBAR_STORAGE_KEY = 'scan-sidebar-collapsed';
 const DESKTOP_BREAKPOINT = 1024;
@@ -39,12 +40,23 @@ export const MainLayout: React.FC = () => {
   });
   const [isDesktopSidebarCollapsed, setIsDesktopSidebarCollapsed] = useState(readSidebarPreference);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const downloadedBackupsRef = useRef<Set<string>>(new Set());
 
-  const { hasAnyRole, roles } = useAuth();
+  const { hasAnyRole, hasAnyPermission, hasPermission, roles, user } = useAuth();
   const location = useLocation();
 
-  // WebSocket: suscribirse a notificaciones de sala de espera
-  const { notificaciones, clearNotificacion, clearAll } = useWebSocket('/topic/espera');
+  const notificationTopics = useMemo(() => {
+    const topics = new Set<string>(['/topic/espera']);
+    if (user?.preferred_username && hasAnyRole(['ROLE_MEDICO'])) {
+      topics.add(`/topic/medico/${user.preferred_username}`);
+    }
+    if (hasAnyRole(['ROLE_ADMIN']) || hasAnyPermission(['admin.users.manage', 'admin.roles.manage', 'admin.database.view'])) {
+      topics.add('/topic/admin/system');
+    }
+    return Array.from(topics);
+  }, [hasAnyPermission, hasAnyRole, user?.preferred_username]);
+
+  const { notificaciones, clearNotificacion, clearAll } = useWebSocket(notificationTopics);
 
   const toggleSidebar = useCallback(() => {
     if (isMobile) {
@@ -105,10 +117,29 @@ export const MainLayout: React.FC = () => {
     return navigationConfig
       .map(group => ({
         ...group,
-        items: group.items.filter(item => hasAnyRole(item.requiredRoles))
+        items: group.items.filter(item => hasAnyRole(item.requiredRoles) || hasAnyPermission(item.requiredPermissions ?? []))
       }))
       .filter(group => group.items.length > 0);
-  }, [hasAnyRole, roles]); // roles como dependencia extra para reaccionar a cambios de sesión
+  }, [hasAnyPermission, hasAnyRole, roles]);
+
+  useEffect(() => {
+    const latestNotification = notificaciones[0];
+    if (!latestNotification?.archivoDescarga || !hasPermission('admin.database.export')) {
+      return;
+    }
+
+    if (latestNotification.tipo !== 'RESPALDO_AUTOMATICO') {
+      return;
+    }
+
+    if (downloadedBackupsRef.current.has(latestNotification.archivoDescarga)) {
+      return;
+    }
+
+    downloadedBackupsRef.current.add(latestNotification.archivoDescarga);
+
+    void DatabaseAdminService.downloadStoredBackup(latestNotification.archivoDescarga).catch(() => undefined);
+  }, [hasPermission, notificaciones]);
 
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-[#0b1a24] w-full overflow-hidden font-sans selection:bg-sky-500/30 selection:text-sky-900 dark:selection:text-sky-100">
