@@ -7,7 +7,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import java.io.IOException;
 import java.util.*;
-import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -185,13 +184,7 @@ public class SessionAuthFilter extends OncePerRequestFilter {
      * Extract authorities/roles from the Keycloak JWT claims.
      */
     private Collection<GrantedAuthority> extractAuthorities(Jwt jwt) {
-        Map<String, Object> realmAccess = jwt.getClaim("realm_access");
-        List<String> roles = realmAccess == null
-            ? List.of()
-            : ((List<?>) realmAccess.getOrDefault("roles", List.of())).stream()
-                .map(String::valueOf)
-                .filter(role -> role.startsWith("ROLE_"))
-                .collect(Collectors.toList());
+        List<String> roles = new ArrayList<>(SecurityUtils.extractRoleNamesFromClaims(jwt.getClaims()));
         return new ArrayList<>(permissionAuthorityService.buildAuthorities(roles));
     }
 
