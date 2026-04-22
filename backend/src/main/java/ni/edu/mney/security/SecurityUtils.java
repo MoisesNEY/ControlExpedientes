@@ -103,6 +103,13 @@ public final class SecurityUtils {
         return mapRolesToGrantedAuthorities(extractRoleNamesFromClaims(claims));
     }
 
+    /**
+     * Extract normalized role names from Keycloak claims.
+     *
+     * @param claims JWT/OIDC claims that may contain roles in groups, roles,
+     *        namespaced roles, or realm_access.roles.
+     * @return distinct role names normalized to ROLE_* values.
+     */
     public static Set<String> extractRoleNamesFromClaims(Map<String, Object> claims) {
         Set<String> roles = new LinkedHashSet<>();
         addRoles(roles, claims.get("groups"));
@@ -140,6 +147,18 @@ public final class SecurityUtils {
         return Stream.empty();
     }
 
+    /**
+     * Normalize Keycloak role/group values to ROLE_* authorities.
+     *
+     * <p>
+     * Group claims may arrive as full paths like /hospital/ROLE_ADMIN. This
+     * method trims the value, keeps only the last path segment when needed, and
+     * returns it only if it is a ROLE_* authority.
+     * </p>
+     *
+     * @param role raw role or group value from the token.
+     * @return normalized ROLE_* authority, or null when the value is not a role.
+     */
     private static String normalizeRoleName(String role) {
         if (role == null) {
             return null;
