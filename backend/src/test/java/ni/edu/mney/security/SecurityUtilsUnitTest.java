@@ -90,7 +90,7 @@ class SecurityUtilsUnitTest {
     }
 
     @Test
-    void testExtractAuthorityFromClaims_KeycloakGroupPathsAndRealmRoles() {
+    void testExtractAuthorityFromClaims_keycloakGroupPathsAndRealmRoles() {
         Map<String, Object> claims = new HashMap<>();
         claims.put("groups", Arrays.asList("/ROLE_ADMIN", "/hospital/ROLE_MEDICO", "/hospital/usuarios"));
         claims.put("realm_access", Map.of("roles", Arrays.asList(AuthoritiesConstants.USER, "offline_access")));
