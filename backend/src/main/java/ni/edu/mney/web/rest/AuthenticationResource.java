@@ -131,7 +131,7 @@ public class AuthenticationResource {
         } catch (HttpClientErrorException e) {
             LOG.warn("Keycloak authentication failed for user {}: {}", loginVM.getUsername(), e.getStatusCode());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("error", "Credenciales inválidas", "detail", "Usuario o contraseña incorrectos"));
+                    .body(Map.of("error", "Credenciales inválidas", "detail", resolveAuthenticationDetail(e)));
         } catch (Exception e) {
             LOG.error("Unexpected error during BFF authentication for user: {}", loginVM.getUsername(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -159,5 +159,16 @@ public class AuthenticationResource {
     private Collection<GrantedAuthority> extractAuthorities(Jwt jwt) {
         List<String> roles = new ArrayList<>(SecurityUtils.extractRoleNamesFromClaims(jwt.getClaims()));
         return new ArrayList<>(permissionAuthorityService.buildAuthorities(roles));
+    }
+
+    private String resolveAuthenticationDetail(HttpClientErrorException exception) {
+        String responseBody = Optional.ofNullable(exception.getResponseBodyAsString()).orElse("").toLowerCase(Locale.ROOT);
+        if (responseBody.contains("account is not fully set up")) {
+            return "La cuenta tiene acciones pendientes en Keycloak y no puede iniciar sesión desde esta aplicación. Asigna una contraseña permanente y deja vacías las acciones obligatorias.";
+        }
+        if (responseBody.contains("account disabled")) {
+            return "La cuenta está desactivada.";
+        }
+        return "Usuario o contraseña incorrectos";
     }
 }

@@ -6,6 +6,7 @@ import {
   type RoleDefinition,
   type RolePayload,
 } from '../../../services/admin-security.service';
+import { getApiErrorMessage } from '../../../utils/apiError';
 
 const emptyRoleForm: RolePayload = {
   roleName: 'ROLE_',
@@ -104,7 +105,7 @@ const AdminRolesView = () => {
       await loadData();
     } catch (error) {
       console.error('Error guardando rol:', error);
-      setMessage('No se pudo guardar el rol. Verifica el nombre y la conexión con Keycloak.');
+      setMessage(await getApiErrorMessage(error, 'No se pudo guardar el rol. Verifica el nombre y la conexión con Keycloak.'));
     } finally {
       setSaving(false);
     }
@@ -126,7 +127,7 @@ const AdminRolesView = () => {
       await loadData();
     } catch (error) {
       console.error('Error eliminando rol:', error);
-      setMessage('No se pudo eliminar el rol seleccionado.');
+      setMessage(await getApiErrorMessage(error, 'No se pudo eliminar el rol seleccionado.'));
     } finally {
       setDeletingRole(null);
     }

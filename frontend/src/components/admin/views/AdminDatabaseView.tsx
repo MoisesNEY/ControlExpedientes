@@ -9,6 +9,7 @@ import {
   type DatabaseBackupSettings,
   type DatabaseBackupSummary,
 } from '../../../services/database-admin.service';
+import { getApiErrorMessage } from '../../../utils/apiError';
 
 const DAY_OPTIONS = [
   { value: 'MONDAY', label: 'Lunes' },
@@ -104,7 +105,7 @@ const AdminDatabaseView = () => {
       });
     } catch (error) {
       console.error('Error cargando resumen de respaldos:', error);
-      setMessage('No se pudo cargar la configuración de respaldos.');
+      setMessage(await getApiErrorMessage(error, 'No se pudo cargar la configuración de respaldos.'));
     } finally {
       setLoading(false);
     }
@@ -153,7 +154,7 @@ const AdminDatabaseView = () => {
   };
 
   const handleExport = async (confirmation: ActionConfirmationPayload) => {
-    setMessage(null);
+    setMessage('Validando credenciales y generando el respaldo...');
     setExporting(true);
     try {
       await DatabaseAdminService.exportDatabase(confirmation);
@@ -162,14 +163,14 @@ const AdminDatabaseView = () => {
       await loadSummary();
     } catch (error) {
       console.error('Error exportando base de datos:', error);
-      setMessage('No se pudo generar el respaldo.');
+      setMessage(await getApiErrorMessage(error, 'No se pudo generar el respaldo.'));
     } finally {
       setExporting(false);
     }
   };
 
   const handleSaveSettings = async (confirmation: ActionConfirmationPayload) => {
-    setMessage(null);
+    setMessage('Validando credenciales y guardando la programación...');
     setSavingSettings(true);
     try {
       await DatabaseAdminService.saveSettings({
@@ -184,14 +185,14 @@ const AdminDatabaseView = () => {
       await loadSummary();
     } catch (error) {
       console.error('Error guardando configuración de respaldos:', error);
-      setMessage('No se pudo guardar la programación automática.');
+      setMessage(await getApiErrorMessage(error, 'No se pudo guardar la programación automática.'));
     } finally {
       setSavingSettings(false);
     }
   };
 
   const handleRestoreUpload = async (confirmation: ActionConfirmationPayload) => {
-    setMessage(null);
+    setMessage('Validando credenciales y restaurando el archivo...');
     setRestoringUpload(true);
     try {
       if (!backupFile) {
@@ -205,14 +206,14 @@ const AdminDatabaseView = () => {
       await loadSummary();
     } catch (error) {
       console.error('Error restaurando desde archivo:', error);
-      setMessage('No se pudo restaurar el archivo seleccionado.');
+      setMessage(await getApiErrorMessage(error, 'No se pudo restaurar el archivo seleccionado.'));
     } finally {
       setRestoringUpload(false);
     }
   };
 
   const handleRestoreStoredBackup = async (backup: DatabaseBackupHistoryItem, confirmation: ActionConfirmationPayload) => {
-    setMessage(null);
+    setMessage(`Validando credenciales y restaurando ${backup.filename}...`);
     setRestoringStoredFile(backup.filename);
     try {
       await DatabaseAdminService.restoreStoredBackup(backup.filename, confirmation);
@@ -221,7 +222,7 @@ const AdminDatabaseView = () => {
       await loadSummary();
     } catch (error) {
       console.error('Error restaurando respaldo almacenado:', error);
-      setMessage('No se pudo restaurar el respaldo almacenado.');
+      setMessage(await getApiErrorMessage(error, 'No se pudo restaurar el respaldo almacenado.'));
     } finally {
       setRestoringStoredFile(null);
     }
@@ -233,7 +234,7 @@ const AdminDatabaseView = () => {
       await DatabaseAdminService.downloadStoredBackup(backup.filename);
     } catch (error) {
       console.error('Error descargando respaldo almacenado:', error);
-      setMessage('No se pudo descargar el respaldo seleccionado.');
+      setMessage(await getApiErrorMessage(error, 'No se pudo descargar el respaldo seleccionado.'));
     } finally {
       setDownloadingStoredFile(null);
     }

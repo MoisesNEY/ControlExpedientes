@@ -7,8 +7,9 @@ import {
   type ManagedUserPayload,
   type RoleDefinition,
 } from '../../../services/admin-security.service';
+import { getApiErrorMessage } from '../../../utils/apiError';
 
-const defaultRequiredActions = ['UPDATE_PASSWORD'];
+const defaultRequiredActions: string[] = [];
 
 const emptyUserForm: ManagedUserPayload = {
   login: '',
@@ -18,7 +19,7 @@ const emptyUserForm: ManagedUserPayload = {
   activated: true,
   roles: [],
   password: '',
-  temporaryPassword: true,
+  temporaryPassword: false,
   requiredActions: defaultRequiredActions,
 };
 
@@ -67,8 +68,8 @@ const AdminUsersView = () => {
       activated: user.activated,
       roles: user.roles,
       password: '',
-      temporaryPassword: true,
-      requiredActions: user.requiredActions.length ? user.requiredActions : defaultRequiredActions,
+      temporaryPassword: false,
+      requiredActions: user.requiredActions,
     });
     setMessage(null);
   };
@@ -88,7 +89,7 @@ const AdminUsersView = () => {
       await loadData();
     } catch (error) {
       console.error('Error guardando usuario:', error);
-      setMessage('No se pudo guardar el usuario en Keycloak.');
+      setMessage(await getApiErrorMessage(error, 'No se pudo guardar el usuario en Keycloak.'));
     } finally {
       setSaving(false);
     }
@@ -99,7 +100,7 @@ const AdminUsersView = () => {
       <div className="flex flex-col gap-1">
         <h2 className="text-slate-900 dark:text-white text-3xl font-black tracking-tight">Gestión de usuarios</h2>
         <p className="text-slate-500 text-base font-medium">
-          Crea usuarios directamente en Keycloak, asigna roles y define acciones obligatorias como cambio de contraseña al primer inicio.
+          Crea usuarios directamente en Keycloak, asigna roles por grupo y usa contraseñas permanentes para que puedan iniciar sesión en la aplicación.
         </p>
       </div>
 
@@ -159,7 +160,7 @@ const AdminUsersView = () => {
           <div className="flex items-center justify-between gap-3">
             <div>
               <h3 className="text-lg font-black text-slate-900 dark:text-white">{editingUser ? `Editar ${editingUser.login}` : 'Crear usuario'}</h3>
-              <p className="text-sm text-slate-500">La contraseña solo se envía a Keycloak cuando la escribes.</p>
+              <p className="text-sm text-slate-500">La contraseña solo se envía a Keycloak cuando la escribes y debe quedar como permanente para que el usuario pueda iniciar sesión aquí.</p>
             </div>
             {editingUser && (
               <AppButton variant="ghost" icon="close" onClick={resetForm}>
@@ -216,6 +217,12 @@ const AdminUsersView = () => {
               />
               <span>Marcar contraseña como temporal</span>
             </label>
+
+            {(form.temporaryPassword || form.requiredActions.length > 0) && (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+                El login de esta aplicación no soporta contraseñas temporales ni acciones obligatorias de Keycloak. Guarda usuarios con contraseña permanente y sin acciones pendientes.
+              </div>
+            )}
 
             <div>
               <p className="text-xs font-black uppercase tracking-widest text-slate-500">Roles asignados</p>

@@ -109,8 +109,11 @@ public class AdminDatabaseResource {
         if (!expectedWord.equalsIgnoreCase(confirmation.confirmationWord())) {
             throw new IllegalArgumentException("La palabra de confirmación no es válida para esta operación.");
         }
-        if (!credentialValidationService.validateCurrentUserCredentials(confirmation.username(), confirmation.password())) {
-            throw new IllegalArgumentException("Debe confirmar su usuario y contraseña actual para ejecutar la operación.");
+        if (!credentialValidationService.isCurrentUser(confirmation.username())) {
+            throw new IllegalArgumentException("El usuario de confirmación no coincide con la sesión actual.");
+        }
+        if (!credentialValidationService.validateCurrentUserPassword(confirmation.password())) {
+            throw new IllegalArgumentException("La contraseña actual es incorrecta.");
         }
     }
 }
