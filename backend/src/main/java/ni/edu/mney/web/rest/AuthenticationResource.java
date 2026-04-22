@@ -4,8 +4,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import java.util.*;
-import java.util.stream.Collectors;
 import ni.edu.mney.security.PermissionAuthorityService;
+import ni.edu.mney.security.SecurityUtils;
 import ni.edu.mney.service.UserService;
 import ni.edu.mney.service.dto.AdminUserDTO;
 import ni.edu.mney.web.rest.vm.LoginVM;
@@ -14,7 +14,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
@@ -158,13 +157,7 @@ public class AuthenticationResource {
      * Extract authorities/roles from the Keycloak JWT claims.
      */
     private Collection<GrantedAuthority> extractAuthorities(Jwt jwt) {
-        Map<String, Object> realmAccess = jwt.getClaim("realm_access");
-        List<String> roles = realmAccess == null
-            ? List.of()
-            : ((List<?>) realmAccess.getOrDefault("roles", List.of())).stream()
-                .map(String::valueOf)
-                .filter(role -> role.startsWith("ROLE_"))
-                .collect(Collectors.toList());
+        List<String> roles = new ArrayList<>(SecurityUtils.extractRoleNamesFromClaims(jwt.getClaims()));
         return new ArrayList<>(permissionAuthorityService.buildAuthorities(roles));
     }
 }
