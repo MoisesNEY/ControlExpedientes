@@ -14,13 +14,16 @@ public class CredentialValidationService {
     }
 
     public boolean validateCurrentUserCredentials(String username, String password) {
-        return SecurityUtils.getCurrentUserLogin()
-            .filter(currentLogin -> currentLogin.equalsIgnoreCase(username == null ? "" : username.trim()))
-            .map(currentLogin -> keycloakAdminService.validateUserCredentials(currentLogin, password))
-            .orElse(false);
+        return isCurrentUser(username) && validateCurrentUserPassword(password);
     }
 
     public boolean validateCurrentUserPassword(String password) {
-        return SecurityUtils.getCurrentUserLogin().map(login -> validateCurrentUserCredentials(login, password)).orElse(false);
+        return SecurityUtils.getCurrentUserLogin().map(login -> keycloakAdminService.validateUserCredentials(login, password)).orElse(false);
+    }
+
+    public boolean isCurrentUser(String username) {
+        return SecurityUtils.getCurrentUserLogin()
+            .filter(currentLogin -> currentLogin.equalsIgnoreCase(username == null ? "" : username.trim()))
+            .isPresent();
     }
 }

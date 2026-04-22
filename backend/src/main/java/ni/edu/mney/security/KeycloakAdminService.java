@@ -61,6 +61,7 @@ public class KeycloakAdminService {
         Map<String, Object> payload = baseRolePayload(roleName, description, permissions);
         exchange(adminRealmUrl("/roles"), HttpMethod.POST, payload, Void.class);
         syncRoleComposites(roleName, compositeRoles);
+        ensureRoleGroup(roleName);
     }
 
     public void updateRole(String roleName, String description, Set<String> permissions, Set<String> compositeRoles) {
@@ -69,9 +70,11 @@ public class KeycloakAdminService {
         current.put("attributes", roleAttributes(permissions));
         exchange(roleUrl(roleName), HttpMethod.PUT, current, Void.class);
         syncRoleComposites(roleName, compositeRoles);
+        ensureRoleGroup(roleName);
     }
 
     public void deleteRole(String roleName) {
+        deleteRoleGroup(roleName);
         exchange(roleUrl(roleName), HttpMethod.DELETE, null, Void.class);
     }
 
@@ -224,31 +227,30 @@ public class KeycloakAdminService {
 
     private void syncUserRoles(String userId, Collection<String> desiredRoles) {
         Set<String> desired = normalizeRoleNames(desiredRoles);
-        Set<String> current = new LinkedHashSet<>(getUserRoles(userId));
+        Map<String, String> currentGroups = getUserRoleGroups(userId);
 
-        List<Map<String, Object>> toAdd = desired.stream().filter(role -> !current.contains(role)).map(this::getRoleRepresentation).toList();
-        if (!toAdd.isEmpty()) {
-            exchange(userUrl(userId) + "/role-mappings/realm", HttpMethod.POST, toAdd, Void.class);
+        for (String roleName : desired) {
+            if (currentGroups.containsKey(roleName)) {
+                continue;
+            }
+            String groupId = ensureRoleGroup(roleName);
+            exchange(userUrl(userId) + "/groups/" + encode(groupId), HttpMethod.PUT, null, Void.class);
         }
 
-        List<Map<String, Object>> toRemove = current.stream().filter(role -> !desired.contains(role)).map(this::getRoleRepresentation).toList();
-        if (!toRemove.isEmpty()) {
-            exchange(userUrl(userId) + "/role-mappings/realm", HttpMethod.DELETE, toRemove, Void.class);
+        for (Map.Entry<String, String> currentGroup : currentGroups.entrySet()) {
+            if (desired.contains(currentGroup.getKey())) {
+                continue;
+            }
+            exchange(userUrl(userId) + "/groups/" + encode(currentGroup.getValue()), HttpMethod.DELETE, null, Void.class);
         }
+
+        clearDirectUserRoles(userId);
     }
 
     private List<String> getUserRoles(String userId) {
-        List<?> body = exchange(userUrl(userId) + "/role-mappings/realm", HttpMethod.GET, null, List.class).getBody();
-        if (body == null) {
-            return List.of();
-        }
-        return body.stream()
-            .filter(Map.class::isInstance)
-            .map(Map.class::cast)
-            .map(item -> Objects.toString(item.get("name"), null))
-            .filter(name -> name != null && name.startsWith("ROLE_"))
-            .sorted()
-            .toList();
+        Set<String> roles = new LinkedHashSet<>(getUserDirectRoles(userId));
+        roles.addAll(getUserRoleGroups(userId).keySet());
+        return roles.stream().sorted().toList();
     }
 
     private ManagedKeycloakUser findUserById(String userId) {
@@ -269,15 +271,25 @@ public class KeycloakAdminService {
     }
 
     private String extractCreatedId(URI location, String login) {
+        return extractCreatedId(location, login, value -> {
+            List<?> body = exchange(adminRealmUrl("/users?username=" + encode(value)), HttpMethod.GET, null, List.class).getBody();
+            if (body != null && !body.isEmpty() && body.get(0) instanceof Map<?, ?> first) {
+                return Objects.toString(first.get("id"), null);
+            }
+            return null;
+        });
+    }
+
+    private String extractCreatedId(URI location, String value, java.util.function.Function<String, String> fallbackLookup) {
         if (location != null) {
             String path = location.getPath();
             return path.substring(path.lastIndexOf('/') + 1);
         }
-        List<?> body = exchange(adminRealmUrl("/users?username=" + encode(login)), HttpMethod.GET, null, List.class).getBody();
-        if (body != null && !body.isEmpty() && body.get(0) instanceof Map<?, ?> first) {
-            return Objects.toString(first.get("id"), null);
+        String lookedUpId = fallbackLookup.apply(value);
+        if (lookedUpId != null && !lookedUpId.isBlank()) {
+            return lookedUpId;
         }
-        throw new IllegalStateException("No se pudo identificar el usuario creado en Keycloak.");
+        throw new IllegalStateException("No se pudo identificar el recurso creado en Keycloak.");
     }
 
     private Map<String, Object> baseRolePayload(String roleName, String description, Set<String> permissions) {
@@ -327,6 +339,118 @@ public class KeycloakAdminService {
             throw new IllegalStateException("No se encontró el rol " + roleName + " en Keycloak.");
         }
         return safeObjectMap(body);
+    }
+
+    private String ensureRoleGroup(String roleName) {
+        String existingGroupId = findRoleGroupId(roleName);
+        if (existingGroupId != null) {
+            syncGroupRealmRoles(existingGroupId, Set.of(roleName));
+            return existingGroupId;
+        }
+
+        ResponseEntity<Void> response = exchange(adminRealmUrl("/groups"), HttpMethod.POST, Map.of("name", roleName), Void.class);
+        String createdGroupId = extractCreatedId(response.getHeaders().getLocation(), roleName, this::findRoleGroupId);
+        syncGroupRealmRoles(createdGroupId, Set.of(roleName));
+        return createdGroupId;
+    }
+
+    private void deleteRoleGroup(String roleName) {
+        String groupId = findRoleGroupId(roleName);
+        if (groupId != null) {
+            exchange(groupUrl(groupId), HttpMethod.DELETE, null, Void.class);
+        }
+    }
+
+    private void syncGroupRealmRoles(String groupId, Set<String> desiredRoles) {
+        Set<String> desired = normalizeRoleNames(desiredRoles);
+        Set<String> current = getGroupRealmRoles(groupId);
+
+        List<Map<String, Object>> toAdd = desired.stream().filter(role -> !current.contains(role)).map(this::getRoleRepresentation).toList();
+        if (!toAdd.isEmpty()) {
+            exchange(groupUrl(groupId) + "/role-mappings/realm", HttpMethod.POST, toAdd, Void.class);
+        }
+
+        List<Map<String, Object>> toRemove = current.stream().filter(role -> !desired.contains(role)).map(this::getRoleRepresentation).toList();
+        if (!toRemove.isEmpty()) {
+            exchange(groupUrl(groupId) + "/role-mappings/realm", HttpMethod.DELETE, toRemove, Void.class);
+        }
+    }
+
+    private Set<String> getGroupRealmRoles(String groupId) {
+        List<?> body = exchange(groupUrl(groupId) + "/role-mappings/realm", HttpMethod.GET, null, List.class).getBody();
+        return extractRoleNames(body);
+    }
+
+    private Map<String, String> getUserRoleGroups(String userId) {
+        List<?> body = exchange(userUrl(userId) + "/groups", HttpMethod.GET, null, List.class).getBody();
+        if (body == null) {
+            return Map.of();
+        }
+
+        Map<String, String> groups = new LinkedHashMap<>();
+        for (Object item : body) {
+            if (!(item instanceof Map<?, ?> rawGroup)) {
+                continue;
+            }
+            String groupName = Objects.toString(rawGroup.get("name"), null);
+            String groupId = Objects.toString(rawGroup.get("id"), null);
+            if (groupName == null || groupId == null || !groupName.startsWith("ROLE_")) {
+                continue;
+            }
+            groups.put(groupName, groupId);
+        }
+        return groups;
+    }
+
+    private void clearDirectUserRoles(String userId) {
+        List<Map<String, Object>> directRoles = getUserDirectRoleRepresentations(userId);
+        if (!directRoles.isEmpty()) {
+            exchange(userUrl(userId) + "/role-mappings/realm", HttpMethod.DELETE, directRoles, Void.class);
+        }
+    }
+
+    private List<String> getUserDirectRoles(String userId) {
+        return extractRoleNames(exchange(userUrl(userId) + "/role-mappings/realm", HttpMethod.GET, null, List.class).getBody())
+            .stream()
+            .sorted()
+            .toList();
+    }
+
+    private List<Map<String, Object>> getUserDirectRoleRepresentations(String userId) {
+        List<?> body = exchange(userUrl(userId) + "/role-mappings/realm", HttpMethod.GET, null, List.class).getBody();
+        if (body == null) {
+            return List.of();
+        }
+        return body.stream()
+            .filter(Map.class::isInstance)
+            .map(Map.class::cast)
+            .map(this::safeObjectMap)
+            .filter(item -> {
+                String name = Objects.toString(item.get("name"), null);
+                return name != null && name.startsWith("ROLE_");
+            })
+            .toList();
+    }
+
+    private String findRoleGroupId(String roleName) {
+        List<?> groups = exchange(adminRealmUrl("/groups?search=" + encode(roleName)), HttpMethod.GET, null, List.class).getBody();
+        if (groups == null) {
+            return null;
+        }
+        for (Object item : groups) {
+            if (!(item instanceof Map<?, ?> rawGroup)) {
+                continue;
+            }
+            if (!roleName.equals(Objects.toString(rawGroup.get("name"), null))) {
+                continue;
+            }
+            return Objects.toString(rawGroup.get("id"), null);
+        }
+        return null;
+    }
+
+    private String groupUrl(String groupId) {
+        return adminRealmUrl("/groups/" + encode(groupId));
     }
 
     private <T> ResponseEntity<T> exchange(String url, HttpMethod method, Object body, Class<T> responseType) {
@@ -406,6 +530,18 @@ public class KeycloakAdminService {
             return List.of();
         }
         return collection.stream().map(String::valueOf).distinct().sorted().toList();
+    }
+
+    private Set<String> extractRoleNames(Object rawValue) {
+        if (!(rawValue instanceof Collection<?> collection)) {
+            return Set.of();
+        }
+        return collection.stream()
+            .filter(Map.class::isInstance)
+            .map(Map.class::cast)
+            .map(item -> Objects.toString(item.get("name"), null))
+            .filter(name -> name != null && name.startsWith("ROLE_"))
+            .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
     private Map<String, Object> safeObjectMap(Map<?, ?> source) {
