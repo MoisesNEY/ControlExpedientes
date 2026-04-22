@@ -280,12 +280,12 @@ public class KeycloakAdminService {
         });
     }
 
-    private String extractCreatedId(URI location, String value, java.util.function.Function<String, String> fallbackLookup) {
+    private String extractCreatedId(URI location, String lookupKey, java.util.function.Function<String, String> fallbackLookup) {
         if (location != null) {
             String path = location.getPath();
             return path.substring(path.lastIndexOf('/') + 1);
         }
-        String lookedUpId = fallbackLookup.apply(value);
+        String lookedUpId = fallbackLookup.apply(lookupKey);
         if (lookedUpId != null && !lookedUpId.isBlank()) {
             return lookedUpId;
         }

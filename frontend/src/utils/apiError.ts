@@ -8,13 +8,13 @@ const readBlobMessage = async (blob: Blob): Promise<string | null> => {
 
   try {
     const parsed = JSON.parse(text) as Record<string, unknown>;
-    return extractStructuredMessage(parsed) ?? text;
+    return extractErrorMessageFromObject(parsed) ?? text;
   } catch {
     return text;
   }
 };
 
-const extractStructuredMessage = (value: unknown): string | null => {
+const extractErrorMessageFromObject = (value: unknown): string | null => {
   if (!value || typeof value !== 'object') {
     return null;
   }
@@ -41,7 +41,7 @@ export const getApiErrorMessage = async (error: unknown, fallback: string): Prom
       return responseData;
     }
 
-    const structuredMessage = extractStructuredMessage(responseData);
+    const structuredMessage = extractErrorMessageFromObject(responseData);
     if (structuredMessage) {
       return structuredMessage;
     }

@@ -114,12 +114,11 @@ public class UserAdministrationService {
 
     private void validateLoginCompatibleProvisioning(ManagedUserUpsertDTO request) {
         boolean hasRequiredActions = request.requiredActions() != null && request.requiredActions().stream().anyMatch(action -> action != null && !action.isBlank());
-        if (!request.temporaryPassword() && !hasRequiredActions) {
-            return;
+        if (request.temporaryPassword() || hasRequiredActions) {
+            throw new IllegalArgumentException(
+                "Esta aplicación no admite contraseñas temporales ni acciones obligatorias de Keycloak en el inicio de sesión. Asigna una contraseña permanente y deja vacías las acciones obligatorias."
+            );
         }
-        throw new IllegalArgumentException(
-            "Esta aplicación no admite contraseñas temporales ni acciones obligatorias de Keycloak en el inicio de sesión. Asigna una contraseña permanente y deja vacías las acciones obligatorias."
-        );
     }
 
     private ManagedUserDTO toDto(KeycloakAdminService.ManagedKeycloakUser user) {
