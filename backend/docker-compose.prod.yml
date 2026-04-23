@@ -1,0 +1,80 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: control-expedientes-backend:prod
+    container_name: control-expedientes-backend
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgresql:5432/controlExpedientesBackend
+      SPRING_DATASOURCE_USERNAME: controlExpedientesBackend
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_OIDC_ISSUER_URI: http://keycloak:9080/realms/jhipster
+      SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_OIDC_CLIENT_ID: web_app
+      SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_OIDC_CLIENT_SECRET: web_app
+      APPLICATION_KEYCLOAK_ADMIN_CLIENT_ID: admin-cli
+      APPLICATION_KEYCLOAK_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USERNAME}
+      APPLICATION_KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      APPLICATION_DATABASE_BACKUP_STORAGE_PATH: /app/data/backups
+      _JAVA_OPTIONS: -Xms256m -Xmx768m
+    ports:
+      - '8080:8080'
+    volumes:
+      - backend-backups:/app/data/backups
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8080/management/health']
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+
+  postgresql:
+    image: postgres:17.4
+    container_name: control-expedientes-postgresql
+    environment:
+      POSTGRES_DB: controlExpedientesBackend
+      POSTGRES_USER: controlExpedientesBackend
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - '5434:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.2.3
+    container_name: control-expedientes-keycloak
+    command: start-dev --import-realm --http-port=9080
+    environment:
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN_USERNAME}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_DB: dev-file
+      KC_FEATURES: scripts
+      KC_HEALTH_ENABLED: 'true'
+      KC_HTTP_MANAGEMENT_PORT: 9990
+    ports:
+      - '9080:9080'
+      - '9443:9443'
+    volumes:
+      - ./src/main/docker/realm-config:/opt/keycloak/data/import
+      - ./src/main/docker/realm-config/keycloak-health-check.sh:/opt/keycloak/health-check.sh
+    healthcheck:
+      test: ['CMD-SHELL', 'bash /opt/keycloak/health-check.sh']
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+volumes:
+  postgres-data:
+  backend-backups:

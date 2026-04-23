@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AppButton } from '../../ui/AppButton';
+import { useAuth } from '../../../context/AuthContext';
 import {
   AdminSecurityService,
   AUTH_REQUIRED_ACTIONS,
@@ -24,6 +25,7 @@ const emptyUserForm: ManagedUserPayload = {
 };
 
 const AdminUsersView = () => {
+  const { hasAnyRole, hasAnyPermission } = useAuth();
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [roles, setRoles] = useState<RoleDefinition[]>([]);
   const [form, setForm] = useState<ManagedUserPayload>(emptyUserForm);
@@ -34,11 +36,17 @@ const AdminUsersView = () => {
   const [deletingUser, setDeletingUser] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [message, setMessage] = useState<string | null>(null);
+  const canManage = hasAnyRole(['ROLE_ADMIN']) || hasAnyPermission(['admin.users.manage']);
+  const canExport = hasAnyRole(['ROLE_ADMIN']) || hasAnyPermission(['admin.users.export']);
+  const canViewRoles = hasAnyRole(['ROLE_ADMIN']) || hasAnyPermission(['admin.roles.view', 'admin.roles.manage', 'admin.roles.export']);
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const [userList, roleList] = await Promise.all([AdminSecurityService.getUsers(), AdminSecurityService.getRoles()]);
+      const [userList, roleList] = await Promise.all([
+        AdminSecurityService.getUsers(),
+        canManage && canViewRoles ? AdminSecurityService.getRoles() : Promise.resolve([]),
+      ]);
       setUsers(userList);
       setRoles(roleList);
     } catch (error) {
@@ -186,9 +194,11 @@ const AdminUsersView = () => {
                 placeholder="Buscar usuario o rol"
               />
               <div className="flex gap-2">
-                <AppButton variant="outline" icon="download" isLoading={exporting} onClick={() => void handleExport()}>
-                  Excel
-                </AppButton>
+                {canExport && (
+                  <AppButton variant="outline" icon="download" isLoading={exporting} onClick={() => void handleExport()}>
+                    Excel
+                  </AppButton>
+                )}
                 <AppButton variant="outline" icon="refresh" onClick={() => void loadData()}>
                   Actualizar
                 </AppButton>
@@ -226,20 +236,22 @@ const AdminUsersView = () => {
                         ))}
                       </div>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      <AppButton variant="outline" size="sm" icon="edit" onClick={() => startEditing(user)}>
-                        Editar
-                      </AppButton>
-                      <AppButton
-                        variant="danger"
-                        size="sm"
-                        icon="delete"
-                        isLoading={deletingUser === user.id}
-                        onClick={() => void handleDelete(user)}
-                      >
-                        Eliminar
-                      </AppButton>
-                    </div>
+                    {canManage && (
+                      <div className="flex flex-wrap gap-2">
+                        <AppButton variant="outline" size="sm" icon="edit" onClick={() => startEditing(user)}>
+                          Editar
+                        </AppButton>
+                        <AppButton
+                          variant="danger"
+                          size="sm"
+                          icon="delete"
+                          isLoading={deletingUser === user.id}
+                          onClick={() => void handleDelete(user)}
+                        >
+                          Eliminar
+                        </AppButton>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -258,14 +270,20 @@ const AdminUsersView = () => {
               <h3 className="text-lg font-black text-slate-900 dark:text-white">{editingUser ? `Editar ${editingUser.login}` : 'Crear usuario'}</h3>
               <p className="text-sm text-slate-500">La contraseña solo se envía cuando la escribes. Si marcas acciones obligatorias o contraseña temporal, el usuario continuará el acceso en el flujo seguro del navegador.</p>
             </div>
-            {editingUser && (
+            {editingUser && canManage && (
               <AppButton variant="ghost" icon="close" onClick={resetForm}>
                 Cancelar
               </AppButton>
             )}
           </div>
 
-          <div className="space-y-4">
+          {!canManage && (
+            <div className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 px-4 py-4 text-sm text-slate-500">
+              Tienes acceso de solo lectura al catálogo de usuarios.
+            </div>
+          )}
+
+          <div className={`space-y-4 ${!canManage ? 'pointer-events-none opacity-60' : ''}`}>
             {[
               { key: 'login', label: 'Usuario', type: 'text' },
               { key: 'firstName', label: 'Nombres', type: 'text' },
@@ -365,9 +383,11 @@ const AdminUsersView = () => {
             </div>
           </div>
 
-          <AppButton variant="primary" icon="save" isLoading={saving} onClick={() => void handleSubmit()}>
-            {editingUser ? 'Guardar cambios' : 'Crear usuario'}
-          </AppButton>
+          {canManage && (
+            <AppButton variant="primary" icon="save" isLoading={saving} onClick={() => void handleSubmit()}>
+              {editingUser ? 'Guardar cambios' : 'Crear usuario'}
+            </AppButton>
+          )}
         </div>
       </div>
 

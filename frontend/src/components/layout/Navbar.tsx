@@ -149,6 +149,10 @@ export const Navbar: React.FC<NavbarProps> = ({
     }
   };
 
+  const visibleNotifications = notifications
+    .map((notification, index) => ({ notification, index }))
+    .filter(({ notification }) => !notification.archivoDescarga || hasAnyPermission(['admin.database.export']));
+
   return (
     <header className="h-[73px] bg-white dark:bg-[#0b1a24] border-b border-slate-200 dark:border-white/[0.05] flex items-center justify-between px-4 lg:px-6 shadow-sm z-20 shrink-0 transition-all duration-300">
       
@@ -194,9 +198,9 @@ export const Navbar: React.FC<NavbarProps> = ({
             aria-label="Abrir notificaciones"
           >
             <span className="material-symbols-outlined text-[22px]">notifications</span>
-            {notifications.length > 0 && (
+            {visibleNotifications.length > 0 && (
               <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-rose-500 text-white text-[10px] font-black rounded-full ring-2 ring-white dark:ring-[#0b1a24] flex items-center justify-center">
-                {notifications.length > 9 ? '9+' : notifications.length}
+                {visibleNotifications.length > 9 ? '9+' : visibleNotifications.length}
               </span>
             )}
           </button>
@@ -210,10 +214,10 @@ export const Navbar: React.FC<NavbarProps> = ({
               <div>
                 <p className="text-[13px] font-bold text-slate-900 dark:text-white">Notificaciones</p>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                  {notifications.length ? `${notifications.length} pendiente(s)` : 'Sin pendientes'}
+                  {visibleNotifications.length ? `${visibleNotifications.length} pendiente(s)` : 'Sin pendientes'}
                 </p>
               </div>
-              {notifications.length > 0 && (
+              {visibleNotifications.length > 0 && (
                 <button
                   onClick={onClearNotifications}
                   className="text-[11px] font-black uppercase tracking-widest text-sky-500 hover:text-sky-600"
@@ -229,9 +233,9 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
             )}
 
-            {notifications.length > 0 ? (
+            {visibleNotifications.length > 0 ? (
               <div className="max-h-[360px] overflow-y-auto">
-                {notifications.slice(0, 8).map((notification, index) => (
+                {visibleNotifications.slice(0, 8).map(({ notification, index }) => (
                   <div key={`${notification.citaId}-${notification.timestamp}-${index}`} className="border-b border-slate-100 dark:border-white/5 last:border-b-0">
                     <div className="flex items-start gap-3 px-5 py-4 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
                       <button
@@ -241,7 +245,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                         <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{notification.pacienteNombre || 'Notificación'}</p>
                         <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{notification.mensaje}</p>
                         <p className="text-[11px] text-slate-400 mt-2">{new Date(notification.timestamp).toLocaleString('es-NI')}</p>
-                        {notification.accionLabel && (
+                        {notification.accionLabel && (!notification.archivoDescarga || hasAnyPermission(['admin.database.export'])) && (
                           <p className="mt-2 text-[11px] font-black uppercase tracking-widest text-sky-500">
                             {notification.accionLabel}
                           </p>
