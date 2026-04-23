@@ -7,6 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import ToastNotification from '../ui/ToastNotification';
 import { DatabaseAdminService } from '../../services/database-admin.service';
+import { canAccessRequirement } from '../../utils/accessControl';
 
 const SIDEBAR_STORAGE_KEY = 'scan-sidebar-collapsed';
 const DESKTOP_BREAKPOINT = 1024;
@@ -42,7 +43,7 @@ export const MainLayout: React.FC = () => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const downloadedBackupsRef = useRef<Set<string>>(new Set());
 
-  const { hasAnyRole, hasAnyPermission, hasPermission, user } = useAuth();
+  const { hasAnyRole, hasAnyPermission, hasPermission, user, roles, permissions } = useAuth();
   const location = useLocation();
 
   const notificationTopics = useMemo(() => {
@@ -118,18 +119,11 @@ export const MainLayout: React.FC = () => {
       .map(group => ({
         ...group,
         items: group.items.filter(item => {
-          const hasRoleRestriction = item.requiredRoles.length > 0;
-          const hasPermissionRestriction = (item.requiredPermissions?.length ?? 0) > 0;
-          if (!hasRoleRestriction && !hasPermissionRestriction) {
-            return true;
-          }
-          const roleAllowed = hasRoleRestriction && hasAnyRole(item.requiredRoles);
-          const permissionAllowed = hasPermissionRestriction && hasAnyPermission(item.requiredPermissions ?? []);
-          return roleAllowed || permissionAllowed;
+          return canAccessRequirement(roles, permissions, item);
         })
       }))
       .filter(group => group.items.length > 0);
-  }, [hasAnyPermission, hasAnyRole]);
+  }, [permissions, roles]);
 
   useEffect(() => {
     const latestNotification = notificaciones[0];

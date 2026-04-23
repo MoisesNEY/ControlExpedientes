@@ -1,6 +1,9 @@
 package ni.edu.mney.web.rest;
 
+import java.time.LocalDate;
 import ni.edu.mney.security.AuthoritiesConstants;
+import ni.edu.mney.service.AdminSecurityExportService;
+import ni.edu.mney.service.ReporteClinicoExportService;
 import ni.edu.mney.service.ReporteExpedienteService;
 import ni.edu.mney.service.ReporteHistorialService;
 import ni.edu.mney.service.ReporteRecetaService;
@@ -25,15 +28,18 @@ public class ReporteResource {
     private final ReporteRecetaService reporteRecetaService;
     private final ReporteHistorialService reporteHistorialService;
     private final ReporteExpedienteService reporteExpedienteService;
+    private final ReporteClinicoExportService reporteClinicoExportService;
 
     public ReporteResource(
         ReporteRecetaService reporteRecetaService,
         ReporteHistorialService reporteHistorialService,
-        ReporteExpedienteService reporteExpedienteService
+        ReporteExpedienteService reporteExpedienteService,
+        ReporteClinicoExportService reporteClinicoExportService
     ) {
         this.reporteRecetaService = reporteRecetaService;
         this.reporteHistorialService = reporteHistorialService;
         this.reporteExpedienteService = reporteExpedienteService;
+        this.reporteClinicoExportService = reporteClinicoExportService;
     }
 
     /**
@@ -112,6 +118,16 @@ public class ReporteResource {
                 .body(pdfBytes);
     }
 
+    @GetMapping("/historial/{pacienteId}/excel")
+    @PreAuthorize("hasAnyAuthority('" + AuthoritiesConstants.ADMIN + "', '" + AuthoritiesConstants.MEDICO + "')")
+    public ResponseEntity<byte[]> obtenerHistorialExcel(@PathVariable("pacienteId") Long pacienteId) {
+        AdminSecurityExportService.ExportedSpreadsheet export = reporteClinicoExportService.generarHistorialExcel(pacienteId);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.parseMediaType(export.contentType()));
+        headers.setContentDispositionFormData("attachment", export.filename());
+        return ResponseEntity.ok().headers(headers).body(export.content());
+    }
+
     /**
      * {@code GET  /expediente/{expedienteId}} : Genera PDF del expediente clínico.
      *
@@ -133,5 +149,46 @@ public class ReporteResource {
         return ResponseEntity.ok()
                 .headers(headers)
                 .body(pdfBytes);
+    }
+
+    @GetMapping("/expediente/{expedienteId}/excel")
+    @PreAuthorize("hasAnyAuthority('" + AuthoritiesConstants.ADMIN + "', '" + AuthoritiesConstants.MEDICO + "')")
+    public ResponseEntity<byte[]> obtenerExpedienteExcel(@PathVariable("expedienteId") Long expedienteId) {
+        AdminSecurityExportService.ExportedSpreadsheet export = reporteClinicoExportService.generarExpedienteExcel(expedienteId);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.parseMediaType(export.contentType()));
+        headers.setContentDispositionFormData("attachment", export.filename());
+        return ResponseEntity.ok().headers(headers).body(export.content());
+    }
+
+    @GetMapping(value = "/consultas/resumen", produces = MediaType.APPLICATION_PDF_VALUE)
+    @PreAuthorize("hasAnyAuthority('" + AuthoritiesConstants.ADMIN + "', '" + AuthoritiesConstants.MEDICO + "')")
+    public ResponseEntity<byte[]> obtenerResumenConsultasPdf(
+        @RequestParam("fechaInicio") LocalDate fechaInicio,
+        @RequestParam("fechaFin") LocalDate fechaFin,
+        @RequestParam(value = "pacienteId", required = false) Long pacienteId,
+        @RequestParam(value = "doctorLogin", required = false) String doctorLogin
+    ) {
+        byte[] pdfBytes = reporteClinicoExportService.generarResumenConsultasPdf(fechaInicio, fechaFin, pacienteId, doctorLogin);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentDispositionFormData("inline", "consultas-" + fechaInicio + "-" + fechaFin + ".pdf");
+        return ResponseEntity.ok().headers(headers).body(pdfBytes);
+    }
+
+    @GetMapping("/consultas/resumen/excel")
+    @PreAuthorize("hasAnyAuthority('" + AuthoritiesConstants.ADMIN + "', '" + AuthoritiesConstants.MEDICO + "')")
+    public ResponseEntity<byte[]> obtenerResumenConsultasExcel(
+        @RequestParam("fechaInicio") LocalDate fechaInicio,
+        @RequestParam("fechaFin") LocalDate fechaFin,
+        @RequestParam(value = "pacienteId", required = false) Long pacienteId,
+        @RequestParam(value = "doctorLogin", required = false) String doctorLogin
+    ) {
+        AdminSecurityExportService.ExportedSpreadsheet export =
+            reporteClinicoExportService.generarResumenConsultasExcel(fechaInicio, fechaFin, pacienteId, doctorLogin);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.parseMediaType(export.contentType()));
+        headers.setContentDispositionFormData("attachment", export.filename());
+        return ResponseEntity.ok().headers(headers).body(export.content());
     }
 }

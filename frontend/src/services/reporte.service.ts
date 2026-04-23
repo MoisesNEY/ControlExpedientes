@@ -20,6 +20,13 @@ interface RecetaPreviewPayload {
     }>;
 }
 
+interface ConsultasResumenPayload {
+    fechaInicio: string;
+    fechaFin: string;
+    pacienteId?: number;
+    doctorLogin?: string;
+}
+
 export const ReporteService = {
     descargarRecetaPdf: async (citaId: number): Promise<void> => {
         const response = await api.get(`/api/reportes/receta/${citaId}`, {
@@ -49,10 +56,40 @@ export const ReporteService = {
         downloadBlob(response.data, getFilenameFromDisposition(response.headers['content-disposition']) ?? `historial-clinico-${pacienteId}.pdf`);
     },
 
+    descargarHistorialExcel: async (pacienteId: number): Promise<void> => {
+        const response = await api.get(`/api/reportes/historial/${pacienteId}/excel`, {
+            responseType: 'blob',
+        });
+        downloadBlob(response.data, getFilenameFromDisposition(response.headers['content-disposition']) ?? `historial-clinico-${pacienteId}.xlsx`);
+    },
+
     descargarExpedientePdf: async (expedienteId: number): Promise<void> => {
         const response = await api.get(`/api/reportes/expediente/${expedienteId}`, {
             responseType: 'blob',
         });
         downloadBlob(response.data, getFilenameFromDisposition(response.headers['content-disposition']) ?? `expediente-${expedienteId}.pdf`);
+    },
+
+    descargarExpedienteExcel: async (expedienteId: number): Promise<void> => {
+        const response = await api.get(`/api/reportes/expediente/${expedienteId}/excel`, {
+            responseType: 'blob',
+        });
+        downloadBlob(response.data, getFilenameFromDisposition(response.headers['content-disposition']) ?? `expediente-${expedienteId}.xlsx`);
+    },
+
+    descargarResumenConsultasPdf: async (payload: ConsultasResumenPayload): Promise<void> => {
+        const response = await api.get('/api/reportes/consultas/resumen', {
+            params: payload,
+            responseType: 'blob',
+        });
+        downloadBlob(response.data, getFilenameFromDisposition(response.headers['content-disposition']) ?? `consultas-${payload.fechaInicio}-${payload.fechaFin}.pdf`);
+    },
+
+    descargarResumenConsultasExcel: async (payload: ConsultasResumenPayload): Promise<void> => {
+        const response = await api.get('/api/reportes/consultas/resumen/excel', {
+            params: payload,
+            responseType: 'blob',
+        });
+        downloadBlob(response.data, getFilenameFromDisposition(response.headers['content-disposition']) ?? `consultas-${payload.fechaInicio}-${payload.fechaFin}.xlsx`);
     },
 };
