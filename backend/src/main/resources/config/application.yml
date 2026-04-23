@@ -211,8 +211,8 @@ jhipster:
   api-docs:
     default-include-pattern: /api/**
     management-include-pattern: /management/**
-    title: Control Expedientes Backend API
-    description: Control Expedientes Backend API documentation
+    title: ClinData Backend API
+    description: ClinData Backend API documentation
     version: 0.0.1
     terms-of-service-url:
     contact-name:

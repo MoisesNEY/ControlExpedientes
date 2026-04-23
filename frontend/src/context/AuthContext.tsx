@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
+import type { AxiosError } from 'axios';
 import api from '../services/api';
 
 export interface User {
@@ -22,7 +23,8 @@ export interface AuthState {
   account: { authorities: string[]; permissions: string[]; firstName?: string; lastName?: string; email?: string } | null;
   loading: boolean;
 
-  login: (username: string, password?: string) => Promise<{success: boolean, error?: string}>;
+  login: (username: string, password?: string) => Promise<{success: boolean, error?: string, requiresBrowserLogin?: boolean}>;
+  loginWithKeycloak: (redirectPath?: string) => void;
   logout: () => void;
   hasRole: (role: string) => boolean;
   hasAnyRole: (roles: string[]) => boolean;
@@ -105,10 +107,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return { success: true };
       }
       return { success: false, error: 'No se pudo cargar la cuenta después del login' };
-    } catch (err: any) {
+    } catch (err) {
+      const axiosError = err as AxiosError<{ detail?: string; requiresBrowserLogin?: boolean }>;
       setLoading(false);
-      return { success: false, error: err?.response?.data?.detail || 'Error al iniciar sesión' };
+      return {
+        success: false,
+        error: axiosError.response?.data?.detail || 'Error al iniciar sesión',
+        requiresBrowserLogin: Boolean(axiosError.response?.data?.requiresBrowserLogin),
+      };
     }
+  };
+
+  const loginWithKeycloak = (redirectPath = '/login') => {
+    const redirectUri = new URL(redirectPath, window.location.origin).toString();
+    window.location.assign(`/api/authenticate/keycloak?redirect_uri=${encodeURIComponent(redirectUri)}`);
   };
 
   const logout = async () => {
@@ -117,7 +129,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } catch {
       // Ignorar — limpiar estado local de todas formas
     }
-    try { localStorage.removeItem('activeConsultation'); } catch (e) { }
+    try {
+      localStorage.removeItem('activeConsultation');
+    } catch {
+      void 0;
+    }
     setIsAuthenticated(false);
     setUser(null);
     setRoles([]);
@@ -144,9 +160,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   return (
-    <AuthContext.Provider
-      value={{ isAuthenticated, user, roles, permissions, account, loading, login, logout, hasRole, hasAnyRole, hasPermission, hasAnyPermission }}
-    >
+      <AuthContext.Provider
+      value={{
+        isAuthenticated,
+        user,
+        roles,
+        permissions,
+        account,
+        loading,
+        login,
+        loginWithKeycloak,
+        logout,
+        hasRole,
+        hasAnyRole,
+        hasPermission,
+        hasAnyPermission,
+      }}
+      >
       {children}
     </AuthContext.Provider>
   );

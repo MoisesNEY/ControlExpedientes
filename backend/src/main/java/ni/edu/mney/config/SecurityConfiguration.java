@@ -5,11 +5,13 @@ import static org.springframework.security.oauth2.core.oidc.StandardClaimNames.P
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import java.util.*;
 import java.util.function.Supplier;
 import ni.edu.mney.security.*;
 import ni.edu.mney.security.SecurityUtils;
 import ni.edu.mney.security.SessionAuthFilter;
+import ni.edu.mney.web.rest.AuthenticationResource;
 import ni.edu.mney.security.oauth2.AudienceValidator;
 import ni.edu.mney.security.oauth2.CustomClaimConverter;
 import org.springframework.beans.factory.annotation.Value;
@@ -17,6 +19,7 @@ import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.convert.converter.Converter;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -28,6 +31,7 @@ import org.springframework.security.oauth2.core.OAuth2TokenValidator;
 import org.springframework.security.oauth2.core.oidc.user.OidcUserAuthority;
 import org.springframework.security.oauth2.jwt.*;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.csrf.*;
 import org.springframework.security.web.servlet.util.matcher.MvcRequestMatcher;
@@ -59,15 +63,25 @@ public class SecurityConfiguration {
                 .csrf(csrf -> csrf
                         .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                         .csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler())
-                        .ignoringRequestMatchers(mvc.pattern("/api/authenticate"), mvc.pattern("/api/logout")))
+                        .ignoringRequestMatchers(
+                            mvc.pattern("/api/authenticate"),
+                            mvc.pattern("/api/authenticate/keycloak"),
+                            mvc.pattern("/api/logout")
+                        ))
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
                         .sessionFixation(sessionFixation -> sessionFixation.none()))
+                .exceptionHandling(exceptions ->
+                    exceptions.defaultAuthenticationEntryPointFor(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED), mvc.pattern("/api/**"))
+                )
                 .authorizeHttpRequests(authz ->
                 // prettier-ignore
                 authz
                         .requestMatchers(mvc.pattern("/api/authenticate")).permitAll()
+                        .requestMatchers(mvc.pattern("/api/authenticate/keycloak")).permitAll()
                         .requestMatchers(mvc.pattern("/api/auth-info")).permitAll()
+                        .requestMatchers(mvc.pattern("/oauth2/**")).permitAll()
+                        .requestMatchers(mvc.pattern("/login/oauth2/**")).permitAll()
                         .requestMatchers(mvc.pattern("/ws/**")).permitAll()
                         .requestMatchers(mvc.pattern("/api/**")).authenticated()
                         .requestMatchers(mvc.pattern("/v3/api-docs/**")).hasAuthority(AuthoritiesConstants.ADMIN)
@@ -78,10 +92,34 @@ public class SecurityConfiguration {
                         .requestMatchers(mvc.pattern("/management/**")).hasAuthority(AuthoritiesConstants.ADMIN))
                 // BFF pattern: no oauth2Login redirect, use session-based auth filter instead
                 .addFilterBefore(sessionAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                .oauth2Login(oauth2 ->
+                    oauth2
+                        .successHandler((request, response, authentication) -> response.sendRedirect(consumePostLoginRedirect(request.getSession(false), "/")))
+                        .failureHandler((request, response, exception) ->
+                            response.sendRedirect(appendFailureMarker(consumePostLoginRedirect(request.getSession(false), "/login")))
+                        )
+                )
                 .oauth2ResourceServer(
                         oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(authenticationConverter())))
                 .oauth2Client(withDefaults());
         return http.build();
+    }
+
+    private String consumePostLoginRedirect(HttpSession session, String fallback) {
+        if (session == null) {
+            return fallback;
+        }
+        Object redirect = session.getAttribute(AuthenticationResource.SESSION_ATTR_POST_LOGIN_REDIRECT);
+        session.removeAttribute(AuthenticationResource.SESSION_ATTR_POST_LOGIN_REDIRECT);
+        if (redirect instanceof String redirectValue && StringUtils.hasText(redirectValue)) {
+            return redirectValue;
+        }
+        return fallback;
+    }
+
+    private String appendFailureMarker(String redirectUri) {
+        String separator = redirectUri.contains("?") ? "&" : "?";
+        return redirectUri + separator + "authError=keycloak";
     }
 
     @Bean

@@ -55,7 +55,7 @@ public final class PdfReportSupport {
         header.setSpacingAfter(16f);
 
         PdfPCell left = createCell(true);
-        left.addElement(new Paragraph("Control Expedientes", fonts.title()));
+        left.addElement(new Paragraph("ClinData", fonts.title()));
         left.addElement(new Paragraph(subtitle, fonts.muted()));
 
         PdfPCell right = createCell(true);

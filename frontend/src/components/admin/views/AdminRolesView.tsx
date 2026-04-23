@@ -138,7 +138,7 @@ const AdminRolesView = () => {
       <div className="flex flex-col gap-1">
         <h2 className="text-slate-900 dark:text-white text-3xl font-black tracking-tight">Gestión dinámica de roles</h2>
         <p className="text-slate-500 text-base font-medium">
-          Cada rol se sincroniza con Keycloak y puede combinar roles base del sistema con permisos administrativos específicos.
+          Cada rol se sincroniza en tiempo real con Keycloak y la lista siempre refleja el estado actual del proveedor de identidad.
         </p>
       </div>
 
@@ -147,7 +147,7 @@ const AdminRolesView = () => {
           <div className="flex items-center justify-between gap-3">
             <div>
               <h3 className="text-lg font-black text-slate-900 dark:text-white">Roles registrados</h3>
-              <p className="text-sm text-slate-500">Los roles marcados como sistema son solo de referencia y no se editan aquí.</p>
+              <p className="text-sm text-slate-500">Los roles marcados como sistema se reflejan desde Keycloak y no se editan aquí.</p>
             </div>
             <AppButton variant="outline" icon="refresh" onClick={() => void loadData()}>
               Actualizar
@@ -244,9 +244,9 @@ const AdminRolesView = () => {
 
             <div>
               <p className="text-xs font-black uppercase tracking-widest text-slate-500">Roles base compuestos</p>
-              <p className="mt-1 text-xs text-slate-500">Al seleccionar un rol base, sus permisos se marcan automáticamente y puedes agregar más permisos manualmente.</p>
+              <p className="mt-1 text-xs text-slate-500">Puedes componer el rol con cualquier otro rol sincronizado desde Keycloak; sus permisos se marcan automáticamente.</p>
               <div className="mt-3 grid grid-cols-1 gap-2">
-                {availableCompositeRoles.map(roleName => (
+                {availableCompositeRoles.filter(roleName => roleName !== form.roleName).map(roleName => (
                   <label key={roleName} className="flex items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-2.5 text-sm">
                     <input
                       type="checkbox"

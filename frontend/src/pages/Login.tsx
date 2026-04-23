@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { AppointmentService } from '../services/appointment.service';
 import { resolveAuthorizedHomePath } from '../utils/authNavigation';
@@ -61,7 +61,8 @@ const NodePattern = () => (
 
 /* ─── Componente principal ─── */
 const Login = () => {
-    const { isAuthenticated, login, hasAnyRole } = useAuth();
+    const { isAuthenticated, login, loginWithKeycloak, hasAnyRole } = useAuth();
+    const location = useLocation();
     const navigate = useNavigate();
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
@@ -69,17 +70,23 @@ const Login = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [language, setLanguage] = useState('es');
+    const [requiresBrowserLogin, setRequiresBrowserLogin] = useState(false);
+    const hasKeycloakAuthError = new URLSearchParams(location.search).get('authError') === 'keycloak';
+    const effectiveError = error || (hasKeycloakAuthError ? 'No se pudo completar el acceso con Keycloak. Inténtalo nuevamente.' : '');
+    const requiresBrowserLoginHint = requiresBrowserLogin || hasKeycloakAuthError;
 
     if (isAuthenticated) return <Navigate to="/" replace />;
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
         setError('');
+        setRequiresBrowserLogin(false);
         setIsLoading(true);
         const result = await login(username, password);
         setIsLoading(false);
         if (!result.success) {
             setError(result.error || 'Credenciales incorrectas.');
+            setRequiresBrowserLogin(Boolean(result.requiresBrowserLogin));
             return;
         }
 
@@ -111,7 +118,7 @@ const Login = () => {
 
             navigate(resolveAuthorizedHomePath(authorities, permissions));
             return;
-        } catch (e) {
+        } catch {
             // ignore
         }
 
@@ -158,8 +165,8 @@ const Login = () => {
                             <span className="material-symbols-outlined text-sky-400 text-[17px]">local_hospital</span>
                         </div>
                         <div>
-                            <p className="text-white text-sm font-black leading-none tracking-tight">STITCH</p>
-                            <p className="text-sky-500/60 text-[9px] font-bold uppercase tracking-[3px] mt-0.5">Medical Center</p>
+                            <p className="text-white text-sm font-black leading-none tracking-tight">ClinData</p>
+                            <p className="text-sky-500/60 text-[9px] font-bold uppercase tracking-[3px] mt-0.5">Health Platform</p>
                         </div>
                     </div>
 
@@ -180,7 +187,7 @@ const Login = () => {
 
                     {/* Copyright */}
                     <p className="text-white/15 text-[10px] font-medium tracking-wide">
-                        © {new Date().getFullYear()} STITCH Medical Center
+                        © {new Date().getFullYear()} ClinData
                     </p>
                 </div>
 
@@ -200,7 +207,7 @@ const Login = () => {
                         <div className="w-7 h-7 rounded-lg bg-sky-500/15 border border-sky-500/25 flex items-center justify-center">
                             <span className="material-symbols-outlined text-sky-500 text-[15px]">local_hospital</span>
                         </div>
-                        <p className="text-slate-900 dark:text-white text-sm font-black tracking-tight">STITCH</p>
+                        <p className="text-slate-900 dark:text-white text-sm font-black tracking-tight">ClinData</p>
                     </div>
                     <div className="hidden lg:block" />
 
@@ -231,15 +238,24 @@ const Login = () => {
                                 Iniciar sesión
                             </h2>
                             <p className="text-slate-400 dark:text-slate-500 text-sm mt-1.5">
-                                Accede con tus credenciales institucionales.
+                                Accede con tus credenciales institucionales o continúa con Keycloak si tu cuenta tiene acciones pendientes.
                             </p>
                         </div>
 
                         {/* Error */}
-                        {error && (
+                        {effectiveError && (
                             <div className="mb-6 flex items-start gap-2.5 p-3.5 rounded-lg bg-rose-50 dark:bg-rose-500/8 border border-rose-200 dark:border-rose-500/20">
                                 <span className="material-symbols-outlined text-rose-500 text-[17px] mt-0.5 shrink-0">error</span>
-                                <p className="text-rose-600 dark:text-rose-400 text-sm font-medium">{error}</p>
+                                <p className="text-rose-600 dark:text-rose-400 text-sm font-medium">{effectiveError}</p>
+                            </div>
+                        )}
+
+                        {requiresBrowserLoginHint && (
+                            <div className="mb-6 flex items-start gap-2.5 p-3.5 rounded-lg bg-amber-50 dark:bg-amber-500/8 border border-amber-200 dark:border-amber-500/20">
+                                <span className="material-symbols-outlined text-amber-500 text-[17px] mt-0.5 shrink-0">security</span>
+                                <p className="text-amber-700 dark:text-amber-300 text-sm font-medium">
+                                    Esta cuenta debe completar acciones obligatorias de Keycloak, como cambio de contraseña, verificación de correo o configuración de segundo factor.
+                                </p>
                             </div>
                         )}
 
@@ -315,9 +331,9 @@ const Login = () => {
                                     </button>
                                 </div>
                             </div>
-
+                            
                             {/* Botón */}
-                            <div className="pt-1">
+                            <div className="pt-1 space-y-3">
                                 <button
                                     type="submit"
                                     disabled={isLoading || !username || !password}
@@ -341,6 +357,17 @@ const Login = () => {
                                         </>
                                     )}
                                 </button>
+
+                                <button
+                                    type="button"
+                                    onClick={() => loginWithKeycloak('/login')}
+                                    className="w-full py-3 px-5 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-white/[0.03]
+                                               text-slate-700 dark:text-white text-sm font-bold tracking-wide hover:border-sky-300 hover:text-sky-600 dark:hover:text-sky-300
+                                               transition-all duration-150 ease-out flex items-center justify-center gap-2"
+                                >
+                                    <span className="material-symbols-outlined text-[18px]">shield_lock</span>
+                                    <span>Continuar con Keycloak</span>
+                                </button>
                             </div>
                         </form>
 
@@ -359,7 +386,7 @@ const Login = () => {
                             <span className="material-symbols-outlined text-sky-500 text-[11px]">local_hospital</span>
                         </div>
                         <span className="text-[11px] font-semibold text-slate-400 dark:text-white/20">
-                            STITCH Medical Center
+                            ClinData
                         </span>
                     </div>
                     <span className="text-[10px] font-bold text-slate-300 dark:text-white/15 border border-slate-200 dark:border-white/10 px-2 py-0.5 rounded-md">

@@ -41,8 +41,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ groups, isCollapsed, onCloseMo
           </div>
           
           <div className={`ml-3 overflow-hidden transition-all duration-300 flex flex-col justify-center z-10 ${isCollapsed ? 'lg:w-0 lg:opacity-0' : 'w-auto opacity-100'}`}>
-            <span className="text-white text-base font-black tracking-tight leading-none">STITCH</span>
-            <span className="text-sky-500/60 text-[9px] font-bold uppercase tracking-widest mt-[2px] leading-none">Medical</span>
+            <span className="text-white text-base font-black tracking-tight leading-none">ClinData</span>
+            <span className="text-sky-500/60 text-[9px] font-bold uppercase tracking-widest mt-[2px] leading-none">Health</span>
           </div>
 
           {/* Botón de cierre explícito para Móvil */}

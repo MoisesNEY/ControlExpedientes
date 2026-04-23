@@ -2,15 +2,19 @@ package ni.edu.mney.service;
 
 import jakarta.annotation.PostConstruct;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import ni.edu.mney.domain.Authority;
 import ni.edu.mney.domain.RoleDefinition;
+import ni.edu.mney.domain.User;
 import ni.edu.mney.repository.AuthorityRepository;
 import ni.edu.mney.repository.RoleDefinitionRepository;
+import ni.edu.mney.repository.UserRepository;
 import ni.edu.mney.security.AppPermission;
 import ni.edu.mney.security.AppPermissionCatalog;
 import ni.edu.mney.security.AuthoritiesConstants;
@@ -36,15 +40,18 @@ public class RoleAdministrationService {
 
     private final RoleDefinitionRepository roleDefinitionRepository;
     private final AuthorityRepository authorityRepository;
+    private final UserRepository userRepository;
     private final KeycloakAdminService keycloakAdminService;
 
     public RoleAdministrationService(
         RoleDefinitionRepository roleDefinitionRepository,
         AuthorityRepository authorityRepository,
+        UserRepository userRepository,
         KeycloakAdminService keycloakAdminService
     ) {
         this.roleDefinitionRepository = roleDefinitionRepository;
         this.authorityRepository = authorityRepository;
+        this.userRepository = userRepository;
         this.keycloakAdminService = keycloakAdminService;
     }
 
@@ -57,27 +64,28 @@ public class RoleAdministrationService {
         ensureSystemRole(AuthoritiesConstants.USER, "Rol base de plataforma", Set.of());
     }
 
-    @Transactional(readOnly = true)
     public List<RoleDefinitionDTO> getAllRoles() {
-        return roleDefinitionRepository.findAll().stream()
+        return synchronizeRolesFromKeycloak().stream()
             .sorted(Comparator.comparing(RoleDefinition::getRoleName))
             .map(this::toDto)
             .toList();
     }
 
-    @Transactional(readOnly = true)
     public RoleManagementCatalogDTO getCatalog() {
+        List<RoleDefinition> roles = synchronizeRolesFromKeycloak();
         List<PermissionDefinitionDTO> permissions = AppPermissionCatalog.all().stream()
             .map(this::toPermissionDto)
             .toList();
-        return new RoleManagementCatalogDTO(SYSTEM_ROLES, permissions);
+        return new RoleManagementCatalogDTO(roles.stream().map(RoleDefinition::getRoleName).sorted().toList(), permissions);
     }
 
     public RoleDefinitionDTO createRole(RoleUpsertDTO request) {
         validatePermissionCodes(request.permissions());
-        if (roleDefinitionRepository.existsById(request.roleName())) {
+        Set<String> existingRoleNames = synchronizeRolesFromKeycloak().stream().map(RoleDefinition::getRoleName).collect(Collectors.toSet());
+        if (existingRoleNames.contains(request.roleName())) {
             throw new IllegalArgumentException("El rol ya existe.");
         }
+        validateCompositeRoles(request.compositeRoles(), request.roleName(), existingRoleNames);
         ensureAuthority(request.roleName());
 
         boolean roleCreatedInKeycloak = false;
@@ -86,10 +94,14 @@ public class RoleAdministrationService {
                 request.roleName(),
                 request.description(),
                 normalizePermissions(request.permissions()),
-                normalizeCompositeRoles(request.compositeRoles())
+                normalizeCompositeRoles(request.compositeRoles(), request.roleName())
             );
             roleCreatedInKeycloak = true;
-            return toDto(persistRole(request, false));
+            return synchronizeRolesFromKeycloak().stream()
+                .filter(definition -> definition.getRoleName().equals(request.roleName()))
+                .findFirst()
+                .map(this::toDto)
+                .orElseThrow(() -> new IllegalStateException("No se pudo sincronizar el rol recién creado."));
         } catch (RuntimeException exception) {
             if (roleCreatedInKeycloak) {
                 try {
@@ -103,28 +115,43 @@ public class RoleAdministrationService {
     }
 
     public RoleDefinitionDTO updateRole(String roleName, RoleUpsertDTO request) {
-        RoleDefinition existing = roleDefinitionRepository.findById(roleName)
-            .orElseThrow(() -> new IllegalArgumentException("No se encontró el rol solicitado."));
+        Map<String, RoleDefinition> synchronizedRoles = synchronizeRolesFromKeycloak().stream()
+            .collect(Collectors.toMap(RoleDefinition::getRoleName, definition -> definition, (left, right) -> right, LinkedHashMap::new));
+        RoleDefinition existing = synchronizedRoles.containsKey(roleName)
+            ? synchronizedRoles.get(roleName)
+            : roleDefinitionRepository.findById(roleName).orElseThrow(() -> new IllegalArgumentException("No se encontró el rol solicitado."));
+        if (existing == null) {
+            throw new IllegalArgumentException("No se encontró el rol solicitado.");
+        }
         if (existing.isSystemRole()) {
             throw new IllegalArgumentException("Los roles del sistema no se pueden editar desde este módulo.");
         }
         validatePermissionCodes(request.permissions());
-        keycloakAdminService.updateRole(roleName, request.description(), normalizePermissions(request.permissions()), normalizeCompositeRoles(request.compositeRoles()));
-        existing.setDescription(request.description());
-        existing.setCompositeRoles(normalizeCompositeRoles(request.compositeRoles()));
-        existing.setPermissions(normalizePermissions(request.permissions()));
-        return toDto(roleDefinitionRepository.save(existing));
+        validateCompositeRoles(request.compositeRoles(), roleName, synchronizedRoles.keySet());
+        keycloakAdminService.updateRole(
+            roleName,
+            request.description(),
+            normalizePermissions(request.permissions()),
+            normalizeCompositeRoles(request.compositeRoles(), roleName)
+        );
+        return synchronizeRolesFromKeycloak().stream()
+            .filter(definition -> definition.getRoleName().equals(roleName))
+            .findFirst()
+            .map(this::toDto)
+            .orElseThrow(() -> new IllegalArgumentException("No se encontró el rol solicitado."));
     }
 
     public void deleteRole(String roleName) {
-        RoleDefinition existing = roleDefinitionRepository.findById(roleName)
+        RoleDefinition existing = synchronizeRolesFromKeycloak().stream()
+            .filter(definition -> definition.getRoleName().equals(roleName))
+            .findFirst()
+            .or(() -> roleDefinitionRepository.findById(roleName))
             .orElseThrow(() -> new IllegalArgumentException("No se encontró el rol solicitado."));
         if (existing.isSystemRole()) {
             throw new IllegalArgumentException("Los roles del sistema no se pueden eliminar.");
         }
         keycloakAdminService.deleteRole(roleName);
-        roleDefinitionRepository.delete(existing);
-        authorityRepository.deleteById(roleName);
+        synchronizeRolesFromKeycloak();
     }
 
     private void ensureSystemRole(String roleName, String description, Set<String> permissions) {
@@ -170,22 +197,15 @@ public class RoleAdministrationService {
         authorityRepository.save(authority);
     }
 
-    private RoleDefinition persistRole(RoleUpsertDTO request, boolean systemRole) {
-        RoleDefinition definition = new RoleDefinition();
-        definition.setRoleName(request.roleName());
-        definition.setDescription(request.description());
-        definition.setSystemRole(systemRole);
-        definition.setCompositeRoles(normalizeCompositeRoles(request.compositeRoles()));
-        definition.setPermissions(normalizePermissions(request.permissions()));
-        return roleDefinitionRepository.save(definition);
-    }
-
-    private Set<String> normalizeCompositeRoles(Set<String> roles) {
+    private Set<String> normalizeCompositeRoles(Set<String> roles, String currentRoleName) {
         if (roles == null) {
             return Set.of();
         }
         return roles.stream()
-            .filter(SYSTEM_ROLES::contains)
+            .filter(Objects::nonNull)
+            .map(String::trim)
+            .filter(role -> role.startsWith("ROLE_"))
+            .filter(role -> !role.equals(currentRoleName))
             .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
@@ -206,6 +226,79 @@ public class RoleAdministrationService {
         if (!invalidPermissions.isEmpty()) {
             throw new IllegalArgumentException("Se recibieron permisos no válidos: " + invalidPermissions);
         }
+    }
+
+    private void validateCompositeRoles(Set<String> compositeRoles, String currentRoleName, Set<String> availableRoleNames) {
+        if (compositeRoles == null) {
+            return;
+        }
+        List<String> invalidRoles = compositeRoles.stream()
+            .filter(Objects::nonNull)
+            .map(String::trim)
+            .filter(role -> !role.isBlank())
+            .filter(role -> !role.equals(currentRoleName))
+            .filter(role -> !availableRoleNames.contains(role))
+            .toList();
+        if (!invalidRoles.isEmpty()) {
+            throw new IllegalArgumentException("Se recibieron roles compuestos no válidos: " + invalidRoles);
+        }
+    }
+
+    private List<RoleDefinition> synchronizeRolesFromKeycloak() {
+        List<KeycloakAdminService.ManagedKeycloakRole> keycloakRoles = keycloakAdminService.listRoles();
+        Map<String, RoleDefinition> localDefinitions = roleDefinitionRepository.findAll().stream()
+            .collect(Collectors.toMap(RoleDefinition::getRoleName, definition -> definition, (left, right) -> right, LinkedHashMap::new));
+        Set<String> synchronizedRoleNames = keycloakRoles.stream()
+            .map(KeycloakAdminService.ManagedKeycloakRole::roleName)
+            .collect(Collectors.toCollection(LinkedHashSet::new));
+
+        for (KeycloakAdminService.ManagedKeycloakRole keycloakRole : keycloakRoles) {
+            ensureAuthority(keycloakRole.roleName());
+            RoleDefinition definition = localDefinitions.getOrDefault(keycloakRole.roleName(), new RoleDefinition());
+            definition.setRoleName(keycloakRole.roleName());
+            definition.setDescription(keycloakRole.description());
+            definition.setSystemRole(SYSTEM_ROLES.contains(keycloakRole.roleName()));
+            definition.setPermissions(keycloakRole.permissions());
+            definition.setCompositeRoles(keycloakRole.compositeRoles());
+            roleDefinitionRepository.save(definition);
+        }
+
+        removeStaleAuthorities(synchronizedRoleNames);
+
+        if (synchronizedRoleNames.isEmpty()) {
+            return List.of();
+        }
+        return roleDefinitionRepository.findAllByRoleNameIn(synchronizedRoleNames).stream()
+            .sorted(Comparator.comparing(RoleDefinition::getRoleName))
+            .toList();
+    }
+
+    private void removeStaleAuthorities(Set<String> synchronizedRoleNames) {
+        Set<String> staleAuthorities = authorityRepository.findAll().stream()
+            .map(Authority::getName)
+            .filter(name -> name.startsWith("ROLE_"))
+            .filter(name -> !synchronizedRoleNames.contains(name))
+            .collect(Collectors.toCollection(LinkedHashSet::new));
+        if (staleAuthorities.isEmpty()) {
+            return;
+        }
+
+        List<RoleDefinition> staleDefinitions = roleDefinitionRepository.findAllByRoleNameIn(staleAuthorities);
+        if (!staleDefinitions.isEmpty()) {
+            roleDefinitionRepository.deleteAll(staleDefinitions);
+        }
+
+        for (User user : userRepository.findAll()) {
+            Set<Authority> updatedAuthorities = user.getAuthorities().stream()
+                .filter(authority -> !staleAuthorities.contains(authority.getName()))
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+            if (updatedAuthorities.size() != user.getAuthorities().size()) {
+                user.setAuthorities(updatedAuthorities);
+                userRepository.save(user);
+            }
+        }
+
+        staleAuthorities.forEach(authorityRepository::deleteById);
     }
 
     private RoleDefinitionDTO toDto(RoleDefinition definition) {

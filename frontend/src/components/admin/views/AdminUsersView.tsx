@@ -100,7 +100,7 @@ const AdminUsersView = () => {
       <div className="flex flex-col gap-1">
         <h2 className="text-slate-900 dark:text-white text-3xl font-black tracking-tight">Gestión de usuarios</h2>
         <p className="text-slate-500 text-base font-medium">
-          Crea usuarios directamente en Keycloak, asigna roles por grupo y usa contraseñas permanentes para que puedan iniciar sesión en la aplicación.
+          Crea usuarios directamente en Keycloak, sincroniza sus roles con el sistema y define acciones obligatorias cuando deban completarse desde Keycloak.
         </p>
       </div>
 
@@ -160,7 +160,7 @@ const AdminUsersView = () => {
           <div className="flex items-center justify-between gap-3">
             <div>
               <h3 className="text-lg font-black text-slate-900 dark:text-white">{editingUser ? `Editar ${editingUser.login}` : 'Crear usuario'}</h3>
-              <p className="text-sm text-slate-500">La contraseña solo se envía a Keycloak cuando la escribes y debe quedar como permanente para que el usuario pueda iniciar sesión aquí.</p>
+              <p className="text-sm text-slate-500">La contraseña solo se envía a Keycloak cuando la escribes. Si marcas acciones obligatorias o contraseña temporal, el usuario continuará el acceso en la pantalla de Keycloak.</p>
             </div>
             {editingUser && (
               <AppButton variant="ghost" icon="close" onClick={resetForm}>
@@ -220,7 +220,7 @@ const AdminUsersView = () => {
 
             {(form.temporaryPassword || form.requiredActions.length > 0) && (
               <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
-                El login de esta aplicación no soporta contraseñas temporales ni acciones obligatorias de Keycloak. Guarda usuarios con contraseña permanente y sin acciones pendientes.
+                Esta cuenta deberá iniciar sesión desde Keycloak para completar sus acciones obligatorias antes de entrar al sistema.
               </div>
             )}
 

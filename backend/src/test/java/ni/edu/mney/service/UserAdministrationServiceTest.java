@@ -1,12 +1,21 @@
 package ni.edu.mney.service;
 
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.verifyNoInteractions;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import ni.edu.mney.domain.Authority;
+import ni.edu.mney.domain.User;
 import ni.edu.mney.repository.AuthorityRepository;
 import ni.edu.mney.repository.UserRepository;
 import ni.edu.mney.security.KeycloakAdminService;
+import ni.edu.mney.service.dto.ManagedUserDTO;
 import ni.edu.mney.service.dto.ManagedUserUpsertDTO;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -30,7 +39,7 @@ class UserAdministrationServiceTest {
     private UserAdministrationService userAdministrationService;
 
     @Test
-    void createUserRejectsTemporaryPasswords() {
+    void createUserAllowsTemporaryPasswordsAndRequiredActions() {
         ManagedUserUpsertDTO request = new ManagedUserUpsertDTO(
             "pepito",
             "Pepito",
@@ -40,34 +49,44 @@ class UserAdministrationServiceTest {
             List.of("ROLE_MEDICO"),
             "secreta",
             true,
-            List.of()
-        );
-
-        assertThatThrownBy(() -> userAdministrationService.createUser(request))
-            .isInstanceOf(IllegalArgumentException.class)
-            .hasMessageContaining("contraseñas temporales");
-
-        verifyNoInteractions(keycloakAdminService);
-    }
-
-    @Test
-    void createUserRejectsRequiredActions() {
-        ManagedUserUpsertDTO request = new ManagedUserUpsertDTO(
-            "pepito",
-            "Pepito",
-            "Perez",
-            "pepito@example.com",
-            true,
-            List.of("ROLE_MEDICO"),
-            "secreta",
-            false,
             List.of("UPDATE_PASSWORD")
         );
 
-        assertThatThrownBy(() -> userAdministrationService.createUser(request))
-            .isInstanceOf(IllegalArgumentException.class)
-            .hasMessageContaining("acciones obligatorias");
+        when(keycloakAdminService.createUser(anyString(), any(), any(), any(), anyBoolean(), any(), any(), anyBoolean(), any()))
+            .thenReturn(new KeycloakAdminService.ManagedKeycloakUser("user-1", "pepito", "Pepito", "Perez", "pepito@example.com", true, List.of("ROLE_MEDICO"), List.of("UPDATE_PASSWORD")));
+        when(userRepository.findById("user-1")).thenReturn(Optional.empty());
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(authorityRepository.findById("ROLE_MEDICO")).thenReturn(Optional.of(authority("ROLE_MEDICO")));
 
-        verifyNoInteractions(keycloakAdminService);
+        ManagedUserDTO created = userAdministrationService.createUser(request);
+
+        assertThat(created.requiredActions()).containsExactly("UPDATE_PASSWORD");
+        verify(keycloakAdminService).createUser("pepito", "Pepito", "Perez", "pepito@example.com", true, List.of("ROLE_MEDICO"), "secreta", true, List.of("UPDATE_PASSWORD"));
+    }
+
+    @Test
+    void getAllUsersRemovesLocalUsersMissingInKeycloak() {
+        User staleUser = new User();
+        staleUser.setId("stale-user");
+        staleUser.setLogin("stale");
+        staleUser.setAuthorities(Set.of(authority("ROLE_MEDICO")));
+
+        when(keycloakAdminService.listUsers())
+            .thenReturn(List.of(new KeycloakAdminService.ManagedKeycloakUser("user-1", "pepito", "Pepito", "Perez", "pepito@example.com", true, List.of("ROLE_MEDICO"), List.of())));
+        when(userRepository.findById("user-1")).thenReturn(Optional.empty());
+        when(userRepository.findAll()).thenReturn(List.of(staleUser));
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(authorityRepository.findById("ROLE_MEDICO")).thenReturn(Optional.of(authority("ROLE_MEDICO")));
+
+        List<ManagedUserDTO> users = userAdministrationService.getAllUsers();
+
+        assertThat(users).extracting(ManagedUserDTO::login).containsExactly("pepito");
+        verify(userRepository).delete(staleUser);
+    }
+
+    private static Authority authority(String name) {
+        Authority authority = new Authority();
+        authority.setName(name);
+        return authority;
     }
 }
