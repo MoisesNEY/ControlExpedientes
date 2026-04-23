@@ -187,9 +187,9 @@ Refer to [Using JHipster in production][] for more details.
 
 ### Ejecutar backend dockerizado con perfil `prod`
 
-Se agregó un stack listo en `/home/runner/work/ControlExpedientes/ControlExpedientes/backend/docker-compose.prod.yml` y una imagen en `/home/runner/work/ControlExpedientes/ControlExpedientes/backend/Dockerfile`.
+Se agregó un stack listo en `docker-compose.prod.yml` y una imagen en `Dockerfile`.
 
-1. Ubícate en `/home/runner/work/ControlExpedientes/ControlExpedientes/backend`.
+1. Ubícate en el directorio `backend/`.
 2. Define en tu `.env` las variables `KEYCLOAK_ADMIN_USERNAME`, `KEYCLOAK_ADMIN_PASSWORD` y `POSTGRES_PASSWORD`.
 3. Ejecuta:
 
