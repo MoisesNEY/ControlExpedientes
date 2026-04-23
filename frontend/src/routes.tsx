@@ -37,10 +37,11 @@ import ReceptionDashboard from './pages/ReceptionDashboard';
 import ReceptionHomeView from './components/reception/views/ReceptionHomeView';
 import ReceptionAgendaView from './components/reception/views/ReceptionAgendaView';
 import ReceptionExpedientesView from './components/reception/views/ReceptionExpedientesView';
+import ReportsCenterView from './components/reports/views/ReportsCenterView';
 
 import Unauthorized from './pages/Unauthorized';
 import Login from './pages/Login';
-import { resolveAuthorizedHomePath } from './utils/authNavigation';
+import { resolveAuthorizedHomePath, resolveAuthorizedModulePath } from './utils/authNavigation';
 
 /**
  * Componente dinámico para la ruta raíz ("/").
@@ -55,6 +56,15 @@ const RootRedirect: React.FC = () => {
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
   return <Navigate to={resolveAuthorizedHomePath(roles, permissions)} replace />;
+};
+
+const ModuleRedirect: React.FC<{ pathPrefix: string }> = ({ pathPrefix }) => {
+  const { isAuthenticated, roles, permissions, loading } = useAuth();
+
+  if (loading) return null;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+
+  return <Navigate to={resolveAuthorizedModulePath(roles, permissions, pathPrefix)} replace />;
 };
 
 export const routerConfig: RouteObject[] = [
@@ -85,7 +95,7 @@ export const routerConfig: RouteObject[] = [
           </ProtectedSlot>
         ),
         children: [
-          { index: true, element: <Navigate to="dashboard" replace /> },
+          { index: true, element: <ModuleRedirect pathPrefix="/admin" /> },
           { path: 'dashboard', element: <ProtectedSlot requiredRoles={['ROLE_ADMIN']}><AdminHomeView /></ProtectedSlot> },
           { path: 'pacientes', element: <ProtectedSlot requiredRoles={['ROLE_ADMIN']}><AdminPacientesView /></ProtectedSlot> },
           { path: 'medicamentos', element: <ProtectedSlot requiredRoles={['ROLE_ADMIN']}><AdminMedicamentosView /></ProtectedSlot> },
@@ -107,7 +117,7 @@ export const routerConfig: RouteObject[] = [
           </ProtectedSlot>
         ),
         children: [
-          { index: true, element: <Navigate to="dashboard" replace /> },
+          { index: true, element: <ModuleRedirect pathPrefix="/medico" /> },
           { path: 'dashboard', element: <DoctorHomeView /> },
           { path: 'consulta/:citaId', element: <DoctorConsultationView /> },
           { path: 'diagnosticos', element: <DiagnosticoCatalogView /> },
@@ -126,7 +136,7 @@ export const routerConfig: RouteObject[] = [
           </ProtectedSlot>
         ),
         children: [
-          { index: true, element: <Navigate to="dashboard" replace /> },
+          { index: true, element: <ModuleRedirect pathPrefix="/enfermeria" /> },
           { path: 'dashboard', element: <NurseHomeView /> },
           { path: 'sala-espera', element: <WaitingRoomView /> },
           { path: 'triage/:citaId', element: <TriageView /> },
@@ -141,12 +151,20 @@ export const routerConfig: RouteObject[] = [
           </ProtectedSlot>
         ),
         children: [
-          { index: true, element: <Navigate to="dashboard" replace /> },
+          { index: true, element: <ModuleRedirect pathPrefix="/recepcion" /> },
           { path: 'dashboard', element: <ReceptionHomeView /> },
           { path: 'pacientes', element: <AdminPacientesView /> },
           { path: 'expedientes', element: <ReceptionExpedientesView /> },
           { path: 'citas', element: <ReceptionAgendaView /> }
         ]
+      },
+      {
+        path: 'reportes',
+        element: (
+          <ProtectedSlot requiredRoles={['ROLE_ADMIN', 'ROLE_MEDICO']}>
+            <ReportsCenterView />
+          </ProtectedSlot>
+        ),
       },
       {
         path: '*',

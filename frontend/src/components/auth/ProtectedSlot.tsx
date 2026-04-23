@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { UnauthorizedView } from '../layout/UnauthorizedView';
+import { canAccessRequirement } from '../../utils/accessControl';
 
 interface ProtectedSlotProps {
   requiredRoles?: string[];
@@ -15,7 +16,7 @@ interface ProtectedSlotProps {
  * Valida de forma estructurada que el usuario esté autenticado y posea los roles.
  */
 export const ProtectedSlot: React.FC<ProtectedSlotProps> = ({ requiredRoles = [], requiredPermissions = [], children }) => {
-  const { isAuthenticated, hasAnyRole, hasAnyPermission, loading } = useAuth();
+  const { isAuthenticated, roles, permissions, loading } = useAuth();
 
   // Mientras se comprueba la sesión (fetch inicial), no renderizamos nada
   if (loading) return null;
@@ -26,11 +27,9 @@ export const ProtectedSlot: React.FC<ProtectedSlotProps> = ({ requiredRoles = []
   }
 
   // Si está autenticado pero no tiene los roles necesarios, mostramos la vista de acceso denegado
-  const roleAllowed = requiredRoles.length > 0 && hasAnyRole(requiredRoles);
-  const permissionAllowed = requiredPermissions.length > 0 && hasAnyPermission(requiredPermissions);
   const hasRestrictions = requiredRoles.length > 0 || requiredPermissions.length > 0;
 
-  if (hasRestrictions && !roleAllowed && !permissionAllowed) {
+  if (hasRestrictions && !canAccessRequirement(roles, permissions, { requiredRoles, requiredPermissions })) {
     return <UnauthorizedView />;
   }
 

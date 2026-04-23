@@ -12,6 +12,7 @@ const DiagnosticoCatalogView = () => {
     const [diagnosticos, setDiagnosticos] = useState<Diagnostico[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [scope, setScope] = useState<'ALL' | 'CATALOGO' | 'CONSULTA'>('ALL');
     const [showForm, setShowForm] = useState(false);
     const [editing, setEditing] = useState<Diagnostico | null>(null);
     const [form, setForm] = useState(emptyDiagnosticoForm);
@@ -22,9 +23,15 @@ const DiagnosticoCatalogView = () => {
     const fetchDiagnosticos = async (query: string) => {
         setLoading(true);
         try {
+            const params: Record<string, string | number | boolean> = { size: 100 };
+            if (scope === 'CATALOGO') {
+                params['consultaId.specified'] = false;
+            } else if (scope === 'CONSULTA') {
+                params['consultaId.specified'] = true;
+            }
             const data = query.trim().length >= 2
                 ? await DiagnosticoService.search(query.trim())
-                : await DiagnosticoService.getAll({ size: 100 });
+                : await DiagnosticoService.getAll(params);
             setDiagnosticos(data);
         } catch (error) {
             console.error('Error fetching diagnósticos:', error);
@@ -39,7 +46,7 @@ const DiagnosticoCatalogView = () => {
         }, 300);
 
         return () => window.clearTimeout(timeout);
-    }, [searchTerm]);
+    }, [scope, searchTerm]);
 
     const sortedDiagnosticos = useMemo(
         () => [...diagnosticos].sort((a, b) => a.descripcion.localeCompare(b.descripcion)),
@@ -110,13 +117,13 @@ const DiagnosticoCatalogView = () => {
 
     return (
         <div className="p-4 md:p-8 space-y-4 md:space-y-6">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                    <h2 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white">Gestión de Diagnósticos</h2>
-                    <p className="text-slate-500 text-xs md:text-sm font-medium">
-                        Catálogo compartido de diagnósticos para médico y administración.
-                    </p>
-                </div>
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div>
+                        <h2 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white">Gestión de Diagnósticos</h2>
+                        <p className="text-slate-500 text-xs md:text-sm font-medium">
+                            Catálogo e historial visible de diagnósticos usados en consulta para mantener consistencia clínica.
+                        </p>
+                    </div>
                 <button
                     onClick={openCreate}
                     className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-rose-600 text-white rounded-xl font-bold shadow-lg shadow-rose-600/30 hover:scale-105 transition-transform"
@@ -126,26 +133,38 @@ const DiagnosticoCatalogView = () => {
                 </button>
             </div>
 
-            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-                <div className="p-4 md:p-6 border-b border-slate-100 dark:border-slate-800">
-                    <div className="relative w-full md:w-96">
-                        <span className="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400">search</span>
-                        <input
-                            type="text"
-                            placeholder="Buscar por código o descripción..."
-                            value={searchTerm}
-                            onChange={event => setSearchTerm(event.target.value)}
-                            className="w-full pl-12 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-xs outline-none focus:ring-2 focus:ring-rose-600 transition-all"
-                        />
+                <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+                    <div className="p-4 md:p-6 border-b border-slate-100 dark:border-slate-800">
+                        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                            <div className="relative w-full md:w-96">
+                                <span className="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400">search</span>
+                                <input
+                                    type="text"
+                                    placeholder="Buscar por código o descripción..."
+                                    value={searchTerm}
+                                    onChange={event => setSearchTerm(event.target.value)}
+                                    className="w-full pl-12 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-xs outline-none focus:ring-2 focus:ring-rose-600 transition-all"
+                                />
+                            </div>
+                            <select
+                                value={scope}
+                                onChange={event => setScope(event.target.value as 'ALL' | 'CATALOGO' | 'CONSULTA')}
+                                className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-4 py-2.5 text-xs font-bold uppercase tracking-widest text-slate-600 dark:text-slate-200 outline-none focus:ring-2 focus:ring-rose-600"
+                            >
+                                <option value="ALL">Todos</option>
+                                <option value="CATALOGO">Solo catálogo</option>
+                                <option value="CONSULTA">Solo consultas</option>
+                            </select>
+                        </div>
                     </div>
-                </div>
 
                 <div className="overflow-x-auto scrollbar-hide">
-                    <table className="w-full text-left min-w-[640px]">
+                    <table className="w-full text-left min-w-[760px]">
                         <thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-500 text-[10px] font-black uppercase tracking-widest">
                             <tr>
                                 <th className="px-6 py-4">Código CIE-10</th>
                                 <th className="px-6 py-4">Descripción</th>
+                                <th className="px-6 py-4">Origen</th>
                                 <th className="px-6 py-4 text-right">Acciones</th>
                             </tr>
                         </thead>
@@ -153,7 +172,7 @@ const DiagnosticoCatalogView = () => {
                             {loading ? (
                                 Array.from({ length: 5 }, (_, index) => (
                                     <tr key={index} className="animate-pulse">
-                                        <td colSpan={3} className="px-6 py-6">
+                                        <td colSpan={4} className="px-6 py-6">
                                             <div className="h-4 bg-slate-100 dark:bg-slate-800 rounded w-full"></div>
                                         </td>
                                     </tr>
@@ -168,6 +187,15 @@ const DiagnosticoCatalogView = () => {
                                         </td>
                                         <td className="px-6 py-4 text-sm font-semibold text-slate-800 dark:text-white">
                                             {diagnostico.descripcion}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-black uppercase ${
+                                                diagnostico.consultaId
+                                                    ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300'
+                                                    : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300'
+                                            }`}>
+                                                {diagnostico.consultaId ? `Consulta #${diagnostico.consultaId}` : 'Catálogo'}
+                                            </span>
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex items-center justify-end gap-1">
@@ -193,7 +221,7 @@ const DiagnosticoCatalogView = () => {
 
                             {!loading && sortedDiagnosticos.length === 0 && (
                                 <tr>
-                                    <td colSpan={3} className="px-6 py-20 text-center text-slate-400 italic font-medium">
+                                    <td colSpan={4} className="px-6 py-20 text-center text-slate-400 italic font-medium">
                                         No se encontraron diagnósticos en el catálogo.
                                     </td>
                                 </tr>

@@ -61,5 +61,11 @@ export const navigationConfig: NavGroup[] = [
       { id: 'rec-expedientes', label: 'Expedientes', path: '/recepcion/expedientes', icon: 'folder_shared', requiredRoles: ['ROLE_RECEPCION'] },
       { id: 'rec-citas', label: 'Agenda Citas', path: '/recepcion/citas', icon: 'book_online', requiredRoles: ['ROLE_RECEPCION'] },
     ]
+  },
+  {
+    groupName: 'Reportes',
+    items: [
+      { id: 'reportes-centro', label: 'Centro de Reportes', path: '/reportes', icon: 'assessment', requiredRoles: ['ROLE_ADMIN', 'ROLE_MEDICO'] },
+    ]
   }
 ];

@@ -4,6 +4,7 @@ export interface Diagnostico {
     id: number;
     codigoCIE: string;
     descripcion: string;
+    consultaId?: number;
 }
 
 interface DiagnosticoApiResponse {
@@ -11,12 +12,14 @@ interface DiagnosticoApiResponse {
     codigoCIE?: string | null;
     codigoCie10?: string | null;
     descripcion?: string | null;
+    consulta?: { id?: number | null } | null;
 }
 
 const mapDiagnostico = (item: DiagnosticoApiResponse): Diagnostico => ({
     id: item.id ?? 0,
     codigoCIE: item.codigoCIE ?? item.codigoCie10 ?? '',
     descripcion: item.descripcion ?? '',
+    consultaId: item.consulta?.id ?? undefined,
 });
 
 export const DiagnosticoService = {
@@ -35,7 +38,6 @@ export const DiagnosticoService = {
     getAll: async (params?: Record<string, string | number | boolean>): Promise<Diagnostico[]> => {
         const response = await api.get('/api/diagnosticos', {
             params: {
-                'consultaId.specified': false,
                 sort: 'descripcion,asc',
                 ...params,
             },

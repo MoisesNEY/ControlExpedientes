@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { AppointmentService, type Appointment } from '../../../services/appointment.service';
 import { DiagnosticoService, type Diagnostico as DiagnosticoCatalogo } from '../../../services/diagnostico.service';
 import { MedicamentoService, type MedicamentoDTO } from '../../../services/medicamento.service';
+import { ExpedienteService } from '../../../services/expediente.service';
 import api from '../../../services/api';
 import type { SignosVitalesDTO } from '../../../services/signosVitales.service';
 import { useAuth } from '../../../context/AuthContext';
@@ -34,6 +35,7 @@ const DoctorConsultationView = () => {
     const [saveError, setSaveError] = useState<string | null>(null);
 
     // Notas médicas
+    const [motivoConsulta, setMotivoConsulta] = useState('');
     const [notasMedicas, setNotasMedicas] = useState('');
 
     // Diagnóstico Autocomplete
@@ -87,13 +89,38 @@ const DoctorConsultationView = () => {
                 if (citaData.paciente?.id) {
                     try {
                         const { SignosVitalesService } = await import('../../../services/signosVitales.service');
-                        const vitals = await SignosVitalesService.getTodayByPacienteId(citaData.paciente.id);
+                        const [vitals, expediente] = await Promise.all([
+                            SignosVitalesService.getTodayByPacienteId(citaData.paciente.id),
+                            ExpedienteService.getByPacienteId(citaData.paciente.id),
+                        ]);
                         if (vitals && vitals.length > 0) {
                             setSignosVitales(vitals[0]);
                         }
+                        if (expediente?.id) {
+                            try {
+                                const consultasResponse = await api.get('/api/consulta-medicas', {
+                                    params: {
+                                        'expedienteId.equals': expediente.id,
+                                        'fechaConsulta.equals': new Date(citaData.fechaHora).toISOString().slice(0, 10),
+                                        sort: 'id,desc',
+                                        size: 1,
+                                    },
+                                });
+                                const consultaActual = Array.isArray(consultasResponse.data) ? consultasResponse.data[0] : null;
+                                setMotivoConsulta(consultaActual?.motivoConsulta || citaData.observaciones || 'Consulta médica');
+                            } catch (consultaError) {
+                                console.error('Error cargando motivo de consulta actual:', consultaError);
+                                setMotivoConsulta(citaData.observaciones || 'Consulta médica');
+                            }
+                        } else {
+                            setMotivoConsulta(citaData.observaciones || 'Consulta médica');
+                        }
                     } catch (e) {
                         console.error('Error cargando signos vitales:', e);
+                        setMotivoConsulta(citaData.observaciones || 'Consulta médica');
                     }
+                } else {
+                    setMotivoConsulta(citaData.observaciones || 'Consulta médica');
                 }
             })
             .catch((err) => console.error('Error cargando cita:', err))
@@ -215,7 +242,7 @@ const DoctorConsultationView = () => {
         setIsSaving(true);
         try {
             await api.post(`/api/cita-medicas/${citaId}/finalizar`, {
-                motivoConsulta: appointment?.observaciones || 'Consulta médica',
+                motivoConsulta: motivoConsulta.trim() || appointment?.observaciones || 'Consulta médica',
                 notasMedicas,
                 diagnosticoPrincipalId: selectedDiagnosis.id,
                 recetas: prescriptions.map((rx) => ({
@@ -255,7 +282,7 @@ const DoctorConsultationView = () => {
                 fechaConsulta: new Date().toISOString().slice(0, 10),
                 nombrePaciente: `${appointment.paciente.nombres ?? ''} ${appointment.paciente.apellidos ?? ''}`.trim(),
                 codigoPaciente: `PAC-${String(appointment.paciente.id).padStart(4, '0')}`,
-                motivoConsulta: appointment.observaciones || 'Consulta médica',
+                motivoConsulta: motivoConsulta.trim() || appointment.observaciones || 'Consulta médica',
                 codigoDiagnostico: selectedDiagnosis.codigoCIE,
                 descripcionDiagnostico: selectedDiagnosis.descripcion,
                 notasMedicas,
@@ -393,10 +420,16 @@ const DoctorConsultationView = () => {
                         </div>
                         <div className="p-6 flex flex-col gap-4">
                             <div>
-                                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Motivo de Consulta (Triage)</label>
-                                <div className="p-3 bg-amber-50 dark:bg-amber-500/10 text-amber-900 dark:text-amber-200 rounded-xl text-sm font-medium border border-amber-100 dark:border-amber-500/20">
-                                    {appointment.observaciones || 'Sin motivo registrado en triage.'}
-                                </div>
+                                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Motivo de Consulta</label>
+                                <textarea
+                                    value={motivoConsulta}
+                                    onChange={(e) => setMotivoConsulta(e.target.value)}
+                                    className="w-full rounded-xl border border-amber-200 dark:border-amber-500/20 bg-amber-50 dark:bg-amber-500/10 text-amber-900 dark:text-amber-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 p-4 h-28 resize-none text-sm outline-none"
+                                    placeholder="Motivo principal de la atención"
+                                />
+                                <p className="mt-2 text-xs text-slate-500">
+                                    Se precarga con el motivo registrado en triage o con la observación de la cita.
+                                </p>
                             </div>
                             <div>
                                 <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Notas Médicas *</label>
