@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
+import type { AxiosError } from 'axios';
 import api from '../services/api';
 
 export interface User {
@@ -106,12 +107,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return { success: true };
       }
       return { success: false, error: 'No se pudo cargar la cuenta después del login' };
-    } catch (err: any) {
+    } catch (err) {
+      const axiosError = err as AxiosError<{ detail?: string; requiresBrowserLogin?: boolean }>;
       setLoading(false);
       return {
         success: false,
-        error: err?.response?.data?.detail || 'Error al iniciar sesión',
-        requiresBrowserLogin: Boolean(err?.response?.data?.requiresBrowserLogin),
+        error: axiosError.response?.data?.detail || 'Error al iniciar sesión',
+        requiresBrowserLogin: Boolean(axiosError.response?.data?.requiresBrowserLogin),
       };
     }
   };
@@ -127,7 +129,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } catch {
       // Ignorar — limpiar estado local de todas formas
     }
-    try { localStorage.removeItem('activeConsultation'); } catch (e) { }
+    try {
+      localStorage.removeItem('activeConsultation');
+    } catch {
+      void 0;
+    }
     setIsAuthenticated(false);
     setUser(null);
     setRoles([]);

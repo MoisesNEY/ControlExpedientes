@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import api from '../services/api';
@@ -71,14 +71,9 @@ const Login = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [language, setLanguage] = useState('es');
     const [requiresBrowserLogin, setRequiresBrowserLogin] = useState(false);
-
-    useEffect(() => {
-        const params = new URLSearchParams(location.search);
-        if (params.get('authError') === 'keycloak') {
-            setError('No se pudo completar el acceso con Keycloak. Inténtalo nuevamente.');
-            setRequiresBrowserLogin(true);
-        }
-    }, [location.search]);
+    const hasKeycloakAuthError = new URLSearchParams(location.search).get('authError') === 'keycloak';
+    const effectiveError = error || (hasKeycloakAuthError ? 'No se pudo completar el acceso con Keycloak. Inténtalo nuevamente.' : '');
+    const requiresBrowserLoginHint = requiresBrowserLogin || hasKeycloakAuthError;
 
     if (isAuthenticated) return <Navigate to="/" replace />;
 
@@ -123,7 +118,7 @@ const Login = () => {
 
             navigate(resolveAuthorizedHomePath(authorities, permissions));
             return;
-        } catch (e) {
+        } catch {
             // ignore
         }
 
@@ -248,14 +243,14 @@ const Login = () => {
                         </div>
 
                         {/* Error */}
-                        {error && (
+                        {effectiveError && (
                             <div className="mb-6 flex items-start gap-2.5 p-3.5 rounded-lg bg-rose-50 dark:bg-rose-500/8 border border-rose-200 dark:border-rose-500/20">
                                 <span className="material-symbols-outlined text-rose-500 text-[17px] mt-0.5 shrink-0">error</span>
-                                <p className="text-rose-600 dark:text-rose-400 text-sm font-medium">{error}</p>
+                                <p className="text-rose-600 dark:text-rose-400 text-sm font-medium">{effectiveError}</p>
                             </div>
                         )}
 
-                        {requiresBrowserLogin && (
+                        {requiresBrowserLoginHint && (
                             <div className="mb-6 flex items-start gap-2.5 p-3.5 rounded-lg bg-amber-50 dark:bg-amber-500/8 border border-amber-200 dark:border-amber-500/20">
                                 <span className="material-symbols-outlined text-amber-500 text-[17px] mt-0.5 shrink-0">security</span>
                                 <p className="text-amber-700 dark:text-amber-300 text-sm font-medium">
