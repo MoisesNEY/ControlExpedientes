@@ -146,6 +146,8 @@ public class KeycloakAdminService {
         if (body == null) {
             throw new IllegalArgumentException("No se encontró el usuario solicitado.");
         }
+        String matchedUserId = null;
+        int exactMatches = 0;
         for (Object item : body) {
             if (!(item instanceof Map<?, ?> rawUser) || isServiceAccount(rawUser)) {
                 continue;
@@ -154,10 +156,16 @@ public class KeycloakAdminService {
             if (!candidateUsername.equalsIgnoreCase(username.trim())) {
                 continue;
             }
-            String id = Objects.toString(rawUser.get("id"), null);
-            if (id != null) {
-                return findUserById(id);
+            exactMatches++;
+            if (matchedUserId == null) {
+                matchedUserId = Objects.toString(rawUser.get("id"), null);
             }
+        }
+        if (exactMatches > 1) {
+            LOG.warn("Se encontraron múltiples usuarios en Keycloak para el login exacto {}", username);
+        }
+        if (matchedUserId != null) {
+            return findUserById(matchedUserId);
         }
         throw new IllegalArgumentException("No se encontró el usuario solicitado.");
     }

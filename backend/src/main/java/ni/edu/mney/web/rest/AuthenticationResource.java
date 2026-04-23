@@ -242,9 +242,7 @@ public class AuthenticationResource {
             }
 
             updatePendingChallenge(session, currentUser);
-            String effectivePassword = request.newPassword() == null || request.newPassword().isBlank()
-                ? request.currentPassword()
-                : request.newPassword();
+            String effectivePassword = resolveEffectivePassword(request);
             if (effectivePassword == null || effectivePassword.isBlank()) {
                 throw new IllegalArgumentException("Debes reenviar tu contraseña actual para finalizar la autenticación.");
             }
@@ -428,6 +426,12 @@ public class AuthenticationResource {
 
     private String defaultString(String value) {
         return value == null ? "" : value;
+    }
+
+    private String resolveEffectivePassword(CompleteRequiredActionsVM request) {
+        return request.newPassword() == null || request.newPassword().isBlank()
+            ? request.currentPassword()
+            : request.newPassword();
     }
 
     private String sanitizeRedirectUri(String redirectUri) {

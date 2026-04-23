@@ -419,7 +419,7 @@ const Login = () => {
                                         Acciones obligatorias
                                     </p>
                                     <h3 className="text-base font-black text-slate-900 dark:text-white">
-                                        Completa la seguridad de {pendingProfile.login || username}
+                                        Completa la seguridad de {pendingProfile.login}
                                     </h3>
                                     <div className="mt-3 flex flex-wrap gap-2">
                                         {requiredActions.map(action => (
