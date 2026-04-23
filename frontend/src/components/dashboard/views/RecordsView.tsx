@@ -32,7 +32,7 @@ const calculateAge = (birthday?: string) => {
 };
 
 const RecordsView = () => {
-    const patientsPerPage = 8;
+    const PATIENTS_PER_PAGE = 8;
     const { selectedPatient, selectPatient } = usePatient();
     const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
     const [loading, setLoading] = useState(false);
@@ -68,7 +68,7 @@ const RecordsView = () => {
                         ? await PacienteService.getAll({
                             ...baseParams,
                             page: currentPage - 1,
-                            size: patientsPerPage,
+                            size: PATIENTS_PER_PAGE,
                             sort: 'nombres,asc',
                         })
                         : [];
@@ -96,8 +96,8 @@ const RecordsView = () => {
                     `${left.nombres} ${left.apellidos}`.localeCompare(`${right.nombres} ${right.apellidos}`, 'es', { sensitivity: 'base' })
                 );
 
-                const start = (currentPage - 1) * patientsPerPage;
-                setPatients(mergedPatients.slice(start, start + patientsPerPage));
+                const start = (currentPage - 1) * PATIENTS_PER_PAGE;
+                setPatients(mergedPatients.slice(start, start + PATIENTS_PER_PAGE));
                 setTotalPatients(mergedPatients.length);
             } catch (err) {
                 console.error('Error fetching patients:', err);
@@ -109,9 +109,9 @@ const RecordsView = () => {
         };
 
         void fetchPatients();
-    }, [currentPage, patientsPerPage, searchQuery, showSearch]);
+    }, [currentPage, searchQuery, showSearch]);
 
-    const totalPages = Math.max(1, Math.ceil(totalPatients / patientsPerPage));
+    const totalPages = Math.max(1, Math.ceil(totalPatients / PATIENTS_PER_PAGE));
 
     useEffect(() => {
         setCurrentPage(1);
@@ -248,7 +248,7 @@ const RecordsView = () => {
                         )}
                     </div>
 
-                        <div className="mt-4 rounded-2xl border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900">
+                    <div className="mt-4 rounded-2xl border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900">
                         <div className="flex flex-col gap-2 border-b border-slate-100 px-4 py-3 text-sm text-slate-500 dark:border-slate-800 dark:text-slate-400 md:flex-row md:items-center md:justify-between">
                             <p>{totalPatients} paciente(s) disponible(s)</p>
                             <p>Página {currentPage} de {totalPages}</p>
@@ -256,7 +256,7 @@ const RecordsView = () => {
 
                         {loadingPatients ? (
                             <div className="grid grid-cols-1 gap-3 p-4 md:grid-cols-2">
-                                {Array.from({ length: patientsPerPage }).map((_, index) => (
+                                {Array.from({ length: PATIENTS_PER_PAGE }).map((_, index) => (
                                     <div key={index} className="h-24 animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-800" />
                                 ))}
                             </div>
