@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { usePatient } from '../../../context/PatientContext';
 import { ExpedienteService } from '../../../services/expediente.service';
 import { ReporteService } from '../../../services/reporte.service';
@@ -42,6 +42,7 @@ const RecordsView = () => {
 
     const [searchQuery, setSearchQuery] = useState('');
     const [patients, setPatients] = useState<PacienteDTO[]>([]);
+    const [totalPatients, setTotalPatients] = useState(0);
     const [loadingPatients, setLoadingPatients] = useState(false);
     const [showSearch, setShowSearch] = useState(!selectedPatient);
     const [currentPage, setCurrentPage] = useState(1);
@@ -52,49 +53,65 @@ const RecordsView = () => {
 
     useEffect(() => {
         const fetchPatients = async () => {
+            if (!showSearch) {
+                return;
+            }
+
             setLoadingPatients(true);
             try {
-                const baseParams = { 'activo.equals': true };
-                const total = await PacienteService.count(baseParams);
-                const data = total > 0
-                    ? await PacienteService.getAll({ ...baseParams, size: total, sort: 'nombres,asc' })
-                    : [];
-                setPatients(data);
+                const trimmedQuery = searchQuery.trim();
+
+                if (!trimmedQuery) {
+                    const baseParams = { 'activo.equals': true };
+                    const total = await PacienteService.count(baseParams);
+                    const data = total > 0
+                        ? await PacienteService.getAll({
+                            ...baseParams,
+                            page: currentPage - 1,
+                            size: patientsPerPage,
+                            sort: 'nombres,asc',
+                        })
+                        : [];
+                    setPatients(data);
+                    setTotalPatients(total);
+                    return;
+                }
+
+                const [byNombres, byApellidos, byCodigo, byCedula] = await Promise.all([
+                    PacienteService.getAll({ 'activo.equals': true, 'nombres.contains': trimmedQuery, size: 50, sort: 'nombres,asc' }),
+                    PacienteService.getAll({ 'activo.equals': true, 'apellidos.contains': trimmedQuery, size: 50, sort: 'apellidos,asc' }),
+                    PacienteService.getAll({ 'activo.equals': true, 'codigo.contains': trimmedQuery, size: 50, sort: 'codigo,asc' }),
+                    PacienteService.getAll({ 'activo.equals': true, 'cedula.contains': trimmedQuery, size: 50, sort: 'cedula,asc' }),
+                ]);
+
+                const mergedPatients = Array.from(
+                    [...byNombres, ...byApellidos, ...byCodigo, ...byCedula]
+                        .filter((paciente): paciente is PacienteDTO & { id: number } => paciente.id != null)
+                        .reduce((map, paciente) => {
+                            map.set(paciente.id, paciente);
+                            return map;
+                        }, new Map<number, PacienteDTO>())
+                        .values()
+                ).sort((left, right) =>
+                    `${left.nombres} ${left.apellidos}`.localeCompare(`${right.nombres} ${right.apellidos}`, 'es', { sensitivity: 'base' })
+                );
+
+                const start = (currentPage - 1) * patientsPerPage;
+                setPatients(mergedPatients.slice(start, start + patientsPerPage));
+                setTotalPatients(mergedPatients.length);
             } catch (err) {
                 console.error('Error fetching patients:', err);
                 setPatients([]);
+                setTotalPatients(0);
             } finally {
                 setLoadingPatients(false);
             }
         };
 
         void fetchPatients();
-    }, []);
+    }, [currentPage, patientsPerPage, searchQuery, showSearch]);
 
-    const filteredPatients = useMemo(() => {
-        const normalizedQuery = searchQuery.trim().toLowerCase();
-        if (!normalizedQuery) {
-            return patients;
-        }
-
-        return patients.filter(paciente =>
-            [
-                paciente.nombres,
-                paciente.apellidos,
-                paciente.codigo,
-                paciente.cedula || '',
-                `${paciente.nombres} ${paciente.apellidos}`.trim(),
-            ]
-                .filter(Boolean)
-                .some(value => value.toLowerCase().includes(normalizedQuery))
-        );
-    }, [patients, searchQuery]);
-
-    const totalPages = Math.max(1, Math.ceil(filteredPatients.length / patientsPerPage));
-    const paginatedPatients = useMemo(() => {
-        const start = (currentPage - 1) * patientsPerPage;
-        return filteredPatients.slice(start, start + patientsPerPage);
-    }, [currentPage, filteredPatients]);
+    const totalPages = Math.max(1, Math.ceil(totalPatients / patientsPerPage));
 
     useEffect(() => {
         setCurrentPage(1);
@@ -231,10 +248,10 @@ const RecordsView = () => {
                         )}
                     </div>
 
-                    <div className="mt-4 rounded-2xl border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900">
+                        <div className="mt-4 rounded-2xl border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900">
                         <div className="flex flex-col gap-2 border-b border-slate-100 px-4 py-3 text-sm text-slate-500 dark:border-slate-800 dark:text-slate-400 md:flex-row md:items-center md:justify-between">
-                            <p>{filteredPatients.length} paciente(s) disponible(s)</p>
-                            <p>Página {totalPages === 0 ? 0 : currentPage} de {totalPages}</p>
+                            <p>{totalPatients} paciente(s) disponible(s)</p>
+                            <p>Página {currentPage} de {totalPages}</p>
                         </div>
 
                         {loadingPatients ? (
@@ -243,9 +260,9 @@ const RecordsView = () => {
                                     <div key={index} className="h-24 animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-800" />
                                 ))}
                             </div>
-                        ) : paginatedPatients.length > 0 ? (
+                        ) : patients.length > 0 ? (
                             <div className="grid grid-cols-1 gap-3 p-4 md:grid-cols-2">
-                                {paginatedPatients.map((paciente) => (
+                                {patients.map((paciente) => (
                                     <button
                                         key={paciente.id}
                                         type="button"
@@ -294,7 +311,7 @@ const RecordsView = () => {
                             <button
                                 type="button"
                                 onClick={() => setCurrentPage(page => Math.min(totalPages, page + 1))}
-                                disabled={currentPage === totalPages || filteredPatients.length === 0}
+                                disabled={currentPage === totalPages || totalPatients === 0}
                                 className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 transition disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-300"
                             >
                                 Siguiente
