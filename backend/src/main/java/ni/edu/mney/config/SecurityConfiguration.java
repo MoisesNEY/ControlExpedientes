@@ -65,6 +65,7 @@ public class SecurityConfiguration {
                         .csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler())
                         .ignoringRequestMatchers(
                             mvc.pattern("/api/authenticate"),
+                            mvc.pattern("/api/authenticate/browser"),
                             mvc.pattern("/api/authenticate/keycloak"),
                             mvc.pattern("/api/logout")
                         ))
@@ -78,6 +79,7 @@ public class SecurityConfiguration {
                 // prettier-ignore
                 authz
                         .requestMatchers(mvc.pattern("/api/authenticate")).permitAll()
+                        .requestMatchers(mvc.pattern("/api/authenticate/browser")).permitAll()
                         .requestMatchers(mvc.pattern("/api/authenticate/keycloak")).permitAll()
                         .requestMatchers(mvc.pattern("/api/auth-info")).permitAll()
                         .requestMatchers(mvc.pattern("/oauth2/**")).permitAll()
@@ -119,7 +121,7 @@ public class SecurityConfiguration {
 
     private String appendFailureMarker(String redirectUri) {
         String separator = redirectUri.contains("?") ? "&" : "?";
-        return redirectUri + separator + "authError=keycloak";
+        return redirectUri + separator + "authError=browser";
     }
 
     @Bean

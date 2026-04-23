@@ -1,4 +1,5 @@
 import api from './api';
+import { downloadBlob, getFilenameFromDisposition } from '../utils/download';
 
 export interface PermissionDefinition {
   code: string;
@@ -49,7 +50,7 @@ export interface ManagedUserPayload {
   requiredActions: string[];
 }
 
-export const KEYCLOAK_REQUIRED_ACTIONS = [
+export const AUTH_REQUIRED_ACTIONS = [
   { value: 'UPDATE_PASSWORD', label: 'Solicitar cambio de contraseña al iniciar sesión' },
   { value: 'VERIFY_EMAIL', label: 'Solicitar verificación de correo' },
   { value: 'UPDATE_PROFILE', label: 'Solicitar actualización de perfil' },
@@ -81,6 +82,11 @@ export const AdminSecurityService = {
     await api.delete(`/api/admin/roles/${encodeURIComponent(roleName)}`);
   },
 
+  exportRoles: async (): Promise<void> => {
+    const response = await api.get('/api/admin/roles/export', { responseType: 'blob' });
+    downloadBlob(response.data, getFilenameFromDisposition(response.headers['content-disposition']) ?? 'roles.xlsx');
+  },
+
   getUsers: async (): Promise<ManagedUser[]> => {
     const response = await api.get<ManagedUser[]>('/api/admin/users');
     return response.data;
@@ -94,5 +100,14 @@ export const AdminSecurityService = {
   updateUser: async (userId: string, payload: ManagedUserPayload): Promise<ManagedUser> => {
     const response = await api.put<ManagedUser>(`/api/admin/users/${encodeURIComponent(userId)}`, payload);
     return response.data;
+  },
+
+  deleteUser: async (userId: string): Promise<void> => {
+    await api.delete(`/api/admin/users/${encodeURIComponent(userId)}`);
+  },
+
+  exportUsers: async (): Promise<void> => {
+    const response = await api.get('/api/admin/users/export', { responseType: 'blob' });
+    downloadBlob(response.data, getFilenameFromDisposition(response.headers['content-disposition']) ?? 'usuarios.xlsx');
   },
 };

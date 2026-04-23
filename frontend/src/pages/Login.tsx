@@ -61,7 +61,7 @@ const NodePattern = () => (
 
 /* ─── Componente principal ─── */
 const Login = () => {
-    const { isAuthenticated, login, loginWithKeycloak, hasAnyRole } = useAuth();
+    const { isAuthenticated, login, continueLoginInBrowser, hasAnyRole } = useAuth();
     const location = useLocation();
     const navigate = useNavigate();
     const [username, setUsername] = useState('');
@@ -71,9 +71,9 @@ const Login = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [language, setLanguage] = useState('es');
     const [requiresBrowserLogin, setRequiresBrowserLogin] = useState(false);
-    const hasKeycloakAuthError = new URLSearchParams(location.search).get('authError') === 'keycloak';
-    const effectiveError = error || (hasKeycloakAuthError ? 'No se pudo completar el acceso con Keycloak. Inténtalo nuevamente.' : '');
-    const requiresBrowserLoginHint = requiresBrowserLogin || hasKeycloakAuthError;
+    const hasBrowserAuthError = new URLSearchParams(location.search).get('authError') === 'browser';
+    const effectiveError = error || (hasBrowserAuthError ? 'No se pudo completar el acceso adicional en el navegador. Inténtalo nuevamente.' : '');
+    const requiresBrowserLoginHint = requiresBrowserLogin || hasBrowserAuthError;
 
     if (isAuthenticated) return <Navigate to="/" replace />;
 
@@ -234,13 +234,13 @@ const Login = () => {
                             <p className="text-[10px] font-black text-sky-500 uppercase tracking-[3px] mb-3">
                                 Portal Institucional
                             </p>
-                            <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-tight">
-                                Iniciar sesión
-                            </h2>
-                            <p className="text-slate-400 dark:text-slate-500 text-sm mt-1.5">
-                                Accede con tus credenciales institucionales o continúa con Keycloak si tu cuenta tiene acciones pendientes.
-                            </p>
-                        </div>
+                             <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-tight">
+                                 Iniciar sesión
+                             </h2>
+                             <p className="text-slate-400 dark:text-slate-500 text-sm mt-1.5">
+                                 Accede con tus credenciales institucionales o continúa en el navegador si tu cuenta tiene pasos de seguridad pendientes.
+                             </p>
+                         </div>
 
                         {/* Error */}
                         {effectiveError && (
@@ -252,12 +252,12 @@ const Login = () => {
 
                         {requiresBrowserLoginHint && (
                             <div className="mb-6 flex items-start gap-2.5 p-3.5 rounded-lg bg-amber-50 dark:bg-amber-500/8 border border-amber-200 dark:border-amber-500/20">
-                                <span className="material-symbols-outlined text-amber-500 text-[17px] mt-0.5 shrink-0">security</span>
-                                <p className="text-amber-700 dark:text-amber-300 text-sm font-medium">
-                                    Esta cuenta debe completar acciones obligatorias de Keycloak, como cambio de contraseña, verificación de correo o configuración de segundo factor.
-                                </p>
-                            </div>
-                        )}
+                                 <span className="material-symbols-outlined text-amber-500 text-[17px] mt-0.5 shrink-0">security</span>
+                                 <p className="text-amber-700 dark:text-amber-300 text-sm font-medium">
+                                     Esta cuenta debe completar acciones obligatorias de acceso, como cambio de contraseña, verificación de correo o configuración de segundo factor.
+                                 </p>
+                             </div>
+                         )}
 
                         <form onSubmit={handleSubmit} className="space-y-5">
 
@@ -360,13 +360,13 @@ const Login = () => {
 
                                 <button
                                     type="button"
-                                    onClick={() => loginWithKeycloak('/login')}
+                                    onClick={() => continueLoginInBrowser('/login')}
                                     className="w-full py-3 px-5 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-white/[0.03]
                                                text-slate-700 dark:text-white text-sm font-bold tracking-wide hover:border-sky-300 hover:text-sky-600 dark:hover:text-sky-300
                                                transition-all duration-150 ease-out flex items-center justify-center gap-2"
                                 >
                                     <span className="material-symbols-outlined text-[18px]">shield_lock</span>
-                                    <span>Continuar con Keycloak</span>
+                                    <span>Continuar en el navegador</span>
                                 </button>
                             </div>
                         </form>

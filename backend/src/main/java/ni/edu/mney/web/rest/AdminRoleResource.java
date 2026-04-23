@@ -3,10 +3,12 @@ package ni.edu.mney.web.rest;
 import jakarta.validation.Valid;
 import java.util.List;
 import ni.edu.mney.security.AppPermissionCatalog;
+import ni.edu.mney.service.AdminSecurityExportService;
 import ni.edu.mney.service.RoleAdministrationService;
 import ni.edu.mney.service.dto.RoleDefinitionDTO;
 import ni.edu.mney.service.dto.RoleManagementCatalogDTO;
 import ni.edu.mney.service.dto.RoleUpsertDTO;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -24,9 +26,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminRoleResource {
 
     private final RoleAdministrationService roleAdministrationService;
+    private final AdminSecurityExportService adminSecurityExportService;
 
-    public AdminRoleResource(RoleAdministrationService roleAdministrationService) {
+    public AdminRoleResource(RoleAdministrationService roleAdministrationService, AdminSecurityExportService adminSecurityExportService) {
         this.roleAdministrationService = roleAdministrationService;
+        this.adminSecurityExportService = adminSecurityExportService;
     }
 
     @GetMapping("")
@@ -37,6 +41,15 @@ public class AdminRoleResource {
     @GetMapping("/catalog")
     public RoleManagementCatalogDTO getCatalog() {
         return roleAdministrationService.getCatalog();
+    }
+
+    @GetMapping("/export")
+    public ResponseEntity<byte[]> exportRoles() {
+        AdminSecurityExportService.ExportedSpreadsheet export = adminSecurityExportService.exportRoles(roleAdministrationService.getAllRoles());
+        HttpHeaders headers = new HttpHeaders();
+        headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + export.filename() + "\"");
+        headers.add(HttpHeaders.CONTENT_TYPE, export.contentType());
+        return ResponseEntity.ok().headers(headers).body(export.content());
     }
 
     @PostMapping("")

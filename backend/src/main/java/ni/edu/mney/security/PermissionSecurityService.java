@@ -12,6 +12,9 @@ public class PermissionSecurityService {
         if (authentication == null) {
             return false;
         }
+        if (authentication.getAuthorities().stream().anyMatch(authority -> AuthoritiesConstants.ADMIN.equals(authority.getAuthority()))) {
+            return true;
+        }
         String expectedAuthority = PermissionAuthorityService.permissionAuthority(permission);
         return authentication.getAuthorities().stream().anyMatch(authority -> expectedAuthority.equals(authority.getAuthority()));
     }
