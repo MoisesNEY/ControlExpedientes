@@ -44,7 +44,7 @@ const ReportsCenterView = () => {
     }, []);
 
     useEffect(() => {
-        if (patientQuery.trim().length < 2 || selectedPatient && `${selectedPatient.nombres} ${selectedPatient.apellidos}`.trim() === patientQuery.trim()) {
+        if (patientQuery.trim().length < 2 || (selectedPatient && `${selectedPatient.nombres} ${selectedPatient.apellidos}`.trim() === patientQuery.trim())) {
             return;
         }
 

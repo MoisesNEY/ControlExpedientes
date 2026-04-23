@@ -266,14 +266,19 @@ public class ReporteClinicoExportService {
             throw new IllegalArgumentException("La fecha final no puede ser menor que la fecha inicial.");
         }
 
-        List<ConsultaMedica> consultas = (doctorLogin != null && !doctorLogin.isBlank()
-            ? consultaMedicaRepository.findAllWithReportDetailsByFechaConsultaBetweenAndUserLogin(fechaInicio, fechaFin, doctorLogin)
-            : consultaMedicaRepository.findAllWithReportDetailsByFechaConsultaBetween(fechaInicio, fechaFin)).stream()
+        List<ConsultaMedica> consultas = fetchConsultas(fechaInicio, fechaFin, doctorLogin).stream()
                 .filter(consulta -> pacienteId == null || matchesPatient(consulta, pacienteId))
                 .sorted(Comparator.comparing(ConsultaMedica::getFechaConsulta).reversed().thenComparing(ConsultaMedica::getId).reversed())
                 .toList();
 
         return consultas;
+    }
+
+    private List<ConsultaMedica> fetchConsultas(LocalDate fechaInicio, LocalDate fechaFin, String doctorLogin) {
+        if (doctorLogin != null && !doctorLogin.isBlank()) {
+            return consultaMedicaRepository.findAllWithReportDetailsByFechaConsultaBetweenAndUserLogin(fechaInicio, fechaFin, doctorLogin);
+        }
+        return consultaMedicaRepository.findAllWithReportDetailsByFechaConsultaBetween(fechaInicio, fechaFin);
     }
 
     private boolean matchesPatient(ConsultaMedica consulta, Long pacienteId) {

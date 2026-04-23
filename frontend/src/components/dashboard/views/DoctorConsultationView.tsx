@@ -97,16 +97,21 @@ const DoctorConsultationView = () => {
                             setSignosVitales(vitals[0]);
                         }
                         if (expediente?.id) {
-                            const consultasResponse = await api.get('/api/consulta-medicas', {
-                                params: {
-                                    'expedienteId.equals': expediente.id,
-                                    'fechaConsulta.equals': new Date(citaData.fechaHora).toISOString().slice(0, 10),
-                                    sort: 'id,desc',
-                                    size: 1,
-                                },
-                            });
-                            const consultaActual = Array.isArray(consultasResponse.data) ? consultasResponse.data[0] : null;
-                            setMotivoConsulta(consultaActual?.motivoConsulta || citaData.observaciones || 'Consulta médica');
+                            try {
+                                const consultasResponse = await api.get('/api/consulta-medicas', {
+                                    params: {
+                                        'expedienteId.equals': expediente.id,
+                                        'fechaConsulta.equals': new Date(citaData.fechaHora).toISOString().slice(0, 10),
+                                        sort: 'id,desc',
+                                        size: 1,
+                                    },
+                                });
+                                const consultaActual = Array.isArray(consultasResponse.data) ? consultasResponse.data[0] : null;
+                                setMotivoConsulta(consultaActual?.motivoConsulta || citaData.observaciones || 'Consulta médica');
+                            } catch (consultaError) {
+                                console.error('Error cargando motivo de consulta actual:', consultaError);
+                                setMotivoConsulta(citaData.observaciones || 'Consulta médica');
+                            }
                         } else {
                             setMotivoConsulta(citaData.observaciones || 'Consulta médica');
                         }
