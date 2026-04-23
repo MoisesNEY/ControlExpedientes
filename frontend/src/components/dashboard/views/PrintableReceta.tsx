@@ -80,7 +80,7 @@ const PrintableReceta = ({
                             </div>
                             <div>
                                 <div style={{ fontSize: '20px', fontWeight: 900, color: '#0a6e75', lineHeight: 1 }}>
-                                    STITCH Medical Center
+                                    ClinData
                                 </div>
                                 <div style={{ fontSize: '11px', color: '#666', marginTop: '2px' }}>
                                     Atención Médica Integral y de Calidad
@@ -247,7 +247,7 @@ const PrintableReceta = ({
                 }}>
                     <div style={{ fontSize: '10px', color: '#aaa', lineHeight: 1.7 }}>
                         <div>Este documento es válido únicamente con firma y sello del médico.</div>
-                        <div>Generado por Sistema Control de Expedientes — STITCH Medical Center</div>
+                        <div>Generado por ClinData</div>
                     </div>
                     <div style={{ textAlign: 'center', minWidth: '160px' }}>
                         <div style={{

@@ -32,14 +32,14 @@ public class UserAdministrationService {
         this.authorityRepository = authorityRepository;
     }
 
-    @Transactional(readOnly = true)
     public List<ManagedUserDTO> getAllUsers() {
-        return keycloakAdminService.listUsers().stream().map(this::toDto).toList();
+        List<KeycloakAdminService.ManagedKeycloakUser> users = keycloakAdminService.listUsers();
+        syncLocalUsers(users);
+        return users.stream().map(this::toDto).toList();
     }
 
     public ManagedUserDTO createUser(ManagedUserUpsertDTO request) {
         validateRoles(request.roles());
-        validateLoginCompatibleProvisioning(request);
         KeycloakAdminService.ManagedKeycloakUser user = keycloakAdminService.createUser(
             request.login(),
             request.firstName(),
@@ -57,7 +57,6 @@ public class UserAdministrationService {
 
     public ManagedUserDTO updateUser(String userId, ManagedUserUpsertDTO request) {
         validateRoles(request.roles());
-        validateLoginCompatibleProvisioning(request);
         KeycloakAdminService.ManagedKeycloakUser user = keycloakAdminService.updateUser(
             userId,
             request.login(),
@@ -72,6 +71,16 @@ public class UserAdministrationService {
         );
         syncLocalUser(user);
         return toDto(user);
+    }
+
+    private void syncLocalUsers(List<KeycloakAdminService.ManagedKeycloakUser> users) {
+        Set<String> synchronizedUserIds = users.stream()
+            .map(KeycloakAdminService.ManagedKeycloakUser::id)
+            .collect(Collectors.toCollection(LinkedHashSet::new));
+        users.forEach(this::syncLocalUser);
+        userRepository.findAll().stream()
+            .filter(localUser -> !synchronizedUserIds.contains(localUser.getId()))
+            .forEach(userRepository::delete);
     }
 
     private void syncLocalUser(KeycloakAdminService.ManagedKeycloakUser user) {
@@ -109,15 +118,6 @@ public class UserAdministrationService {
         List<String> invalid = roles.stream().filter(role -> role == null || !role.startsWith("ROLE_")).toList();
         if (!invalid.isEmpty()) {
             throw new IllegalArgumentException("Se recibieron roles inválidos: " + invalid);
-        }
-    }
-
-    private void validateLoginCompatibleProvisioning(ManagedUserUpsertDTO request) {
-        boolean hasRequiredActions = request.requiredActions() != null && request.requiredActions().stream().anyMatch(action -> action != null && !action.isBlank());
-        if (request.temporaryPassword() || hasRequiredActions) {
-            throw new IllegalArgumentException(
-                "Esta aplicación no admite contraseñas temporales ni acciones obligatorias de Keycloak en el inicio de sesión. Asigna una contraseña permanente y deja vacías las acciones obligatorias."
-            );
         }
     }
 

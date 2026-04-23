@@ -35,6 +35,7 @@ public class KeycloakAdminService {
     private static final Logger LOG = LoggerFactory.getLogger(KeycloakAdminService.class);
     private static final int MAX_PASSWORD_VALIDATION_FAILURES = 5;
     private static final Duration PASSWORD_VALIDATION_WINDOW = Duration.ofMinutes(5);
+    private static final int USER_PAGE_SIZE = 200;
 
     private final RestTemplate restTemplate = new RestTemplate();
     private final Map<String, ValidationAttempt> failedPasswordValidations = new ConcurrentHashMap<>();
@@ -79,6 +80,10 @@ public class KeycloakAdminService {
     }
 
     public List<String> listRealmRoles() {
+        return listRoles().stream().map(ManagedKeycloakRole::roleName).toList();
+    }
+
+    public List<ManagedKeycloakRole> listRoles() {
         List<?> body = exchange(adminRealmUrl("/roles"), HttpMethod.GET, null, List.class).getBody();
         if (body == null) {
             return List.of();
@@ -86,19 +91,26 @@ public class KeycloakAdminService {
         return body.stream()
             .filter(Map.class::isInstance)
             .map(Map.class::cast)
-            .map(item -> Objects.toString(item.get("name"), null))
-            .filter(name -> name != null && name.startsWith("ROLE_"))
-            .sorted()
+            .map(this::toManagedRole)
+            .filter(Objects::nonNull)
+            .sorted(java.util.Comparator.comparing(ManagedKeycloakRole::roleName))
             .toList();
     }
 
     public List<ManagedKeycloakUser> listUsers() {
-        List<?> users = exchange(adminRealmUrl("/users?max=200"), HttpMethod.GET, null, List.class).getBody();
-        if (users == null) {
-            return List.of();
+        List<Object> rawUsers = new ArrayList<>();
+        for (int first = 0;; first += USER_PAGE_SIZE) {
+            List<?> page = exchange(adminRealmUrl("/users?first=" + first + "&max=" + USER_PAGE_SIZE), HttpMethod.GET, null, List.class).getBody();
+            if (page == null || page.isEmpty()) {
+                break;
+            }
+            rawUsers.addAll(page);
+            if (page.size() < USER_PAGE_SIZE) {
+                break;
+            }
         }
         List<ManagedKeycloakUser> result = new ArrayList<>();
-        for (Object item : users) {
+        for (Object item : rawUsers) {
             if (!(item instanceof Map<?, ?> rawUser)) {
                 continue;
             }
@@ -214,15 +226,7 @@ public class KeycloakAdminService {
 
     private Set<String> getRoleCompositeNames(String roleName) {
         List<?> body = exchange(roleUrl(roleName) + "/composites", HttpMethod.GET, null, List.class).getBody();
-        if (body == null) {
-            return Set.of();
-        }
-        return body.stream()
-            .filter(Map.class::isInstance)
-            .map(Map.class::cast)
-            .map(item -> Objects.toString(item.get("name"), null))
-            .filter(name -> name != null && name.startsWith("ROLE_"))
-            .collect(Collectors.toCollection(LinkedHashSet::new));
+        return extractRoleNames(body);
     }
 
     private void syncUserRoles(String userId, Collection<String> desiredRoles) {
@@ -299,6 +303,33 @@ public class KeycloakAdminService {
         payload.put("clientRole", false);
         payload.put("attributes", roleAttributes(permissions));
         return payload;
+    }
+
+    private ManagedKeycloakRole toManagedRole(Map<?, ?> rawRole) {
+        String roleName = Objects.toString(rawRole.get("name"), null);
+        if (roleName == null || !roleName.startsWith("ROLE_") || Boolean.TRUE.equals(rawRole.get("clientRole"))) {
+            return null;
+        }
+        return new ManagedKeycloakRole(
+            roleName,
+            Objects.toString(rawRole.get("description"), ""),
+            extractRolePermissions(rawRole.get("attributes")),
+            getRoleCompositeNames(roleName)
+        );
+    }
+
+    private Set<String> extractRolePermissions(Object rawAttributes) {
+        if (!(rawAttributes instanceof Map<?, ?> attributes)) {
+            return Set.of();
+        }
+        Object permissions = attributes.get("permissions");
+        if (!(permissions instanceof Collection<?> collection)) {
+            return Set.of();
+        }
+        return collection.stream()
+            .map(String::valueOf)
+            .filter(permission -> permission != null && !permission.isBlank())
+            .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
     private Map<String, List<String>> roleAttributes(Set<String> permissions) {
@@ -589,4 +620,6 @@ public class KeycloakAdminService {
         List<String> roles,
         List<String> requiredActions
     ) {}
+
+    public record ManagedKeycloakRole(String roleName, String description, Set<String> permissions, Set<String> compositeRoles) {}
 }

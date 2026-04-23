@@ -1,8 +1,11 @@
 package ni.edu.mney.web.rest;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
+import java.io.IOException;
+import java.net.URI;
 import java.util.*;
 import ni.edu.mney.security.PermissionAuthorityService;
 import ni.edu.mney.security.SecurityUtils;
@@ -38,6 +41,7 @@ import org.springframework.web.client.RestTemplate;
 public class AuthenticationResource {
 
     private static final Logger LOG = LoggerFactory.getLogger(AuthenticationResource.class);
+    public static final String SESSION_ATTR_POST_LOGIN_REDIRECT = "KC_POST_LOGIN_REDIRECT";
 
     private static final String SESSION_ATTR_ACCESS_TOKEN = "KC_ACCESS_TOKEN";
     private static final String SESSION_ATTR_REFRESH_TOKEN = "KC_REFRESH_TOKEN";
@@ -51,6 +55,9 @@ public class AuthenticationResource {
 
     @Value("${spring.security.oauth2.client.registration.oidc.client-secret}")
     private String clientSecret;
+
+    @Value("${jhipster.cors.allowed-origins:}")
+    private String allowedOrigins;
 
     private final JwtDecoder jwtDecoder;
     private final UserService userService;
@@ -130,13 +137,34 @@ public class AuthenticationResource {
             return ResponseEntity.ok(userDTO);
         } catch (HttpClientErrorException e) {
             LOG.warn("Keycloak authentication failed for user {}: {}", loginVM.getUsername(), e.getStatusCode());
+            boolean requiresBrowserLogin = requiresBrowserLogin(e);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("error", "Credenciales inválidas", "detail", resolveAuthenticationDetail(e)));
+                    .body(
+                        Map.of(
+                            "error",
+                            "Credenciales inválidas",
+                            "detail",
+                            resolveAuthenticationDetail(e),
+                            "requiresBrowserLogin",
+                            requiresBrowserLogin
+                        )
+                    );
         } catch (Exception e) {
             LOG.error("Unexpected error during BFF authentication for user: {}", loginVM.getUsername(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Error interno de autenticación"));
         }
+    }
+
+    @GetMapping("/authenticate/keycloak")
+    public void authenticateWithKeycloak(
+        @RequestParam(name = "redirect_uri", required = false) String redirectUri,
+        HttpServletRequest request,
+        HttpServletResponse response
+    ) throws IOException {
+        HttpSession session = request.getSession(true);
+        session.setAttribute(SESSION_ATTR_POST_LOGIN_REDIRECT, sanitizeRedirectUri(redirectUri));
+        response.sendRedirect(request.getScheme() + "://" + request.getServerName() + ":" + request.getServerPort() + "/oauth2/authorization/oidc");
     }
 
     /**
@@ -164,11 +192,41 @@ public class AuthenticationResource {
     private String resolveAuthenticationDetail(HttpClientErrorException exception) {
         String responseBody = Optional.ofNullable(exception.getResponseBodyAsString()).orElse("").toLowerCase(Locale.ROOT);
         if (responseBody.contains("account is not fully set up")) {
-            return "La cuenta tiene acciones pendientes en Keycloak y no puede iniciar sesión desde esta aplicación. Asigna una contraseña permanente y deja vacías las acciones obligatorias.";
+            return "La cuenta tiene acciones pendientes en Keycloak. Continúa el acceso con la pantalla de Keycloak para completar el cambio de contraseña, verificación de correo o cualquier otra acción obligatoria.";
         }
         if (responseBody.contains("account disabled")) {
             return "La cuenta está desactivada.";
         }
         return "Usuario o contraseña incorrectos";
+    }
+
+    private boolean requiresBrowserLogin(HttpClientErrorException exception) {
+        String responseBody = Optional.ofNullable(exception.getResponseBodyAsString()).orElse("").toLowerCase(Locale.ROOT);
+        return responseBody.contains("account is not fully set up");
+    }
+
+    private String sanitizeRedirectUri(String redirectUri) {
+        if (redirectUri == null || redirectUri.isBlank()) {
+            return "/";
+        }
+        if (redirectUri.startsWith("/") && !redirectUri.startsWith("//")) {
+            return redirectUri;
+        }
+
+        URI candidate = URI.create(redirectUri);
+        if (!candidate.isAbsolute()) {
+            return "/";
+        }
+
+        String candidateOrigin = candidate.getScheme() + "://" + candidate.getAuthority();
+        Set<String> validOrigins = Arrays.stream(Optional.ofNullable(allowedOrigins).orElse("").split(","))
+            .map(String::trim)
+            .filter(value -> !value.isBlank())
+            .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        if (validOrigins.contains(candidateOrigin)) {
+            return redirectUri;
+        }
+        LOG.warn("Se rechazó redirect_uri no permitido durante login de Keycloak: {}", redirectUri);
+        return "/";
     }
 }

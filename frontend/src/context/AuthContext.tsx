@@ -22,7 +22,8 @@ export interface AuthState {
   account: { authorities: string[]; permissions: string[]; firstName?: string; lastName?: string; email?: string } | null;
   loading: boolean;
 
-  login: (username: string, password?: string) => Promise<{success: boolean, error?: string}>;
+  login: (username: string, password?: string) => Promise<{success: boolean, error?: string, requiresBrowserLogin?: boolean}>;
+  loginWithKeycloak: (redirectPath?: string) => void;
   logout: () => void;
   hasRole: (role: string) => boolean;
   hasAnyRole: (roles: string[]) => boolean;
@@ -107,8 +108,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return { success: false, error: 'No se pudo cargar la cuenta después del login' };
     } catch (err: any) {
       setLoading(false);
-      return { success: false, error: err?.response?.data?.detail || 'Error al iniciar sesión' };
+      return {
+        success: false,
+        error: err?.response?.data?.detail || 'Error al iniciar sesión',
+        requiresBrowserLogin: Boolean(err?.response?.data?.requiresBrowserLogin),
+      };
     }
+  };
+
+  const loginWithKeycloak = (redirectPath = '/login') => {
+    const redirectUri = new URL(redirectPath, window.location.origin).toString();
+    window.location.assign(`/api/authenticate/keycloak?redirect_uri=${encodeURIComponent(redirectUri)}`);
   };
 
   const logout = async () => {
@@ -144,9 +154,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   return (
-    <AuthContext.Provider
-      value={{ isAuthenticated, user, roles, permissions, account, loading, login, logout, hasRole, hasAnyRole, hasPermission, hasAnyPermission }}
-    >
+      <AuthContext.Provider
+      value={{
+        isAuthenticated,
+        user,
+        roles,
+        permissions,
+        account,
+        loading,
+        login,
+        loginWithKeycloak,
+        logout,
+        hasRole,
+        hasAnyRole,
+        hasPermission,
+        hasAnyPermission,
+      }}
+      >
       {children}
     </AuthContext.Provider>
   );
