@@ -117,4 +117,14 @@ class ExceptionTranslatorIT {
             .andExpect(jsonPath("$.message").value("error.http.500"))
             .andExpect(jsonPath("$.title").value("Internal Server Error"));
     }
+
+    @Test
+    void testIllegalArgumentExceptionMapsToBadRequest() throws Exception {
+        mockMvc
+            .perform(get("/api/exception-translator-test/illegal-argument").with(csrf()))
+            .andExpect(status().isBadRequest())
+            .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+            .andExpect(jsonPath("$.message").value("error.http.400"))
+            .andExpect(jsonPath("$.detail").value("validation failed"));
+    }
 }

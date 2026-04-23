@@ -52,6 +52,11 @@ public class ExceptionTranslatorTestController {
         throw new RuntimeException();
     }
 
+    @GetMapping("/illegal-argument")
+    public void illegalArgument() {
+        throw new IllegalArgumentException("validation failed");
+    }
+
     public static class TestDTO {
 
         @NotNull

@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { Navigate, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { AppointmentService } from '../services/appointment.service';
+import { resolveAuthorizedHomePath } from '../utils/authNavigation';
 
 /* ─── SVG: Visualización abstracta de nodos médicos ─── */
 const NodePattern = () => (
@@ -87,6 +88,7 @@ const Login = () => {
             const accountResponse = await api.get('/api/account');
             const account = accountResponse.data;
             const authorities = Array.isArray(account?.authorities) ? account.authorities : [];
+            const permissions = Array.isArray(account?.permissions) ? account.permissions : [];
 
             if (authorities.includes('ROLE_MEDICO')) {
                 const activeConsultation = await AppointmentService.getActiveConsultation(String(account.id ?? account.login ?? ''));
@@ -106,28 +108,11 @@ const Login = () => {
                 navigate(`/medico/consulta/${active}`);
                 return;
             }
+
+            navigate(resolveAuthorizedHomePath(authorities, permissions));
+            return;
         } catch (e) {
             // ignore
-        }
-
-        if (hasAnyRole(['ROLE_ADMIN'])) {
-            navigate('/admin/dashboard');
-            return;
-        }
-
-        if (hasAnyRole(['ROLE_MEDICO'])) {
-            navigate('/medico/dashboard');
-            return;
-        }
-
-        if (hasAnyRole(['ROLE_ENFERMERO'])) {
-            navigate('/enfermeria/dashboard');
-            return;
-        }
-
-        if (hasAnyRole(['ROLE_RECEPCION'])) {
-            navigate('/recepcion/dashboard');
-            return;
         }
 
         navigate('/');

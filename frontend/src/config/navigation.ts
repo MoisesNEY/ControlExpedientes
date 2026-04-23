@@ -14,7 +14,7 @@ export interface NavGroup {
 
 /**
  * Matriz Universal de Navegación (System Inventory)
- * La visibilidad de cada ruta será gobernada exclusivamente por los `requiredRoles`.
+ * La visibilidad de cada ruta será gobernada por roles y permisos.
  */
 export const navigationConfig: NavGroup[] = [
   {
@@ -29,7 +29,7 @@ export const navigationConfig: NavGroup[] = [
       { id: 'admin-expedientes', label: 'Expedientes', path: '/admin/expedientes', icon: 'folder_open', requiredRoles: ['ROLE_ADMIN'] },
       { id: 'admin-users', label: 'Usuarios', path: '/admin/usuarios', icon: 'badge', requiredRoles: [], requiredPermissions: ['admin.users.manage'] },
       { id: 'admin-roles', label: 'Roles', path: '/admin/roles', icon: 'admin_panel_settings', requiredRoles: [], requiredPermissions: ['admin.roles.manage'] },
-      { id: 'admin-database', label: 'Base de Datos', path: '/admin/base-datos', icon: 'database', requiredRoles: ['ROLE_ADMIN'], requiredPermissions: ['admin.database.view'] },
+      { id: 'admin-database', label: 'Base de Datos', path: '/admin/base-datos', icon: 'database', requiredRoles: ['ROLE_ADMIN'], requiredPermissions: ['admin.database.view', 'admin.database.export', 'admin.database.restore'] },
       { id: 'admin-audit', label: 'Auditoría', path: '/admin/auditoria', icon: 'security', requiredRoles: ['ROLE_ADMIN'] },
     ]
   },

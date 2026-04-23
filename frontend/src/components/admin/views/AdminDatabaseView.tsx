@@ -557,6 +557,12 @@ const AdminDatabaseView = () => {
                   Esta acción es sensible. Debes confirmar tu usuario, contraseña y escribir <span className="font-black">{expectedWord}</span> para continuar.
                 </div>
 
+                {message && (
+                  <div className="rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3 text-sm font-medium text-sky-700 dark:border-sky-900/40 dark:bg-sky-950/30 dark:text-sky-200">
+                    {message}
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 gap-4">
                   <div>
                     <label className="text-xs font-black uppercase tracking-widest text-slate-500">Usuario</label>
