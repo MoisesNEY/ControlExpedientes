@@ -1,5 +1,7 @@
 package ni.edu.mney.web.rest;
 
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.Size;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
@@ -8,6 +10,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.*;
 import ni.edu.mney.security.PermissionAuthorityService;
+import ni.edu.mney.security.KeycloakAdminService;
 import ni.edu.mney.security.SecurityUtils;
 import ni.edu.mney.service.UserService;
 import ni.edu.mney.service.dto.AdminUserDTO;
@@ -46,6 +49,7 @@ public class AuthenticationResource {
     private static final String SESSION_ATTR_ACCESS_TOKEN = "KC_ACCESS_TOKEN";
     private static final String SESSION_ATTR_REFRESH_TOKEN = "KC_REFRESH_TOKEN";
     private static final String SESSION_ATTR_TOKEN_EXPIRY = "KC_TOKEN_EXPIRY";
+    private static final String SESSION_ATTR_PENDING_CHALLENGE = "KC_PENDING_REQUIRED_ACTIONS";
 
     @Value("${spring.security.oauth2.client.provider.oidc.issuer-uri}")
     private String issuerUri;
@@ -62,12 +66,19 @@ public class AuthenticationResource {
     private final JwtDecoder jwtDecoder;
     private final UserService userService;
     private final PermissionAuthorityService permissionAuthorityService;
+    private final KeycloakAdminService keycloakAdminService;
     private final RestTemplate restTemplate = new RestTemplate();
 
-    public AuthenticationResource(JwtDecoder jwtDecoder, UserService userService, PermissionAuthorityService permissionAuthorityService) {
+    public AuthenticationResource(
+        JwtDecoder jwtDecoder,
+        UserService userService,
+        PermissionAuthorityService permissionAuthorityService,
+        KeycloakAdminService keycloakAdminService
+    ) {
         this.jwtDecoder = jwtDecoder;
         this.userService = userService;
         this.permissionAuthorityService = permissionAuthorityService;
+        this.keycloakAdminService = keycloakAdminService;
     }
 
     /**
@@ -113,31 +124,56 @@ public class AuthenticationResource {
                         .body(Map.of("error", "Credenciales inválidas"));
             }
 
-            String accessToken = (String) tokenResponse.get("access_token");
-            String refreshToken = (String) tokenResponse.get("refresh_token");
-            Integer expiresIn = (Integer) tokenResponse.get("expires_in");
-
-            // 2. Decode the JWT to set up Spring Security context
-            Jwt jwt = jwtDecoder.decode(accessToken);
-            Collection<GrantedAuthority> authorities = extractAuthorities(jwt);
-
-            JwtAuthenticationToken authentication = new JwtAuthenticationToken(jwt, authorities);
-            SecurityContextHolder.getContext().setAuthentication(authentication);
-
-            // 3. Store tokens in server-side HttpSession
-            HttpSession session = request.getSession(true);
-            session.setAttribute(SESSION_ATTR_ACCESS_TOKEN, accessToken);
-            session.setAttribute(SESSION_ATTR_REFRESH_TOKEN, refreshToken);
-            session.setAttribute(SESSION_ATTR_TOKEN_EXPIRY, System.currentTimeMillis() + (expiresIn * 1000L));
-
-            // 4. Use the existing UserService to get account info (syncs user in DB)
-            AdminUserDTO userDTO = userService.getUserFromAuthentication(authentication);
+            AdminUserDTO userDTO = establishAuthenticatedSession(tokenResponse, request);
 
             LOG.info("BFF authentication successful for user: {}", loginVM.getUsername());
             return ResponseEntity.ok(userDTO);
         } catch (HttpClientErrorException e) {
             LOG.warn("Keycloak authentication failed for user {}: {}", loginVM.getUsername(), e.getStatusCode());
             boolean requiresBrowserLogin = requiresBrowserLogin(e);
+            if (requiresBrowserLogin) {
+                HttpSession session = request.getSession(true);
+                try {
+                    clearAuthenticatedSession(session);
+                    KeycloakAdminService.ManagedKeycloakUser managedUser = keycloakAdminService.getUserByUsername(loginVM.getUsername());
+                    PendingRequiredActionsChallenge challenge = new PendingRequiredActionsChallenge(
+                        managedUser.id(),
+                        managedUser.login(),
+                        managedUser.firstName(),
+                        managedUser.lastName(),
+                        managedUser.email(),
+                        managedUser.requiredActions()
+                    );
+                    session.setAttribute(SESSION_ATTR_PENDING_CHALLENGE, challenge);
+                    return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(
+                            Map.of(
+                                "error",
+                                "Acciones obligatorias pendientes",
+                                "detail",
+                                resolveAuthenticationDetail(e),
+                                "requiresActionCompletion",
+                                true,
+                                "requiredActions",
+                                challenge.requiredActions(),
+                                "profile",
+                                Map.of(
+                                    "login",
+                                    challenge.login(),
+                                    "firstName",
+                                    defaultString(challenge.firstName()),
+                                    "lastName",
+                                    defaultString(challenge.lastName()),
+                                    "email",
+                                    defaultString(challenge.email())
+                                )
+                            )
+                        );
+                } catch (RuntimeException challengeError) {
+                    LOG.warn("No se pudo preparar el flujo interno de acciones obligatorias para {}", loginVM.getUsername(), challengeError);
+                }
+            }
+            clearPendingChallenge(request.getSession(false));
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(
                         Map.of(
@@ -145,14 +181,83 @@ public class AuthenticationResource {
                             "Credenciales inválidas",
                             "detail",
                             resolveAuthenticationDetail(e),
-                            "requiresBrowserLogin",
-                            requiresBrowserLogin
+                            "requiresActionCompletion",
+                            false
                         )
                     );
         } catch (Exception e) {
             LOG.error("Unexpected error during BFF authentication for user: {}", loginVM.getUsername(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Error interno de autenticación"));
+        }
+    }
+
+    @PostMapping("/authenticate/required-actions")
+    public ResponseEntity<?> completeRequiredActions(
+        @Valid @RequestBody CompleteRequiredActionsVM request,
+        HttpServletRequest httpRequest
+    ) {
+        HttpSession session = httpRequest.getSession(false);
+        PendingRequiredActionsChallenge challenge = getPendingChallenge(session);
+        try {
+            KeycloakAdminService.ManagedKeycloakUser currentUser = keycloakAdminService.getUserByUsername(challenge.login());
+            List<String> remainingActions = new ArrayList<>(currentUser.requiredActions());
+
+            if (remainingActions.contains("UPDATE_PROFILE")) {
+                validateProfileUpdate(request);
+                currentUser = keycloakAdminService.updateUserProfile(
+                    currentUser.id(),
+                    request.firstName(),
+                    request.lastName(),
+                    request.email()
+                );
+                currentUser = keycloakAdminService.clearRequiredActions(currentUser.id(), List.of("UPDATE_PROFILE"));
+                remainingActions = new ArrayList<>(currentUser.requiredActions());
+            }
+
+            if (remainingActions.contains("VERIFY_EMAIL")) {
+                String effectiveEmail = firstNonBlank(request.email(), currentUser.email());
+                if (effectiveEmail == null) {
+                    throw new IllegalArgumentException("Debes indicar un correo válido antes de confirmar la verificación.");
+                }
+                if (!effectiveEmail.equals(currentUser.email())) {
+                    currentUser = keycloakAdminService.updateUserProfile(currentUser.id(), currentUser.firstName(), currentUser.lastName(), effectiveEmail);
+                }
+                currentUser = keycloakAdminService.markEmailAsVerified(currentUser.id());
+                currentUser = keycloakAdminService.clearRequiredActions(currentUser.id(), List.of("VERIFY_EMAIL"));
+                remainingActions = new ArrayList<>(currentUser.requiredActions());
+            }
+
+            if (remainingActions.contains("UPDATE_PASSWORD")) {
+                if (request.newPassword() == null || request.newPassword().isBlank()) {
+                    throw new IllegalArgumentException("Debes definir una nueva contraseña para completar el acceso.");
+                }
+                keycloakAdminService.resetUserPassword(currentUser.id(), request.newPassword(), false);
+                currentUser = keycloakAdminService.clearRequiredActions(currentUser.id(), List.of("UPDATE_PASSWORD"));
+                remainingActions = new ArrayList<>(currentUser.requiredActions());
+            }
+
+            if (remainingActions.contains("CONFIGURE_TOTP")) {
+                throw new IllegalArgumentException("La configuración de TOTP aún no está disponible desde el portal interno.");
+            }
+
+            updatePendingChallenge(session, currentUser);
+            String effectivePassword = resolveEffectivePassword(request);
+            if (effectivePassword == null || effectivePassword.isBlank()) {
+                throw new IllegalArgumentException("Debes reenviar tu contraseña actual para finalizar la autenticación.");
+            }
+            AdminUserDTO userDTO = establishAuthenticatedSession(authenticateWithPassword(challenge.login(), effectivePassword), httpRequest);
+            return ResponseEntity.ok(userDTO);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("detail", e.getMessage()));
+        } catch (HttpClientErrorException e) {
+            LOG.warn("No se pudo finalizar la autenticación posterior a acciones obligatorias para {}", challenge.login(), e);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(Map.of("detail", resolveAuthenticationDetail(e), "requiresActionCompletion", true));
+        } catch (Exception e) {
+            LOG.error("Error completando acciones obligatorias para {}", challenge.login(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("detail", "No se pudieron completar las acciones obligatorias."));
         }
     }
 
@@ -214,6 +319,121 @@ public class AuthenticationResource {
         return responseBody.contains("account is not fully set up");
     }
 
+    private AdminUserDTO establishAuthenticatedSession(Map<String, Object> tokenResponse, HttpServletRequest request) {
+        String accessToken = (String) tokenResponse.get("access_token");
+        String refreshToken = (String) tokenResponse.get("refresh_token");
+        Integer expiresIn = (Integer) tokenResponse.get("expires_in");
+
+        Jwt jwt = jwtDecoder.decode(accessToken);
+        Collection<GrantedAuthority> authorities = extractAuthorities(jwt);
+        JwtAuthenticationToken authentication = new JwtAuthenticationToken(jwt, authorities);
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+
+        HttpSession session = request.getSession(true);
+        clearPendingChallenge(session);
+        session.setAttribute(SESSION_ATTR_ACCESS_TOKEN, accessToken);
+        session.setAttribute(SESSION_ATTR_REFRESH_TOKEN, refreshToken);
+        session.setAttribute(SESSION_ATTR_TOKEN_EXPIRY, System.currentTimeMillis() + (expiresIn * 1000L));
+
+        return userService.getUserFromAuthentication(authentication);
+    }
+
+    private Map<String, Object> authenticateWithPassword(String username, String password) {
+        String tokenEndpoint = issuerUri + "/protocol/openid-connect/token";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+        MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
+        body.add("grant_type", "password");
+        body.add("client_id", clientId);
+        body.add("client_secret", clientSecret);
+        body.add("username", username);
+        body.add("password", password);
+        body.add("scope", "openid profile email offline_access");
+
+        HttpEntity<MultiValueMap<String, String>> tokenRequest = new HttpEntity<>(body, headers);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> tokenResponse = restTemplate.postForObject(tokenEndpoint, tokenRequest, Map.class);
+        if (tokenResponse == null || !tokenResponse.containsKey("access_token")) {
+            throw new IllegalArgumentException("No se pudo autenticar la sesión con las credenciales actualizadas.");
+        }
+        return tokenResponse;
+    }
+
+    private PendingRequiredActionsChallenge getPendingChallenge(HttpSession session) {
+        if (session == null) {
+            throw new IllegalArgumentException("La sesión de autenticación pendiente ya no está disponible.");
+        }
+        Object value = session.getAttribute(SESSION_ATTR_PENDING_CHALLENGE);
+        if (value instanceof PendingRequiredActionsChallenge challenge) {
+            return challenge;
+        }
+        throw new IllegalArgumentException("No hay acciones obligatorias pendientes para esta sesión.");
+    }
+
+    private void updatePendingChallenge(
+        HttpSession session,
+        KeycloakAdminService.ManagedKeycloakUser currentUser
+    ) {
+        if (session == null) {
+            return;
+        }
+        session.setAttribute(
+            SESSION_ATTR_PENDING_CHALLENGE,
+            new PendingRequiredActionsChallenge(
+                currentUser.id(),
+                currentUser.login(),
+                currentUser.firstName(),
+                currentUser.lastName(),
+                currentUser.email(),
+                currentUser.requiredActions()
+            )
+        );
+    }
+
+    private void clearPendingChallenge(HttpSession session) {
+        if (session != null) {
+            session.removeAttribute(SESSION_ATTR_PENDING_CHALLENGE);
+        }
+    }
+
+    private void clearAuthenticatedSession(HttpSession session) {
+        clearPendingChallenge(session);
+        if (session == null) {
+            return;
+        }
+        session.removeAttribute(SESSION_ATTR_ACCESS_TOKEN);
+        session.removeAttribute(SESSION_ATTR_REFRESH_TOKEN);
+        session.removeAttribute(SESSION_ATTR_TOKEN_EXPIRY);
+        SecurityContextHolder.clearContext();
+    }
+
+    private void validateProfileUpdate(CompleteRequiredActionsVM request) {
+        if (firstNonBlank(request.firstName(), request.lastName(), request.email()) == null) {
+            throw new IllegalArgumentException("Debes completar los datos de perfil requeridos antes de continuar.");
+        }
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private String defaultString(String value) {
+        return value == null ? "" : value;
+    }
+
+    private String resolveEffectivePassword(CompleteRequiredActionsVM request) {
+        return request.newPassword() == null || request.newPassword().isBlank()
+            ? request.currentPassword()
+            : request.newPassword();
+    }
+
     private String sanitizeRedirectUri(String redirectUri) {
         if (redirectUri == null || redirectUri.isBlank()) {
             return "/";
@@ -238,4 +458,21 @@ public class AuthenticationResource {
         LOG.warn("Se rechazó redirect_uri no permitido durante login de Keycloak: {}", redirectUri);
         return "/";
     }
+
+    private record PendingRequiredActionsChallenge(
+        String userId,
+        String login,
+        String firstName,
+        String lastName,
+        String email,
+        List<String> requiredActions
+    ) {}
+
+    public record CompleteRequiredActionsVM(
+        @Size(max = 50) String firstName,
+        @Size(max = 50) String lastName,
+        @Email @Size(max = 254) String email,
+        @Size(max = 255) String currentPassword,
+        @Size(max = 255) String newPassword
+    ) {}
 }

@@ -65,6 +65,7 @@ public class SecurityConfiguration {
                         .csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler())
                         .ignoringRequestMatchers(
                             mvc.pattern("/api/authenticate"),
+                            mvc.pattern("/api/authenticate/required-actions"),
                             mvc.pattern("/api/authenticate/browser"),
                             mvc.pattern("/api/authenticate/keycloak"),
                             mvc.pattern("/api/logout")
@@ -79,6 +80,7 @@ public class SecurityConfiguration {
                 // prettier-ignore
                 authz
                         .requestMatchers(mvc.pattern("/api/authenticate")).permitAll()
+                        .requestMatchers(mvc.pattern("/api/authenticate/required-actions")).permitAll()
                         .requestMatchers(mvc.pattern("/api/authenticate/browser")).permitAll()
                         .requestMatchers(mvc.pattern("/api/authenticate/keycloak")).permitAll()
                         .requestMatchers(mvc.pattern("/api/auth-info")).permitAll()

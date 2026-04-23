@@ -1,6 +1,6 @@
-import { useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { AppointmentService } from '../services/appointment.service';
 import { resolveAuthorizedHomePath } from '../utils/authNavigation';
@@ -61,8 +61,7 @@ const NodePattern = () => (
 
 /* ─── Componente principal ─── */
 const Login = () => {
-    const { isAuthenticated, login, continueLoginInBrowser, hasAnyRole } = useAuth();
-    const location = useLocation();
+    const { isAuthenticated, login, completeRequiredActions, hasAnyRole } = useAuth();
     const navigate = useNavigate();
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
@@ -70,27 +69,15 @@ const Login = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [language, setLanguage] = useState('es');
-    const [requiresBrowserLogin, setRequiresBrowserLogin] = useState(false);
-    const hasBrowserAuthError = new URLSearchParams(location.search).get('authError') === 'browser';
-    const effectiveError = error || (hasBrowserAuthError ? 'No se pudo completar el acceso adicional en el navegador. Inténtalo nuevamente.' : '');
-    const requiresBrowserLoginHint = requiresBrowserLogin || hasBrowserAuthError;
+    const [requiredActions, setRequiredActions] = useState<string[]>([]);
+    const [pendingProfile, setPendingProfile] = useState({ login: '', firstName: '', lastName: '', email: '' });
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmNewPassword, setConfirmNewPassword] = useState('');
+    const requiredActionSet = useMemo(() => new Set(requiredActions), [requiredActions]);
 
     if (isAuthenticated) return <Navigate to="/" replace />;
 
-    const handleSubmit = async (e: FormEvent) => {
-        e.preventDefault();
-        setError('');
-        setRequiresBrowserLogin(false);
-        setIsLoading(true);
-        const result = await login(username, password);
-        setIsLoading(false);
-        if (!result.success) {
-            setError(result.error || 'Credenciales incorrectas.');
-            setRequiresBrowserLogin(Boolean(result.requiresBrowserLogin));
-            return;
-        }
-
-        // Reanudar consulta médica activa desde el backend, no solo desde localStorage
+    const navigateAfterAuthentication = async () => {
         try {
             const accountResponse = await api.get('/api/account');
             const account = accountResponse.data;
@@ -117,12 +104,77 @@ const Login = () => {
             }
 
             navigate(resolveAuthorizedHomePath(authorities, permissions));
-            return;
         } catch {
-            // ignore
+            navigate('/');
+        }
+    };
+
+    const handleSubmit = async (e: FormEvent) => {
+        e.preventDefault();
+        setError('');
+        setRequiredActions([]);
+        setPendingProfile({ login: '', firstName: '', lastName: '', email: '' });
+        setNewPassword('');
+        setConfirmNewPassword('');
+        setIsLoading(true);
+        const result = await login(username, password);
+        setIsLoading(false);
+        if (!result.success) {
+            setError(result.error || 'Credenciales incorrectas.');
+            if (result.requiresActionCompletion) {
+                setRequiredActions(result.requiredActions ?? []);
+                setPendingProfile({
+                    login: result.profile?.login ?? username,
+                    firstName: result.profile?.firstName ?? '',
+                    lastName: result.profile?.lastName ?? '',
+                    email: result.profile?.email ?? '',
+                });
+            }
+            return;
+        }
+        await navigateAfterAuthentication();
+    };
+
+    const handleRequiredActionsSubmit = async (e: FormEvent) => {
+        e.preventDefault();
+        setError('');
+
+        if (requiredActionSet.has('UPDATE_PASSWORD')) {
+            if (!newPassword.trim()) {
+                setError('Debes definir una nueva contraseña para completar el acceso.');
+                return;
+            }
+            if (newPassword !== confirmNewPassword) {
+                setError('La confirmación de la nueva contraseña no coincide.');
+                return;
+            }
         }
 
-        navigate('/');
+        setIsLoading(true);
+        const result = await completeRequiredActions({
+            firstName: pendingProfile.firstName,
+            lastName: pendingProfile.lastName,
+            email: pendingProfile.email,
+            currentPassword: password,
+            newPassword: requiredActionSet.has('UPDATE_PASSWORD') ? newPassword : undefined,
+        });
+        setIsLoading(false);
+
+        if (!result.success) {
+            setError(result.error || 'No se pudieron completar las acciones obligatorias.');
+            setRequiredActions(result.requiredActions ?? requiredActions);
+            if (result.profile) {
+                setPendingProfile({
+                    login: result.profile.login,
+                    firstName: result.profile.firstName ?? '',
+                    lastName: result.profile.lastName ?? '',
+                    email: result.profile.email ?? '',
+                });
+            }
+            return;
+        }
+
+        await navigateAfterAuthentication();
     };
 
     return (
@@ -238,26 +290,26 @@ const Login = () => {
                                  Iniciar sesión
                              </h2>
                              <p className="text-slate-400 dark:text-slate-500 text-sm mt-1.5">
-                                 Accede con tus credenciales institucionales o continúa en el navegador si tu cuenta tiene pasos de seguridad pendientes.
+                                 Accede con tus credenciales institucionales y completa cualquier requisito de seguridad sin salir del portal.
                              </p>
-                         </div>
-
-                        {/* Error */}
-                        {effectiveError && (
+                          </div>
+ 
+                         {/* Error */}
+                        {error && (
                             <div className="mb-6 flex items-start gap-2.5 p-3.5 rounded-lg bg-rose-50 dark:bg-rose-500/8 border border-rose-200 dark:border-rose-500/20">
                                 <span className="material-symbols-outlined text-rose-500 text-[17px] mt-0.5 shrink-0">error</span>
-                                <p className="text-rose-600 dark:text-rose-400 text-sm font-medium">{effectiveError}</p>
+                                <p className="text-rose-600 dark:text-rose-400 text-sm font-medium">{error}</p>
                             </div>
                         )}
-
-                        {requiresBrowserLoginHint && (
+ 
+                        {requiredActions.length > 0 && (
                             <div className="mb-6 flex items-start gap-2.5 p-3.5 rounded-lg bg-amber-50 dark:bg-amber-500/8 border border-amber-200 dark:border-amber-500/20">
-                                 <span className="material-symbols-outlined text-amber-500 text-[17px] mt-0.5 shrink-0">security</span>
-                                 <p className="text-amber-700 dark:text-amber-300 text-sm font-medium">
-                                     Esta cuenta debe completar acciones obligatorias de acceso, como cambio de contraseña, verificación de correo o configuración de segundo factor.
-                                 </p>
-                             </div>
-                         )}
+                                  <span className="material-symbols-outlined text-amber-500 text-[17px] mt-0.5 shrink-0">security</span>
+                                  <p className="text-amber-700 dark:text-amber-300 text-sm font-medium">
+                                     Esta cuenta debe completar acciones obligatorias antes de entrar. Todo el proceso se resuelve desde este portal.
+                                  </p>
+                              </div>
+                          )}
 
                         <form onSubmit={handleSubmit} className="space-y-5">
 
@@ -330,10 +382,10 @@ const Login = () => {
                                         </span>
                                     </button>
                                 </div>
-                            </div>
-                            
-                            {/* Botón */}
-                            <div className="pt-1 space-y-3">
+                             </div>
+                             
+                             {/* Botón */}
+                            <div className="pt-1">
                                 <button
                                     type="submit"
                                     disabled={isLoading || !username || !password}
@@ -355,21 +407,121 @@ const Login = () => {
                                             <span className="material-symbols-outlined text-[18px]">login</span>
                                             <span>Entrar al Sistema</span>
                                         </>
-                                    )}
-                                </button>
+                                     )}
+                                 </button>
+                             </div>
+                         </form>
+
+                        {requiredActions.length > 0 && (
+                            <form onSubmit={handleRequiredActionsSubmit} className="mt-6 space-y-5 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/[0.03] p-5">
+                                <div>
+                                    <p className="text-[10px] font-black text-amber-500 uppercase tracking-[3px] mb-2">
+                                        Acciones obligatorias
+                                    </p>
+                                    <h3 className="text-base font-black text-slate-900 dark:text-white">
+                                        Completa la seguridad de {pendingProfile.login}
+                                    </h3>
+                                    <div className="mt-3 flex flex-wrap gap-2">
+                                        {requiredActions.map(action => (
+                                            <span key={action} className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+                                                {action}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {(requiredActionSet.has('UPDATE_PROFILE') || requiredActionSet.has('VERIFY_EMAIL')) && (
+                                    <div className="grid grid-cols-1 gap-4">
+                                        <div>
+                                            <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">
+                                                Nombres
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={pendingProfile.firstName}
+                                                onChange={e => setPendingProfile(current => ({ ...current, firstName: e.target.value }))}
+                                                className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-white/[0.04] text-slate-900 dark:text-white text-sm font-semibold focus:outline-none focus:border-sky-500"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">
+                                                Apellidos
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={pendingProfile.lastName}
+                                                onChange={e => setPendingProfile(current => ({ ...current, lastName: e.target.value }))}
+                                                className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-white/[0.04] text-slate-900 dark:text-white text-sm font-semibold focus:outline-none focus:border-sky-500"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">
+                                                Correo institucional
+                                            </label>
+                                            <input
+                                                type="email"
+                                                value={pendingProfile.email}
+                                                onChange={e => setPendingProfile(current => ({ ...current, email: e.target.value }))}
+                                                className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-white/[0.04] text-slate-900 dark:text-white text-sm font-semibold focus:outline-none focus:border-sky-500"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+
+                                {requiredActionSet.has('UPDATE_PASSWORD') && (
+                                    <div className="grid grid-cols-1 gap-4">
+                                        <div>
+                                            <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">
+                                                Nueva contraseña
+                                            </label>
+                                            <input
+                                                type="password"
+                                                value={newPassword}
+                                                onChange={e => setNewPassword(e.target.value)}
+                                                className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-white/[0.04] text-slate-900 dark:text-white text-sm font-semibold focus:outline-none focus:border-sky-500"
+                                                autoComplete="new-password"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">
+                                                Confirmar nueva contraseña
+                                            </label>
+                                            <input
+                                                type="password"
+                                                value={confirmNewPassword}
+                                                onChange={e => setConfirmNewPassword(e.target.value)}
+                                                className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-white/[0.04] text-slate-900 dark:text-white text-sm font-semibold focus:outline-none focus:border-sky-500"
+                                                autoComplete="new-password"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+
+                                {requiredActionSet.has('CONFIGURE_TOTP') && (
+                                    <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/8 dark:text-rose-300">
+                                        La configuración de segundo factor todavía no está disponible desde este portal para esta cuenta, por lo que no podrás completar el acceso aquí. Contacta a un administrador para continuar.
+                                    </div>
+                                )}
 
                                 <button
-                                    type="button"
-                                    onClick={() => continueLoginInBrowser('/login')}
-                                    className="w-full py-3 px-5 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-white/[0.03]
-                                               text-slate-700 dark:text-white text-sm font-bold tracking-wide hover:border-sky-300 hover:text-sky-600 dark:hover:text-sky-300
-                                               transition-all duration-150 ease-out flex items-center justify-center gap-2"
+                                    type="submit"
+                                    disabled={isLoading || requiredActionSet.has('CONFIGURE_TOTP')}
+                                    className="w-full py-3 px-5 rounded-lg border border-sky-200 bg-white text-sky-700 text-sm font-bold tracking-wide hover:border-sky-300 hover:text-sky-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150 ease-out flex items-center justify-center gap-2 dark:border-sky-500/20 dark:bg-white/[0.03] dark:text-sky-300"
                                 >
-                                    <span className="material-symbols-outlined text-[18px]">shield_lock</span>
-                                    <span>Continuar en el navegador</span>
+                                    {isLoading ? (
+                                        <>
+                                            <div className="w-4 h-4 rounded-full border-2 border-sky-300/30 border-t-sky-500 animate-spin" />
+                                            <span>Aplicando cambios...</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span className="material-symbols-outlined text-[18px]">verified_user</span>
+                                            <span>Completar acciones y entrar</span>
+                                        </>
+                                    )}
                                 </button>
-                            </div>
-                        </form>
+                            </form>
+                        )}
 
                         {/* Nota de seguridad */}
                         <p className="mt-8 text-center text-[11px] text-slate-300 dark:text-white/15 font-medium leading-relaxed">
