@@ -24,7 +24,7 @@ export interface AuthState {
   loading: boolean;
 
   login: (username: string, password?: string) => Promise<{success: boolean, error?: string, requiresBrowserLogin?: boolean}>;
-  loginWithKeycloak: (redirectPath?: string) => void;
+  continueLoginInBrowser: (redirectPath?: string) => void;
   logout: () => void;
   hasRole: (role: string) => boolean;
   hasAnyRole: (roles: string[]) => boolean;
@@ -44,7 +44,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   /**
    * Obtiene los datos de la sesión activa desde /api/account (BFF).
-   * Si hay sesión válida en el backend (cookie de sesión), retorna el usuario real con sus roles de Keycloak.
+   * Si hay sesión válida en el backend (cookie de sesión), retorna el usuario real con sus roles efectivos.
    * Si no hay sesión, lanza error 401.
    */
   const fetchAccount = useCallback(async () => {
@@ -118,9 +118,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const loginWithKeycloak = (redirectPath = '/login') => {
+  const continueLoginInBrowser = (redirectPath = '/login') => {
     const redirectUri = new URL(redirectPath, window.location.origin).toString();
-    window.location.assign(`/api/authenticate/keycloak?redirect_uri=${encodeURIComponent(redirectUri)}`);
+    window.location.assign(`/api/authenticate/browser?redirect_uri=${encodeURIComponent(redirectUri)}`);
   };
 
   const logout = async () => {
@@ -169,7 +169,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         account,
         loading,
         login,
-        loginWithKeycloak,
+        continueLoginInBrowser,
         logout,
         hasRole,
         hasAnyRole,

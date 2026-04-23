@@ -159,6 +159,46 @@ class RoleAdministrationServiceTest {
         verify(authorityRepository).deleteById("ROLE_OBSOLETO");
     }
 
+    @Test
+    void getAllRolesKeepsCanonicalPermissionsForAdminSystemRole() {
+        Map<String, RoleDefinition> storedRoles = new HashMap<>();
+
+        when(keycloakAdminService.listRoles())
+            .thenReturn(
+                List.of(
+                    new KeycloakAdminService.ManagedKeycloakRole(
+                        AuthoritiesConstants.ADMIN,
+                        "Rol de Keycloak",
+                        Set.of(),
+                        Set.of(AuthoritiesConstants.USER)
+                    )
+                )
+            );
+        when(roleDefinitionRepository.findAll()).thenReturn(List.copyOf(storedRoles.values()));
+        when(roleDefinitionRepository.findAllByRoleNameIn(anyCollection())).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            Set<String> names = Set.copyOf((java.util.Collection<String>) invocation.getArgument(0));
+            return storedRoles.values().stream().filter(role -> names.contains(role.getRoleName())).collect(Collectors.toList());
+        });
+        when(roleDefinitionRepository.save(any(RoleDefinition.class))).thenAnswer(invocation -> {
+            RoleDefinition saved = invocation.getArgument(0);
+            storedRoles.put(saved.getRoleName(), saved);
+            return saved;
+        });
+        when(authorityRepository.findAll()).thenReturn(List.of());
+        when(authorityRepository.existsById(anyString())).thenReturn(false);
+        when(authorityRepository.save(any(Authority.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(userRepository.findAll()).thenReturn(List.of());
+
+        List<RoleDefinitionDTO> roles = roleAdministrationService.getAllRoles();
+
+        assertThat(roles).hasSize(1);
+        assertThat(roles.get(0).roleName()).isEqualTo(AuthoritiesConstants.ADMIN);
+        assertThat(roles.get(0).permissions()).containsExactlyInAnyOrderElementsOf(AppPermissionCatalog.allCodes());
+        assertThat(roles.get(0).compositeRoles()).isEmpty();
+        assertThat(roles.get(0).description()).isEqualTo("Administrador del sistema");
+    }
+
     private static RoleDefinition roleDefinition(
         String roleName,
         String description,

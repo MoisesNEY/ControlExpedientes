@@ -30,12 +30,17 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class RoleAdministrationService {
 
-    private static final List<String> SYSTEM_ROLES = List.of(
+    private static final Map<String, SystemRoleDefaults> SYSTEM_ROLE_DEFAULTS = Map.of(
         AuthoritiesConstants.ADMIN,
+        new SystemRoleDefaults("Administrador del sistema", AppPermissionCatalog.allCodes()),
         AuthoritiesConstants.MEDICO,
+        new SystemRoleDefaults("Acceso clínico para personal médico", Set.of()),
         AuthoritiesConstants.ENFERMERO,
+        new SystemRoleDefaults("Acceso operativo para enfermería", Set.of()),
         AuthoritiesConstants.RECEPCION,
-        AuthoritiesConstants.USER
+        new SystemRoleDefaults("Acceso operativo para recepción", Set.of()),
+        AuthoritiesConstants.USER,
+        new SystemRoleDefaults("Rol base de plataforma", Set.of())
     );
 
     private final RoleDefinitionRepository roleDefinitionRepository;
@@ -57,11 +62,7 @@ public class RoleAdministrationService {
 
     @PostConstruct
     void initializeDefaults() {
-        ensureSystemRole(AuthoritiesConstants.ADMIN, "Administrador del sistema", AppPermissionCatalog.allCodes());
-        ensureSystemRole(AuthoritiesConstants.MEDICO, "Acceso clínico para personal médico", Set.of());
-        ensureSystemRole(AuthoritiesConstants.ENFERMERO, "Acceso operativo para enfermería", Set.of());
-        ensureSystemRole(AuthoritiesConstants.RECEPCION, "Acceso operativo para recepción", Set.of());
-        ensureSystemRole(AuthoritiesConstants.USER, "Rol base de plataforma", Set.of());
+        SYSTEM_ROLE_DEFAULTS.forEach((roleName, defaults) -> ensureSystemRole(roleName, defaults.description(), defaults.permissions()));
     }
 
     public List<RoleDefinitionDTO> getAllRoles() {
@@ -255,11 +256,12 @@ public class RoleAdministrationService {
         for (KeycloakAdminService.ManagedKeycloakRole keycloakRole : keycloakRoles) {
             ensureAuthority(keycloakRole.roleName());
             RoleDefinition definition = localDefinitions.getOrDefault(keycloakRole.roleName(), new RoleDefinition());
+            SystemRoleDefaults systemDefaults = SYSTEM_ROLE_DEFAULTS.get(keycloakRole.roleName());
             definition.setRoleName(keycloakRole.roleName());
-            definition.setDescription(keycloakRole.description());
-            definition.setSystemRole(SYSTEM_ROLES.contains(keycloakRole.roleName()));
-            definition.setPermissions(keycloakRole.permissions());
-            definition.setCompositeRoles(keycloakRole.compositeRoles());
+            definition.setDescription(systemDefaults != null ? systemDefaults.description() : keycloakRole.description());
+            definition.setSystemRole(systemDefaults != null);
+            definition.setPermissions(systemDefaults != null ? systemDefaults.permissions() : keycloakRole.permissions());
+            definition.setCompositeRoles(systemDefaults != null ? Set.of() : keycloakRole.compositeRoles());
             roleDefinitionRepository.save(definition);
         }
 
@@ -314,4 +316,6 @@ public class RoleAdministrationService {
     private PermissionDefinitionDTO toPermissionDto(AppPermission permission) {
         return new PermissionDefinitionDTO(permission.code(), permission.label(), permission.description());
     }
+
+    private record SystemRoleDefaults(String description, Set<String> permissions) {}
 }

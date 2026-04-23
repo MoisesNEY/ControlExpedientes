@@ -205,7 +205,7 @@ const AdminHomeView = () => {
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
                     <Link to="/admin/usuarios" className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/30 p-5 transition hover:-translate-y-0.5 hover:shadow-lg">
                         <p className="text-sm font-bold text-slate-900 dark:text-white">Gestión de usuarios</p>
-                        <p className="text-xs text-slate-500 mt-1">Crear cuentas, asignar roles y activar acciones obligatorias de Keycloak.</p>
+                        <p className="text-xs text-slate-500 mt-1">Crear cuentas, asignar roles y activar acciones obligatorias desde el backend de autenticación.</p>
                     </Link>
                     <Link to="/admin/roles" className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/30 p-5 transition hover:-translate-y-0.5 hover:shadow-lg">
                         <p className="text-sm font-bold text-slate-900 dark:text-white">Gestión de roles</p>

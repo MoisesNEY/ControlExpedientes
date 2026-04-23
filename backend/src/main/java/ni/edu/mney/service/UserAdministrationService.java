@@ -73,6 +73,11 @@ public class UserAdministrationService {
         return toDto(user);
     }
 
+    public void deleteUser(String userId) {
+        keycloakAdminService.deleteUser(userId);
+        userRepository.findById(userId).ifPresent(userRepository::delete);
+    }
+
     private void syncLocalUsers(List<KeycloakAdminService.ManagedKeycloakUser> users) {
         Set<String> synchronizedUserIds = users.stream()
             .map(KeycloakAdminService.ManagedKeycloakUser::id)

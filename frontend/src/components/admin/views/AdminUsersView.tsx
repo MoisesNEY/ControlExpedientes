@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AppButton } from '../../ui/AppButton';
 import {
   AdminSecurityService,
-  KEYCLOAK_REQUIRED_ACTIONS,
+  AUTH_REQUIRED_ACTIONS,
   type ManagedUser,
   type ManagedUserPayload,
   type RoleDefinition,
@@ -30,6 +30,9 @@ const AdminUsersView = () => {
   const [editingUser, setEditingUser] = useState<ManagedUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [deletingUser, setDeletingUser] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
   const [message, setMessage] = useState<string | null>(null);
 
   const loadData = async () => {
@@ -49,6 +52,18 @@ const AdminUsersView = () => {
   useEffect(() => {
     void loadData();
   }, []);
+
+  const filteredUsers = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) {
+      return users;
+    }
+    return users.filter(user =>
+      [user.login, user.firstName, user.lastName, user.email, ...user.roles, ...user.requiredActions]
+        .filter(Boolean)
+        .some(value => value.toLowerCase().includes(term))
+    );
+  }, [search, users]);
 
   const toggleSelection = (collection: string[], value: string) =>
     collection.includes(value) ? collection.filter(item => item !== value) : [...collection, value];
@@ -75,23 +90,74 @@ const AdminUsersView = () => {
   };
 
   const handleSubmit = async () => {
+    const trimmedPassword = form.password?.trim() ?? '';
+    if (!editingUser && !trimmedPassword) {
+      setMessage('Define una contraseña inicial para crear la cuenta.');
+      return;
+    }
+    if (form.temporaryPassword && !trimmedPassword) {
+      setMessage('Debes indicar una contraseña cuando la marques como temporal.');
+      return;
+    }
+    if (form.roles.length === 0) {
+      setMessage('Asigna al menos un rol antes de guardar el usuario.');
+      return;
+    }
+
     setSaving(true);
     setMessage(null);
     try {
+      const payload: ManagedUserPayload = {
+        ...form,
+        password: trimmedPassword || undefined,
+      };
       if (editingUser) {
-        await AdminSecurityService.updateUser(editingUser.id, form);
+        await AdminSecurityService.updateUser(editingUser.id, payload);
         setMessage(`Usuario ${form.login} actualizado correctamente.`);
       } else {
-        await AdminSecurityService.createUser(form);
+        await AdminSecurityService.createUser(payload);
         setMessage(`Usuario ${form.login} creado correctamente.`);
       }
       resetForm();
       await loadData();
     } catch (error) {
       console.error('Error guardando usuario:', error);
-      setMessage(await getApiErrorMessage(error, 'No se pudo guardar el usuario en Keycloak.'));
+      setMessage(await getApiErrorMessage(error, 'No se pudo guardar el usuario en el backend de autenticación.'));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDelete = async (user: ManagedUser) => {
+    if (!window.confirm(`Se eliminará la cuenta ${user.login}. ¿Deseas continuar?`)) {
+      return;
+    }
+
+    setDeletingUser(user.id);
+    setMessage(null);
+    try {
+      await AdminSecurityService.deleteUser(user.id);
+      if (editingUser?.id === user.id) {
+        resetForm();
+      }
+      setMessage(`Usuario ${user.login} eliminado correctamente.`);
+      await loadData();
+    } catch (error) {
+      setMessage(await getApiErrorMessage(error, 'No se pudo eliminar el usuario seleccionado.'));
+    } finally {
+      setDeletingUser(null);
+    }
+  };
+
+  const handleExport = async () => {
+    setExporting(true);
+    setMessage(null);
+    try {
+      await AdminSecurityService.exportUsers();
+    } catch (error) {
+      setMessage(await getApiErrorMessage(error, 'No se pudo exportar el listado de usuarios.'));
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -100,27 +166,41 @@ const AdminUsersView = () => {
       <div className="flex flex-col gap-1">
         <h2 className="text-slate-900 dark:text-white text-3xl font-black tracking-tight">Gestión de usuarios</h2>
         <p className="text-slate-500 text-base font-medium">
-          Crea usuarios directamente en Keycloak, sincroniza sus roles con el sistema y define acciones obligatorias cuando deban completarse desde Keycloak.
+          Crea usuarios desde el backend, sincroniza sus roles con el sistema y define acciones obligatorias de acceso sin exponer el proveedor al cliente.
         </p>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-[1.1fr_0.9fr] gap-6">
         <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm space-y-4">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <h3 className="text-lg font-black text-slate-900 dark:text-white">Usuarios administrados</h3>
-              <p className="text-sm text-slate-500">Listado consultado desde Keycloak con sus roles efectivos.</p>
+              <p className="text-sm text-slate-500">Listado consultado desde el backend con sus roles efectivos.</p>
             </div>
-            <AppButton variant="outline" icon="refresh" onClick={() => void loadData()}>
-              Actualizar
-            </AppButton>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <input
+                type="search"
+                value={search}
+                onChange={event => setSearch(event.target.value)}
+                className="w-full sm:w-72 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-sky-500"
+                placeholder="Buscar usuario o rol"
+              />
+              <div className="flex gap-2">
+                <AppButton variant="outline" icon="download" isLoading={exporting} onClick={() => void handleExport()}>
+                  Excel
+                </AppButton>
+                <AppButton variant="outline" icon="refresh" onClick={() => void loadData()}>
+                  Actualizar
+                </AppButton>
+              </div>
+            </div>
           </div>
 
           {loading ? (
             <p className="text-sm text-slate-500">Cargando usuarios...</p>
           ) : (
             <div className="space-y-3">
-              {users.map(user => (
+              {filteredUsers.map(user => (
                 <div key={user.id} className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/30 p-4">
                   <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
                     <div>
@@ -146,12 +226,28 @@ const AdminUsersView = () => {
                         ))}
                       </div>
                     </div>
-                    <AppButton variant="outline" size="sm" icon="edit" onClick={() => startEditing(user)}>
-                      Editar
-                    </AppButton>
+                    <div className="flex flex-wrap gap-2">
+                      <AppButton variant="outline" size="sm" icon="edit" onClick={() => startEditing(user)}>
+                        Editar
+                      </AppButton>
+                      <AppButton
+                        variant="danger"
+                        size="sm"
+                        icon="delete"
+                        isLoading={deletingUser === user.id}
+                        onClick={() => void handleDelete(user)}
+                      >
+                        Eliminar
+                      </AppButton>
+                    </div>
                   </div>
                 </div>
               ))}
+              {filteredUsers.length === 0 && (
+                <div className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 px-4 py-6 text-sm text-slate-500">
+                  No hay usuarios que coincidan con la búsqueda actual.
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -160,7 +256,7 @@ const AdminUsersView = () => {
           <div className="flex items-center justify-between gap-3">
             <div>
               <h3 className="text-lg font-black text-slate-900 dark:text-white">{editingUser ? `Editar ${editingUser.login}` : 'Crear usuario'}</h3>
-              <p className="text-sm text-slate-500">La contraseña solo se envía a Keycloak cuando la escribes. Si marcas acciones obligatorias o contraseña temporal, el usuario continuará el acceso en la pantalla de Keycloak.</p>
+              <p className="text-sm text-slate-500">La contraseña solo se envía cuando la escribes. Si marcas acciones obligatorias o contraseña temporal, el usuario continuará el acceso en el flujo seguro del navegador.</p>
             </div>
             {editingUser && (
               <AppButton variant="ghost" icon="close" onClick={resetForm}>
@@ -220,7 +316,7 @@ const AdminUsersView = () => {
 
             {(form.temporaryPassword || form.requiredActions.length > 0) && (
               <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
-                Esta cuenta deberá iniciar sesión desde Keycloak para completar sus acciones obligatorias antes de entrar al sistema.
+                Esta cuenta deberá completar sus acciones obligatorias en el navegador antes de entrar al sistema.
               </div>
             )}
 
@@ -247,9 +343,9 @@ const AdminUsersView = () => {
             </div>
 
             <div>
-              <p className="text-xs font-black uppercase tracking-widest text-slate-500">Acciones obligatorias de Keycloak</p>
+              <p className="text-xs font-black uppercase tracking-widest text-slate-500">Acciones obligatorias de acceso</p>
               <div className="mt-3 space-y-2">
-                {KEYCLOAK_REQUIRED_ACTIONS.map(action => (
+                {AUTH_REQUIRED_ACTIONS.map(action => (
                   <label key={action.value} className="flex items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-2.5 text-sm">
                     <input
                       type="checkbox"

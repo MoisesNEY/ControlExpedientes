@@ -24,6 +24,8 @@ const AdminRolesView = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deletingRole, setDeletingRole] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [search, setSearch] = useState('');
   const [message, setMessage] = useState<string | null>(null);
 
   const loadData = async () => {
@@ -46,6 +48,17 @@ const AdminRolesView = () => {
   }, []);
 
   const editableRoles = useMemo(() => roles.filter(role => !role.systemRole), [roles]);
+  const filteredRoles = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) {
+      return roles;
+    }
+    return roles.filter(role =>
+      [role.roleName, role.description, ...role.permissions, ...role.compositeRoles]
+        .filter(Boolean)
+        .some(value => value.toLowerCase().includes(term))
+    );
+  }, [roles, search]);
   const rolePermissionMap = useMemo(
     () => new Map(roles.map(role => [role.roleName, role.permissions])),
     [roles]
@@ -105,14 +118,14 @@ const AdminRolesView = () => {
       await loadData();
     } catch (error) {
       console.error('Error guardando rol:', error);
-      setMessage(await getApiErrorMessage(error, 'No se pudo guardar el rol. Verifica el nombre y la conexión con Keycloak.'));
+      setMessage(await getApiErrorMessage(error, 'No se pudo guardar el rol. Verifica el nombre y la conexión con el servicio de autenticación.'));
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (roleName: string) => {
-    if (!window.confirm(`Se eliminará el rol ${roleName} también en Keycloak. ¿Deseas continuar?`)) {
+    if (!window.confirm(`Se eliminará el rol ${roleName} en el backend y en el proveedor de autenticación. ¿Deseas continuar?`)) {
       return;
     }
 
@@ -133,32 +146,58 @@ const AdminRolesView = () => {
     }
   };
 
+  const handleExport = async () => {
+    setExporting(true);
+    setMessage(null);
+    try {
+      await AdminSecurityService.exportRoles();
+    } catch (error) {
+      setMessage(await getApiErrorMessage(error, 'No se pudo exportar el catálogo de roles.'));
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto w-full flex flex-col gap-6 md:gap-8">
       <div className="flex flex-col gap-1">
         <h2 className="text-slate-900 dark:text-white text-3xl font-black tracking-tight">Gestión dinámica de roles</h2>
         <p className="text-slate-500 text-base font-medium">
-          Cada rol se sincroniza en tiempo real con Keycloak y la lista siempre refleja el estado actual del proveedor de identidad.
+          Cada rol se sincroniza desde el backend con el servicio de autenticación y la lista siempre refleja el estado vigente.
         </p>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-[1.1fr_0.9fr] gap-6">
         <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm space-y-4">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <h3 className="text-lg font-black text-slate-900 dark:text-white">Roles registrados</h3>
-              <p className="text-sm text-slate-500">Los roles marcados como sistema se reflejan desde Keycloak y no se editan aquí.</p>
+              <p className="text-sm text-slate-500">Los roles marcados como sistema se reflejan desde el backend y no se editan aquí.</p>
             </div>
-            <AppButton variant="outline" icon="refresh" onClick={() => void loadData()}>
-              Actualizar
-            </AppButton>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <input
+                type="search"
+                value={search}
+                onChange={event => setSearch(event.target.value)}
+                className="w-full sm:w-72 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-sky-500"
+                placeholder="Buscar rol o permiso"
+              />
+              <div className="flex gap-2">
+                <AppButton variant="outline" icon="download" isLoading={exporting} onClick={() => void handleExport()}>
+                  Excel
+                </AppButton>
+                <AppButton variant="outline" icon="refresh" onClick={() => void loadData()}>
+                  Actualizar
+                </AppButton>
+              </div>
+            </div>
           </div>
 
           {loading ? (
             <p className="text-sm text-slate-500">Cargando roles...</p>
           ) : (
             <div className="space-y-3">
-              {roles.map(role => (
+              {filteredRoles.map(role => (
                 <div key={role.roleName} className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/30 p-4">
                   <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
                     <div>
@@ -202,6 +241,11 @@ const AdminRolesView = () => {
                   </div>
                 </div>
               ))}
+              {filteredRoles.length === 0 && (
+                <div className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 px-4 py-6 text-sm text-slate-500">
+                  No hay roles que coincidan con la búsqueda actual.
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -244,7 +288,7 @@ const AdminRolesView = () => {
 
             <div>
               <p className="text-xs font-black uppercase tracking-widest text-slate-500">Roles base compuestos</p>
-              <p className="mt-1 text-xs text-slate-500">Puedes componer el rol con cualquier otro rol sincronizado desde Keycloak; sus permisos se marcan automáticamente.</p>
+              <p className="mt-1 text-xs text-slate-500">Puedes componer el rol con cualquier otro rol sincronizado; sus permisos se marcan automáticamente.</p>
               <div className="mt-3 grid grid-cols-1 gap-2">
                 {availableCompositeRoles.filter(roleName => roleName !== form.roleName).map(roleName => (
                   <label key={roleName} className="flex items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-2.5 text-sm">

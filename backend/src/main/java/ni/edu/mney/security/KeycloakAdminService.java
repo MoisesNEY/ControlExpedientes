@@ -177,6 +177,10 @@ public class KeycloakAdminService {
         return findUserById(userId);
     }
 
+    public void deleteUser(String userId) {
+        exchange(userUrl(userId), HttpMethod.DELETE, null, Void.class);
+    }
+
     public boolean validateUserCredentials(String username, String password) {
         if (password == null || password.isBlank()) {
             return false;

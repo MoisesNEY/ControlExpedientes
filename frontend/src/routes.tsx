@@ -93,8 +93,8 @@ export const routerConfig: RouteObject[] = [
           { path: 'diagnosticos', element: <ProtectedSlot requiredRoles={['ROLE_ADMIN']}><DiagnosticoCatalogView /></ProtectedSlot> },
           { path: 'citas', element: <ProtectedSlot requiredRoles={['ROLE_ADMIN']}><AdminCitasView /></ProtectedSlot> },
           { path: 'expedientes', element: <ProtectedSlot requiredRoles={['ROLE_ADMIN']}><AdminExpedientesView /></ProtectedSlot> },
-          { path: 'usuarios', element: <ProtectedSlot requiredPermissions={['admin.users.manage']}><AdminUsersView /></ProtectedSlot> },
-          { path: 'roles', element: <ProtectedSlot requiredPermissions={['admin.roles.manage']}><AdminRolesView /></ProtectedSlot> },
+          { path: 'usuarios', element: <ProtectedSlot requiredRoles={['ROLE_ADMIN']} requiredPermissions={['admin.users.manage']}><AdminUsersView /></ProtectedSlot> },
+          { path: 'roles', element: <ProtectedSlot requiredRoles={['ROLE_ADMIN']} requiredPermissions={['admin.roles.manage']}><AdminRolesView /></ProtectedSlot> },
           { path: 'base-datos', element: <ProtectedSlot requiredRoles={['ROLE_ADMIN']} requiredPermissions={['admin.database.view', 'admin.database.export', 'admin.database.restore']}><AdminDatabaseView /></ProtectedSlot> },
           { path: 'auditoria', element: <ProtectedSlot requiredRoles={['ROLE_ADMIN']}><AdminAuditoriaView /></ProtectedSlot> }
         ]

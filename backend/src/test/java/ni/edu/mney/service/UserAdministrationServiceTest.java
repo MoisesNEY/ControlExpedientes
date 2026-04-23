@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -82,6 +83,29 @@ class UserAdministrationServiceTest {
 
         assertThat(users).extracting(ManagedUserDTO::login).containsExactly("pepito");
         verify(userRepository).delete(staleUser);
+    }
+
+    @Test
+    void deleteUserRemovesRemoteAndLocalCopies() {
+        User existingUser = new User();
+        existingUser.setId("user-1");
+
+        when(userRepository.findById("user-1")).thenReturn(Optional.of(existingUser));
+
+        userAdministrationService.deleteUser("user-1");
+
+        verify(keycloakAdminService).deleteUser("user-1");
+        verify(userRepository).delete(existingUser);
+    }
+
+    @Test
+    void deleteUserSkipsLocalDeleteWhenUserIsNotSynced() {
+        when(userRepository.findById("missing")).thenReturn(Optional.empty());
+
+        userAdministrationService.deleteUser("missing");
+
+        verify(keycloakAdminService).deleteUser("missing");
+        verify(userRepository, never()).delete(any(User.class));
     }
 
     private static Authority authority(String name) {

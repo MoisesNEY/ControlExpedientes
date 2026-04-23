@@ -41,7 +41,7 @@ import org.springframework.web.client.RestTemplate;
 public class AuthenticationResource {
 
     private static final Logger LOG = LoggerFactory.getLogger(AuthenticationResource.class);
-    public static final String SESSION_ATTR_POST_LOGIN_REDIRECT = "KC_POST_LOGIN_REDIRECT";
+    public static final String SESSION_ATTR_POST_LOGIN_REDIRECT = "AUTH_POST_LOGIN_REDIRECT";
 
     private static final String SESSION_ATTR_ACCESS_TOKEN = "KC_ACCESS_TOKEN";
     private static final String SESSION_ATTR_REFRESH_TOKEN = "KC_REFRESH_TOKEN";
@@ -162,6 +162,15 @@ public class AuthenticationResource {
         HttpServletRequest request,
         HttpServletResponse response
     ) throws IOException {
+        authenticateWithBrowser(redirectUri, request, response);
+    }
+
+    @GetMapping("/authenticate/browser")
+    public void authenticateWithBrowser(
+        @RequestParam(name = "redirect_uri", required = false) String redirectUri,
+        HttpServletRequest request,
+        HttpServletResponse response
+    ) throws IOException {
         HttpSession session = request.getSession(true);
         session.setAttribute(SESSION_ATTR_POST_LOGIN_REDIRECT, sanitizeRedirectUri(redirectUri));
         response.sendRedirect(request.getScheme() + "://" + request.getServerName() + ":" + request.getServerPort() + "/oauth2/authorization/oidc");
@@ -192,7 +201,7 @@ public class AuthenticationResource {
     private String resolveAuthenticationDetail(HttpClientErrorException exception) {
         String responseBody = Optional.ofNullable(exception.getResponseBodyAsString()).orElse("").toLowerCase(Locale.ROOT);
         if (responseBody.contains("account is not fully set up")) {
-            return "La cuenta tiene acciones pendientes en Keycloak. Continúa el acceso con la pantalla de Keycloak para completar el cambio de contraseña, verificación de correo o cualquier otra acción obligatoria.";
+            return "La cuenta tiene acciones pendientes en el flujo de autenticación. Continúa el acceso en el navegador para completar el cambio de contraseña, verificación de correo o cualquier otra acción obligatoria.";
         }
         if (responseBody.contains("account disabled")) {
             return "La cuenta está desactivada.";
