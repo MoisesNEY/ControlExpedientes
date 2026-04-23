@@ -188,7 +188,6 @@ class RoleAdministrationServiceTest {
         when(authorityRepository.findAll()).thenReturn(List.of());
         when(authorityRepository.existsById(anyString())).thenReturn(false);
         when(authorityRepository.save(any(Authority.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(userRepository.findAll()).thenReturn(List.of());
 
         List<RoleDefinitionDTO> roles = roleAdministrationService.getAllRoles();
 
