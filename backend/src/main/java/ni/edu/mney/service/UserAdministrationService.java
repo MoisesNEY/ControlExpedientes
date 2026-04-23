@@ -2,6 +2,7 @@ package ni.edu.mney.service;
 
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import ni.edu.mney.domain.Authority;
@@ -17,6 +18,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional
 public class UserAdministrationService {
+
+    private static final Set<String> SUPPORTED_REQUIRED_ACTIONS = Set.of("UPDATE_PASSWORD", "VERIFY_EMAIL", "UPDATE_PROFILE");
 
     private final KeycloakAdminService keycloakAdminService;
     private final UserRepository userRepository;
@@ -40,6 +43,7 @@ public class UserAdministrationService {
 
     public ManagedUserDTO createUser(ManagedUserUpsertDTO request) {
         validateRoles(request.roles());
+        validateRequiredActions(request.requiredActions());
         KeycloakAdminService.ManagedKeycloakUser user = keycloakAdminService.createUser(
             request.login(),
             request.firstName(),
@@ -57,6 +61,7 @@ public class UserAdministrationService {
 
     public ManagedUserDTO updateUser(String userId, ManagedUserUpsertDTO request) {
         validateRoles(request.roles());
+        validateRequiredActions(request.requiredActions());
         KeycloakAdminService.ManagedKeycloakUser user = keycloakAdminService.updateUser(
             userId,
             request.login(),
@@ -92,9 +97,9 @@ public class UserAdministrationService {
         User entity = userRepository.findById(user.id()).orElseGet(User::new);
         entity.setId(user.id());
         entity.setLogin(user.login());
-        entity.setFirstName(user.firstName());
-        entity.setLastName(user.lastName());
-        entity.setEmail(user.email());
+        entity.setFirstName(normalizeNullableValue(user.firstName()));
+        entity.setLastName(normalizeNullableValue(user.lastName()));
+        entity.setEmail(normalizeNullableValue(user.email()));
         entity.setActivated(user.activated());
         entity.setAuthorities(resolveAuthorities(user.roles()));
         userRepository.save(entity);
@@ -124,6 +129,27 @@ public class UserAdministrationService {
         if (!invalid.isEmpty()) {
             throw new IllegalArgumentException("Se recibieron roles inválidos: " + invalid);
         }
+    }
+
+    private void validateRequiredActions(List<String> requiredActions) {
+        if (requiredActions == null) {
+            return;
+        }
+        List<String> invalid = requiredActions.stream()
+            .filter(Objects::nonNull)
+            .filter(action -> !SUPPORTED_REQUIRED_ACTIONS.contains(action))
+            .toList();
+        if (!invalid.isEmpty()) {
+            throw new IllegalArgumentException("Se recibieron acciones obligatorias no soportadas: " + invalid);
+        }
+    }
+
+    private String normalizeNullableValue(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     private ManagedUserDTO toDto(KeycloakAdminService.ManagedKeycloakUser user) {

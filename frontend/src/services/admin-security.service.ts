@@ -54,7 +54,6 @@ export const AUTH_REQUIRED_ACTIONS = [
   { value: 'UPDATE_PASSWORD', label: 'Solicitar cambio de contraseña al iniciar sesión' },
   { value: 'VERIFY_EMAIL', label: 'Solicitar verificación de correo' },
   { value: 'UPDATE_PROFILE', label: 'Solicitar actualización de perfil' },
-  { value: 'CONFIGURE_TOTP', label: 'Solicitar configurar segundo factor (TOTP)' },
 ] as const;
 
 export const AdminSecurityService = {

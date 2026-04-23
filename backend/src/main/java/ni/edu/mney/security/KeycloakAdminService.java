@@ -114,6 +114,9 @@ public class KeycloakAdminService {
             if (!(item instanceof Map<?, ?> rawUser)) {
                 continue;
             }
+            if (isServiceAccount(rawUser)) {
+                continue;
+            }
             String id = Objects.toString(rawUser.get("id"), null);
             if (id == null) {
                 continue;
@@ -132,6 +135,30 @@ public class KeycloakAdminService {
             );
         }
         return result.stream().sorted((left, right) -> left.login().compareToIgnoreCase(right.login())).toList();
+    }
+
+    public ManagedKeycloakUser getUserByUsername(String username) {
+        if (username == null || username.isBlank()) {
+            throw new IllegalArgumentException("Debe indicar un nombre de usuario.");
+        }
+        List<?> body = exchange(adminRealmUrl("/users?username=" + encode(username.trim()) + "&exact=true"), HttpMethod.GET, null, List.class).getBody();
+        if (body == null) {
+            throw new IllegalArgumentException("No se encontró el usuario solicitado.");
+        }
+        for (Object item : body) {
+            if (!(item instanceof Map<?, ?> rawUser) || isServiceAccount(rawUser)) {
+                continue;
+            }
+            String candidateUsername = Objects.toString(rawUser.get("username"), "");
+            if (!candidateUsername.equalsIgnoreCase(username.trim())) {
+                continue;
+            }
+            String id = Objects.toString(rawUser.get("id"), null);
+            if (id != null) {
+                return findUserById(id);
+            }
+        }
+        throw new IllegalArgumentException("No se encontró el usuario solicitado.");
     }
 
     public ManagedKeycloakUser createUser(
@@ -179,6 +206,52 @@ public class KeycloakAdminService {
 
     public void deleteUser(String userId) {
         exchange(userUrl(userId), HttpMethod.DELETE, null, Void.class);
+    }
+
+    public ManagedKeycloakUser updateRequiredActions(
+        String userId,
+        Collection<String> requiredActions
+    ) {
+        Map<String, Object> current = safeObjectMap(
+            Objects.requireNonNull(exchange(userUrl(userId), HttpMethod.GET, null, Map.class).getBody(), "No se encontró el usuario solicitado.")
+        );
+        current.put("requiredActions", requiredActions == null ? List.of() : requiredActions.stream().filter(Objects::nonNull).distinct().toList());
+        exchange(userUrl(userId), HttpMethod.PUT, current, Void.class);
+        return findUserById(userId);
+    }
+
+    public ManagedKeycloakUser clearRequiredActions(String userId, Collection<String> actionsToRemove) {
+        Set<String> removedActions = actionsToRemove == null
+            ? Set.of()
+            : actionsToRemove.stream().filter(Objects::nonNull).collect(Collectors.toCollection(LinkedHashSet::new));
+        ManagedKeycloakUser currentUser = findUserById(userId);
+        List<String> remainingActions = currentUser.requiredActions().stream().filter(action -> !removedActions.contains(action)).toList();
+        return updateRequiredActions(userId, remainingActions);
+    }
+
+    public ManagedKeycloakUser updateUserProfile(String userId, String firstName, String lastName, String email) {
+        Map<String, Object> current = safeObjectMap(
+            Objects.requireNonNull(exchange(userUrl(userId), HttpMethod.GET, null, Map.class).getBody(), "No se encontró el usuario solicitado.")
+        );
+        current.put("firstName", firstName == null ? "" : firstName);
+        current.put("lastName", lastName == null ? "" : lastName);
+        current.put("email", email == null ? "" : email);
+        exchange(userUrl(userId), HttpMethod.PUT, current, Void.class);
+        return findUserById(userId);
+    }
+
+    public ManagedKeycloakUser markEmailAsVerified(String userId) {
+        Map<String, Object> current = safeObjectMap(
+            Objects.requireNonNull(exchange(userUrl(userId), HttpMethod.GET, null, Map.class).getBody(), "No se encontró el usuario solicitado.")
+        );
+        current.put("emailVerified", Boolean.TRUE);
+        exchange(userUrl(userId), HttpMethod.PUT, current, Void.class);
+        return findUserById(userId);
+    }
+
+    public ManagedKeycloakUser resetUserPassword(String userId, String password, boolean temporaryPassword) {
+        exchange(userUrl(userId) + "/reset-password", HttpMethod.PUT, passwordPayload(password, temporaryPassword), Void.class);
+        return findUserById(userId);
     }
 
     public boolean validateUserCredentials(String username, String password) {
@@ -482,6 +555,14 @@ public class KeycloakAdminService {
             return Objects.toString(rawGroup.get("id"), null);
         }
         return null;
+    }
+
+    private boolean isServiceAccount(Map<?, ?> rawUser) {
+        if (rawUser.get("serviceAccountClientId") != null) {
+            return true;
+        }
+        String username = Objects.toString(rawUser.get("username"), "");
+        return username.startsWith("service-account-");
     }
 
     private String groupUrl(String groupId) {

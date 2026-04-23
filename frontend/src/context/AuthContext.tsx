@@ -23,13 +23,35 @@ export interface AuthState {
   account: { authorities: string[]; permissions: string[]; firstName?: string; lastName?: string; email?: string } | null;
   loading: boolean;
 
-  login: (username: string, password?: string) => Promise<{success: boolean, error?: string, requiresBrowserLogin?: boolean}>;
-  continueLoginInBrowser: (redirectPath?: string) => void;
+  login: (username: string, password?: string) => Promise<AuthActionResult>;
+  completeRequiredActions: (payload: RequiredActionPayload) => Promise<AuthActionResult>;
   logout: () => void;
   hasRole: (role: string) => boolean;
   hasAnyRole: (roles: string[]) => boolean;
   hasPermission: (permission: string) => boolean;
   hasAnyPermission: (permissions: string[]) => boolean;
+}
+
+export interface PendingAuthProfile {
+  login: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+}
+
+export interface RequiredActionPayload {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  newPassword?: string;
+}
+
+export interface AuthActionResult {
+  success: boolean;
+  error?: string;
+  requiresActionCompletion?: boolean;
+  requiredActions?: string[];
+  profile?: PendingAuthProfile;
 }
 
 const AuthContext = createContext<AuthState | undefined>(undefined);
@@ -93,7 +115,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     init();
   }, [fetchAccount]);
 
-  const login = async (username: string, password?: string) => {
+  const login = async (username: string, password?: string): Promise<AuthActionResult> => {
     setLoading(true);
     try {
       // El login real va por /api/authenticate (BFF) que crea la sesión
@@ -108,19 +130,49 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
       return { success: false, error: 'No se pudo cargar la cuenta después del login' };
     } catch (err) {
-      const axiosError = err as AxiosError<{ detail?: string; requiresBrowserLogin?: boolean }>;
+      const axiosError = err as AxiosError<{
+        detail?: string;
+        requiresActionCompletion?: boolean;
+        requiredActions?: string[];
+        profile?: PendingAuthProfile;
+      }>;
       setLoading(false);
       return {
         success: false,
         error: axiosError.response?.data?.detail || 'Error al iniciar sesión',
-        requiresBrowserLogin: Boolean(axiosError.response?.data?.requiresBrowserLogin),
+        requiresActionCompletion: Boolean(axiosError.response?.data?.requiresActionCompletion),
+        requiredActions: axiosError.response?.data?.requiredActions,
+        profile: axiosError.response?.data?.profile,
       };
     }
   };
 
-  const continueLoginInBrowser = (redirectPath = '/login') => {
-    const redirectUri = new URL(redirectPath, window.location.origin).toString();
-    window.location.assign(`/api/authenticate/browser?redirect_uri=${encodeURIComponent(redirectUri)}`);
+  const completeRequiredActions = async (payload: RequiredActionPayload): Promise<AuthActionResult> => {
+    setLoading(true);
+    try {
+      await api.post('/api/authenticate/required-actions', payload);
+      const success = await fetchAccount();
+      setLoading(false);
+      if (success) {
+        return { success: true };
+      }
+      return { success: false, error: 'No se pudo cargar la cuenta después de completar las acciones obligatorias.' };
+    } catch (err) {
+      const axiosError = err as AxiosError<{
+        detail?: string;
+        requiresActionCompletion?: boolean;
+        requiredActions?: string[];
+        profile?: PendingAuthProfile;
+      }>;
+      setLoading(false);
+      return {
+        success: false,
+        error: axiosError.response?.data?.detail || 'No se pudieron completar las acciones obligatorias.',
+        requiresActionCompletion: Boolean(axiosError.response?.data?.requiresActionCompletion),
+        requiredActions: axiosError.response?.data?.requiredActions,
+        profile: axiosError.response?.data?.profile,
+      };
+    }
   };
 
   const logout = async () => {
@@ -169,7 +221,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         account,
         loading,
         login,
-        continueLoginInBrowser,
+        completeRequiredActions,
         logout,
         hasRole,
         hasAnyRole,
