@@ -36,6 +36,7 @@ public class KeycloakAdminService {
     private static final int MAX_PASSWORD_VALIDATION_FAILURES = 5;
     private static final Duration PASSWORD_VALIDATION_WINDOW = Duration.ofMinutes(5);
     private static final int USER_PAGE_SIZE = 200;
+    private static final String SERVICE_ACCOUNT_USERNAME_PREFIX = "service-account-";
 
     private final RestTemplate restTemplate = new RestTemplate();
     private final Map<String, ValidationAttempt> failedPasswordValidations = new ConcurrentHashMap<>();
@@ -562,7 +563,7 @@ public class KeycloakAdminService {
             return true;
         }
         String username = Objects.toString(rawUser.get("username"), "");
-        return username.startsWith("service-account-");
+        return username.startsWith(SERVICE_ACCOUNT_USERNAME_PREFIX);
     }
 
     private String groupUrl(String groupId) {

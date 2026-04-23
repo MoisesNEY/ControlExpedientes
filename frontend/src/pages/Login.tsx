@@ -155,6 +155,7 @@ const Login = () => {
             firstName: pendingProfile.firstName,
             lastName: pendingProfile.lastName,
             email: pendingProfile.email,
+            currentPassword: password,
             newPassword: requiredActionSet.has('UPDATE_PASSWORD') ? newPassword : undefined,
         });
         setIsLoading(false);
@@ -498,7 +499,7 @@ const Login = () => {
 
                                 {requiredActionSet.has('CONFIGURE_TOTP') && (
                                     <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/8 dark:text-rose-300">
-                                        La configuración de segundo factor todavía no está disponible desde este portal para esta cuenta.
+                                        La configuración de segundo factor todavía no está disponible desde este portal para esta cuenta, por lo que no podrás completar el acceso aquí. Contacta a un administrador para continuar.
                                     </div>
                                 )}
 

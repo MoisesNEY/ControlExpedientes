@@ -43,6 +43,7 @@ export interface RequiredActionPayload {
   firstName?: string;
   lastName?: string;
   email?: string;
+  currentPassword?: string;
   newPassword?: string;
 }
 

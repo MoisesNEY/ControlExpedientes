@@ -142,8 +142,7 @@ public class AuthenticationResource {
                         managedUser.firstName(),
                         managedUser.lastName(),
                         managedUser.email(),
-                        managedUser.requiredActions(),
-                        loginVM.getPassword()
+                        managedUser.requiredActions()
                     );
                     session.setAttribute(SESSION_ATTR_PENDING_CHALLENGE, challenge);
                     return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
@@ -242,8 +241,14 @@ public class AuthenticationResource {
                 throw new IllegalArgumentException("La configuración de TOTP aún no está disponible desde el portal interno.");
             }
 
-            updatePendingChallenge(session, challenge, currentUser, request.newPassword());
-            AdminUserDTO userDTO = establishAuthenticatedSession(authenticateWithPassword(challenge.login(), challengePassword(session)), httpRequest);
+            updatePendingChallenge(session, currentUser);
+            String effectivePassword = request.newPassword() == null || request.newPassword().isBlank()
+                ? request.currentPassword()
+                : request.newPassword();
+            if (effectivePassword == null || effectivePassword.isBlank()) {
+                throw new IllegalArgumentException("Debes reenviar tu contraseña actual para finalizar la autenticación.");
+            }
+            AdminUserDTO userDTO = establishAuthenticatedSession(authenticateWithPassword(challenge.login(), effectivePassword), httpRequest);
             return ResponseEntity.ok(userDTO);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("detail", e.getMessage()));
@@ -371,9 +376,7 @@ public class AuthenticationResource {
 
     private void updatePendingChallenge(
         HttpSession session,
-        PendingRequiredActionsChallenge currentChallenge,
-        KeycloakAdminService.ManagedKeycloakUser currentUser,
-        String newPassword
+        KeycloakAdminService.ManagedKeycloakUser currentUser
     ) {
         if (session == null) {
             return;
@@ -386,18 +389,9 @@ public class AuthenticationResource {
                 currentUser.firstName(),
                 currentUser.lastName(),
                 currentUser.email(),
-                currentUser.requiredActions(),
-                newPassword == null || newPassword.isBlank() ? currentChallenge.password() : newPassword
+                currentUser.requiredActions()
             )
         );
-    }
-
-    private String challengePassword(HttpSession session) {
-        PendingRequiredActionsChallenge challenge = getPendingChallenge(session);
-        if (challenge.password() == null || challenge.password().isBlank()) {
-            throw new IllegalArgumentException("No se encontró la credencial temporal para finalizar la autenticación.");
-        }
-        return challenge.password();
     }
 
     private void clearPendingChallenge(HttpSession session) {
@@ -467,14 +461,14 @@ public class AuthenticationResource {
         String firstName,
         String lastName,
         String email,
-        List<String> requiredActions,
-        String password
+        List<String> requiredActions
     ) {}
 
     public record CompleteRequiredActionsVM(
         @Size(max = 50) String firstName,
         @Size(max = 50) String lastName,
         @Email @Size(max = 254) String email,
+        @Size(max = 255) String currentPassword,
         @Size(max = 255) String newPassword
     ) {}
 }
