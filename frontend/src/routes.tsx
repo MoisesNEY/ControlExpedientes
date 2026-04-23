@@ -89,24 +89,42 @@ export const routerConfig: RouteObject[] = [
         element: (
           <ProtectedSlot
             requiredRoles={['ROLE_ADMIN']}
-            requiredPermissions={['admin.users.manage', 'admin.roles.manage', 'admin.database.view', 'admin.database.export', 'admin.database.restore']}
+            requiredPermissions={[
+              'admin.dashboard.view',
+              'admin.patients.view',
+              'admin.medications.view',
+              'admin.interactions.view',
+              'admin.diagnoses.view',
+              'admin.appointments.view',
+              'admin.records.view',
+              'admin.users.view',
+              'admin.users.manage',
+              'admin.users.export',
+              'admin.roles.view',
+              'admin.roles.manage',
+              'admin.roles.export',
+              'admin.database.view',
+              'admin.database.export',
+              'admin.database.restore',
+              'admin.audit.view',
+            ]}
           >
             <AdminDashboard />
           </ProtectedSlot>
         ),
         children: [
           { index: true, element: <ModuleRedirect pathPrefix="/admin" /> },
-          { path: 'dashboard', element: <ProtectedSlot requiredRoles={['ROLE_ADMIN']}><AdminHomeView /></ProtectedSlot> },
-          { path: 'pacientes', element: <ProtectedSlot requiredRoles={['ROLE_ADMIN']}><AdminPacientesView /></ProtectedSlot> },
-          { path: 'medicamentos', element: <ProtectedSlot requiredRoles={['ROLE_ADMIN']}><AdminMedicamentosView /></ProtectedSlot> },
-          { path: 'interacciones', element: <ProtectedSlot requiredRoles={['ROLE_ADMIN']}><AdminInteraccionesView /></ProtectedSlot> },
-          { path: 'diagnosticos', element: <ProtectedSlot requiredRoles={['ROLE_ADMIN']}><DiagnosticoCatalogView /></ProtectedSlot> },
-          { path: 'citas', element: <ProtectedSlot requiredRoles={['ROLE_ADMIN']}><AdminCitasView /></ProtectedSlot> },
-          { path: 'expedientes', element: <ProtectedSlot requiredRoles={['ROLE_ADMIN']}><AdminExpedientesView /></ProtectedSlot> },
-          { path: 'usuarios', element: <ProtectedSlot requiredRoles={['ROLE_ADMIN']} requiredPermissions={['admin.users.manage']}><AdminUsersView /></ProtectedSlot> },
-          { path: 'roles', element: <ProtectedSlot requiredRoles={['ROLE_ADMIN']} requiredPermissions={['admin.roles.manage']}><AdminRolesView /></ProtectedSlot> },
+          { path: 'dashboard', element: <ProtectedSlot requiredRoles={['ROLE_ADMIN']} requiredPermissions={['admin.dashboard.view']}><AdminHomeView /></ProtectedSlot> },
+          { path: 'pacientes', element: <ProtectedSlot requiredRoles={['ROLE_ADMIN']} requiredPermissions={['admin.patients.view']}><AdminPacientesView /></ProtectedSlot> },
+          { path: 'medicamentos', element: <ProtectedSlot requiredRoles={['ROLE_ADMIN']} requiredPermissions={['admin.medications.view']}><AdminMedicamentosView /></ProtectedSlot> },
+          { path: 'interacciones', element: <ProtectedSlot requiredRoles={['ROLE_ADMIN']} requiredPermissions={['admin.interactions.view']}><AdminInteraccionesView /></ProtectedSlot> },
+          { path: 'diagnosticos', element: <ProtectedSlot requiredRoles={['ROLE_ADMIN']} requiredPermissions={['admin.diagnoses.view']}><DiagnosticoCatalogView /></ProtectedSlot> },
+          { path: 'citas', element: <ProtectedSlot requiredRoles={['ROLE_ADMIN']} requiredPermissions={['admin.appointments.view']}><AdminCitasView /></ProtectedSlot> },
+          { path: 'expedientes', element: <ProtectedSlot requiredRoles={['ROLE_ADMIN']} requiredPermissions={['admin.records.view']}><AdminExpedientesView /></ProtectedSlot> },
+          { path: 'usuarios', element: <ProtectedSlot requiredRoles={['ROLE_ADMIN']} requiredPermissions={['admin.users.view', 'admin.users.manage', 'admin.users.export']}><AdminUsersView /></ProtectedSlot> },
+          { path: 'roles', element: <ProtectedSlot requiredRoles={['ROLE_ADMIN']} requiredPermissions={['admin.roles.view', 'admin.roles.manage', 'admin.roles.export']}><AdminRolesView /></ProtectedSlot> },
           { path: 'base-datos', element: <ProtectedSlot requiredRoles={['ROLE_ADMIN']} requiredPermissions={['admin.database.view', 'admin.database.export', 'admin.database.restore']}><AdminDatabaseView /></ProtectedSlot> },
-          { path: 'auditoria', element: <ProtectedSlot requiredRoles={['ROLE_ADMIN']}><AdminAuditoriaView /></ProtectedSlot> }
+          { path: 'auditoria', element: <ProtectedSlot requiredRoles={['ROLE_ADMIN']} requiredPermissions={['admin.audit.view']}><AdminAuditoriaView /></ProtectedSlot> }
         ]
       },
       {

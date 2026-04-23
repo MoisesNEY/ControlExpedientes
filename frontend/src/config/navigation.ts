@@ -20,17 +20,17 @@ export const navigationConfig: NavGroup[] = [
   {
     groupName: 'Administración',
     items: [
-      { id: 'admin-dashboard', label: 'Dashboard', path: '/admin/dashboard', icon: 'dashboard', requiredRoles: ['ROLE_ADMIN'] },
-      { id: 'admin-pacientes', label: 'Gestión Pacientes', path: '/admin/pacientes', icon: 'groups', requiredRoles: ['ROLE_ADMIN'] },
-      { id: 'admin-meds', label: 'Medicamentos', path: '/admin/medicamentos', icon: 'medication', requiredRoles: ['ROLE_ADMIN'] },
-      { id: 'admin-interacciones', label: 'Interacciones', path: '/admin/interacciones', icon: 'warning', requiredRoles: ['ROLE_ADMIN'] },
-      { id: 'admin-diagnosticos', label: 'Diagnósticos', path: '/admin/diagnosticos', icon: 'diagnosis', requiredRoles: ['ROLE_ADMIN'] },
-      { id: 'admin-citas', label: 'Gestión Citas', path: '/admin/citas', icon: 'calendar_month', requiredRoles: ['ROLE_ADMIN'] },
-      { id: 'admin-expedientes', label: 'Expedientes', path: '/admin/expedientes', icon: 'folder_open', requiredRoles: ['ROLE_ADMIN'] },
-      { id: 'admin-users', label: 'Usuarios', path: '/admin/usuarios', icon: 'badge', requiredRoles: ['ROLE_ADMIN'], requiredPermissions: ['admin.users.manage'] },
-      { id: 'admin-roles', label: 'Roles', path: '/admin/roles', icon: 'admin_panel_settings', requiredRoles: ['ROLE_ADMIN'], requiredPermissions: ['admin.roles.manage'] },
+      { id: 'admin-dashboard', label: 'Dashboard', path: '/admin/dashboard', icon: 'dashboard', requiredRoles: ['ROLE_ADMIN'], requiredPermissions: ['admin.dashboard.view'] },
+      { id: 'admin-pacientes', label: 'Gestión Pacientes', path: '/admin/pacientes', icon: 'groups', requiredRoles: ['ROLE_ADMIN'], requiredPermissions: ['admin.patients.view'] },
+      { id: 'admin-meds', label: 'Medicamentos', path: '/admin/medicamentos', icon: 'medication', requiredRoles: ['ROLE_ADMIN'], requiredPermissions: ['admin.medications.view'] },
+      { id: 'admin-interacciones', label: 'Interacciones', path: '/admin/interacciones', icon: 'warning', requiredRoles: ['ROLE_ADMIN'], requiredPermissions: ['admin.interactions.view'] },
+      { id: 'admin-diagnosticos', label: 'Diagnósticos', path: '/admin/diagnosticos', icon: 'diagnosis', requiredRoles: ['ROLE_ADMIN'], requiredPermissions: ['admin.diagnoses.view'] },
+      { id: 'admin-citas', label: 'Gestión Citas', path: '/admin/citas', icon: 'calendar_month', requiredRoles: ['ROLE_ADMIN'], requiredPermissions: ['admin.appointments.view'] },
+      { id: 'admin-expedientes', label: 'Expedientes', path: '/admin/expedientes', icon: 'folder_open', requiredRoles: ['ROLE_ADMIN'], requiredPermissions: ['admin.records.view'] },
+      { id: 'admin-users', label: 'Usuarios', path: '/admin/usuarios', icon: 'badge', requiredRoles: ['ROLE_ADMIN'], requiredPermissions: ['admin.users.view', 'admin.users.manage', 'admin.users.export'] },
+      { id: 'admin-roles', label: 'Roles', path: '/admin/roles', icon: 'admin_panel_settings', requiredRoles: ['ROLE_ADMIN'], requiredPermissions: ['admin.roles.view', 'admin.roles.manage', 'admin.roles.export'] },
       { id: 'admin-database', label: 'Base de Datos', path: '/admin/base-datos', icon: 'database', requiredRoles: ['ROLE_ADMIN'], requiredPermissions: ['admin.database.view', 'admin.database.export', 'admin.database.restore'] },
-      { id: 'admin-audit', label: 'Auditoría', path: '/admin/auditoria', icon: 'security', requiredRoles: ['ROLE_ADMIN'] },
+      { id: 'admin-audit', label: 'Auditoría', path: '/admin/auditoria', icon: 'security', requiredRoles: ['ROLE_ADMIN'], requiredPermissions: ['admin.audit.view'] },
     ]
   },
   {

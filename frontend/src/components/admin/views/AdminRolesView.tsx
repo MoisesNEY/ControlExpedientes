@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AppButton } from '../../ui/AppButton';
+import { useAuth } from '../../../context/AuthContext';
 import {
   AdminSecurityService,
   type PermissionDefinition,
@@ -16,6 +17,7 @@ const emptyRoleForm: RolePayload = {
 };
 
 const AdminRolesView = () => {
+  const { hasAnyRole, hasAnyPermission } = useAuth();
   const [roles, setRoles] = useState<RoleDefinition[]>([]);
   const [availableCompositeRoles, setAvailableCompositeRoles] = useState<string[]>([]);
   const [permissions, setPermissions] = useState<PermissionDefinition[]>([]);
@@ -27,11 +29,16 @@ const AdminRolesView = () => {
   const [exporting, setExporting] = useState(false);
   const [search, setSearch] = useState('');
   const [message, setMessage] = useState<string | null>(null);
+  const canManage = hasAnyRole(['ROLE_ADMIN']) || hasAnyPermission(['admin.roles.manage']);
+  const canExport = hasAnyRole(['ROLE_ADMIN']) || hasAnyPermission(['admin.roles.export']);
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const [roleList, catalog] = await Promise.all([AdminSecurityService.getRoles(), AdminSecurityService.getRoleCatalog()]);
+      const [roleList, catalog] = await Promise.all([
+        AdminSecurityService.getRoles(),
+        canManage ? AdminSecurityService.getRoleCatalog() : Promise.resolve({ availableCompositeRoles: [], permissions: [] }),
+      ]);
       setRoles(roleList);
       setAvailableCompositeRoles(catalog.availableCompositeRoles);
       setPermissions(catalog.permissions);
@@ -183,9 +190,11 @@ const AdminRolesView = () => {
                 placeholder="Buscar rol o permiso"
               />
               <div className="flex gap-2">
-                <AppButton variant="outline" icon="download" isLoading={exporting} onClick={() => void handleExport()}>
-                  Excel
-                </AppButton>
+                {canExport && (
+                  <AppButton variant="outline" icon="download" isLoading={exporting} onClick={() => void handleExport()}>
+                    Excel
+                  </AppButton>
+                )}
                 <AppButton variant="outline" icon="refresh" onClick={() => void loadData()}>
                   Actualizar
                 </AppButton>
@@ -222,7 +231,7 @@ const AdminRolesView = () => {
                       </div>
                     </div>
 
-                    {!role.systemRole && (
+                    {!role.systemRole && canManage && (
                       <div className="flex flex-wrap gap-2">
                         <AppButton variant="outline" size="sm" icon="edit" onClick={() => startEditing(role)}>
                           Editar
@@ -256,14 +265,20 @@ const AdminRolesView = () => {
               <h3 className="text-lg font-black text-slate-900 dark:text-white">{editingRole ? `Editar ${editingRole}` : 'Crear rol dinámico'}</h3>
               <p className="text-sm text-slate-500">Define el nombre del rol, sus roles base y los permisos del panel.</p>
             </div>
-            {editingRole && (
+            {editingRole && canManage && (
               <AppButton variant="ghost" icon="close" onClick={resetForm}>
                 Cancelar
               </AppButton>
             )}
           </div>
 
-          <div className="space-y-4">
+          {!canManage && (
+            <div className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 px-4 py-4 text-sm text-slate-500">
+              Tienes acceso de solo lectura al catálogo de roles.
+            </div>
+          )}
+
+          <div className={`space-y-4 ${!canManage ? 'pointer-events-none opacity-60' : ''}`}>
             <div>
               <label className="text-xs font-black uppercase tracking-widest text-slate-500">Nombre del rol</label>
               <input
@@ -342,9 +357,11 @@ const AdminRolesView = () => {
             </div>
           </div>
 
-          <AppButton variant="primary" icon="save" isLoading={saving} onClick={() => void handleSubmit()}>
-            {editingRole ? 'Guardar cambios' : 'Crear rol'}
-          </AppButton>
+          {canManage && (
+            <AppButton variant="primary" icon="save" isLoading={saving} onClick={() => void handleSubmit()}>
+              {editingRole ? 'Guardar cambios' : 'Crear rol'}
+            </AppButton>
+          )}
         </div>
       </div>
 

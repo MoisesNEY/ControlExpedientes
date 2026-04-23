@@ -22,7 +22,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/admin/roles")
-@PreAuthorize("@permissionSecurityService.hasPermission('" + AppPermissionCatalog.ADMIN_ROLES_MANAGE + "')")
 public class AdminRoleResource {
 
     private final RoleAdministrationService roleAdministrationService;
@@ -34,16 +33,27 @@ public class AdminRoleResource {
     }
 
     @GetMapping("")
+    @PreAuthorize(
+        "@permissionSecurityService.hasPermission('" +
+        AppPermissionCatalog.ADMIN_ROLES_VIEW +
+        "') or @permissionSecurityService.hasPermission('" +
+        AppPermissionCatalog.ADMIN_ROLES_MANAGE +
+        "') or @permissionSecurityService.hasPermission('" +
+        AppPermissionCatalog.ADMIN_ROLES_EXPORT +
+        "')"
+    )
     public List<RoleDefinitionDTO> getRoles() {
         return roleAdministrationService.getAllRoles();
     }
 
     @GetMapping("/catalog")
+    @PreAuthorize("@permissionSecurityService.hasPermission('" + AppPermissionCatalog.ADMIN_ROLES_MANAGE + "')")
     public RoleManagementCatalogDTO getCatalog() {
         return roleAdministrationService.getCatalog();
     }
 
     @GetMapping("/export")
+    @PreAuthorize("@permissionSecurityService.hasPermission('" + AppPermissionCatalog.ADMIN_ROLES_EXPORT + "')")
     public ResponseEntity<byte[]> exportRoles() {
         AdminSecurityExportService.ExportedSpreadsheet export = adminSecurityExportService.exportRoles(roleAdministrationService.getAllRoles());
         HttpHeaders headers = new HttpHeaders();
@@ -53,16 +63,19 @@ public class AdminRoleResource {
     }
 
     @PostMapping("")
+    @PreAuthorize("@permissionSecurityService.hasPermission('" + AppPermissionCatalog.ADMIN_ROLES_MANAGE + "')")
     public ResponseEntity<RoleDefinitionDTO> createRole(@Valid @RequestBody RoleUpsertDTO request) {
         return ResponseEntity.ok(roleAdministrationService.createRole(request));
     }
 
     @PutMapping("/{roleName}")
+    @PreAuthorize("@permissionSecurityService.hasPermission('" + AppPermissionCatalog.ADMIN_ROLES_MANAGE + "')")
     public ResponseEntity<RoleDefinitionDTO> updateRole(@PathVariable String roleName, @Valid @RequestBody RoleUpsertDTO request) {
         return ResponseEntity.ok(roleAdministrationService.updateRole(roleName, request));
     }
 
     @DeleteMapping("/{roleName}")
+    @PreAuthorize("@permissionSecurityService.hasPermission('" + AppPermissionCatalog.ADMIN_ROLES_MANAGE + "')")
     public ResponseEntity<Void> deleteRole(@PathVariable String roleName) {
         roleAdministrationService.deleteRole(roleName);
         return ResponseEntity.noContent().build();

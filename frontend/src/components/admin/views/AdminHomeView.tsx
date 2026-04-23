@@ -16,6 +16,7 @@ import {
     YAxis,
 } from 'recharts';
 import { DashboardEmptyState, DashboardLoading, DashboardMetricCard, DashboardPanel } from '../../analytics/DashboardPrimitives';
+import { useAuth } from '../../../context/AuthContext';
 import { DashboardService, type DashboardMetrics } from '../../../services/dashboard.service';
 
 const STATUS_COLORS = ['#0ea5e9', '#14b8a6', '#f59e0b', '#8b5cf6', '#ef4444', '#22c55e', '#64748b'];
@@ -29,8 +30,12 @@ const CARD_ICONS: Record<string, string> = {
 };
 
 const AdminHomeView = () => {
+    const { hasAnyRole, hasAnyPermission } = useAuth();
     const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
     const [loading, setLoading] = useState(true);
+    const canOpenUsers = hasAnyRole(['ROLE_ADMIN']) || hasAnyPermission(['admin.users.view', 'admin.users.manage', 'admin.users.export']);
+    const canOpenRoles = hasAnyRole(['ROLE_ADMIN']) || hasAnyPermission(['admin.roles.view', 'admin.roles.manage', 'admin.roles.export']);
+    const canOpenDatabase = hasAnyRole(['ROLE_ADMIN']) || hasAnyPermission(['admin.database.view', 'admin.database.export', 'admin.database.restore']);
 
     useEffect(() => {
         const loadDashboard = async () => {
@@ -203,18 +208,24 @@ const AdminHomeView = () => {
 
             <DashboardPanel title="Accesos administrativos rápidos" icon="bolt">
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-                    <Link to="/admin/usuarios" className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/30 p-5 transition hover:-translate-y-0.5 hover:shadow-lg">
-                        <p className="text-sm font-bold text-slate-900 dark:text-white">Gestión de usuarios</p>
-                        <p className="text-xs text-slate-500 mt-1">Crear cuentas, asignar roles y activar acciones obligatorias desde el backend de autenticación.</p>
-                    </Link>
-                    <Link to="/admin/roles" className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/30 p-5 transition hover:-translate-y-0.5 hover:shadow-lg">
-                        <p className="text-sm font-bold text-slate-900 dark:text-white">Gestión de roles</p>
-                        <p className="text-xs text-slate-500 mt-1">Definir roles dinámicos, permisos administrativos y roles base compuestos.</p>
-                    </Link>
-                    <Link to="/admin/base-datos" className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/30 p-5 transition hover:-translate-y-0.5 hover:shadow-lg">
-                        <p className="text-sm font-bold text-slate-900 dark:text-white">Respaldos y restauración</p>
-                        <p className="text-xs text-slate-500 mt-1">La operación se movió al módulo dedicado con confirmación reforzada.</p>
-                    </Link>
+                    {canOpenUsers && (
+                        <Link to="/admin/usuarios" className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/30 p-5 transition hover:-translate-y-0.5 hover:shadow-lg">
+                            <p className="text-sm font-bold text-slate-900 dark:text-white">Gestión de usuarios</p>
+                            <p className="text-xs text-slate-500 mt-1">Crear cuentas, asignar roles y activar acciones obligatorias desde el backend de autenticación.</p>
+                        </Link>
+                    )}
+                    {canOpenRoles && (
+                        <Link to="/admin/roles" className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/30 p-5 transition hover:-translate-y-0.5 hover:shadow-lg">
+                            <p className="text-sm font-bold text-slate-900 dark:text-white">Gestión de roles</p>
+                            <p className="text-xs text-slate-500 mt-1">Definir roles dinámicos, permisos administrativos y roles base compuestos.</p>
+                        </Link>
+                    )}
+                    {canOpenDatabase && (
+                        <Link to="/admin/base-datos" className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/30 p-5 transition hover:-translate-y-0.5 hover:shadow-lg">
+                            <p className="text-sm font-bold text-slate-900 dark:text-white">Respaldos y restauración</p>
+                            <p className="text-xs text-slate-500 mt-1">La operación se movió al módulo dedicado con confirmación reforzada.</p>
+                        </Link>
+                    )}
                 </div>
             </DashboardPanel>
         </div>

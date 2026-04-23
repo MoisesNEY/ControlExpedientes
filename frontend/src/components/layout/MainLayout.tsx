@@ -51,7 +51,20 @@ export const MainLayout: React.FC = () => {
     if (user?.preferred_username && hasAnyRole(['ROLE_MEDICO'])) {
       topics.add(`/topic/medico/${user.preferred_username}`);
     }
-    if (hasAnyRole(['ROLE_ADMIN']) || hasAnyPermission(['admin.users.manage', 'admin.roles.manage', 'admin.database.view'])) {
+    if (
+      hasAnyRole(['ROLE_ADMIN']) ||
+      hasAnyPermission([
+        'admin.users.view',
+        'admin.users.manage',
+        'admin.users.export',
+        'admin.roles.view',
+        'admin.roles.manage',
+        'admin.roles.export',
+        'admin.database.view',
+        'admin.database.export',
+        'admin.database.restore',
+      ])
+    ) {
       topics.add('/topic/admin/system');
     }
     return Array.from(topics);

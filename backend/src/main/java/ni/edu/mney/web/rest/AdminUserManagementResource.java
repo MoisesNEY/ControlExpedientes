@@ -21,7 +21,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/admin/users")
-@PreAuthorize("@permissionSecurityService.hasPermission('" + AppPermissionCatalog.ADMIN_USERS_MANAGE + "')")
 public class AdminUserManagementResource {
 
     private final UserAdministrationService userAdministrationService;
@@ -36,11 +35,21 @@ public class AdminUserManagementResource {
     }
 
     @GetMapping("")
+    @PreAuthorize(
+        "@permissionSecurityService.hasPermission('" +
+        AppPermissionCatalog.ADMIN_USERS_VIEW +
+        "') or @permissionSecurityService.hasPermission('" +
+        AppPermissionCatalog.ADMIN_USERS_MANAGE +
+        "') or @permissionSecurityService.hasPermission('" +
+        AppPermissionCatalog.ADMIN_USERS_EXPORT +
+        "')"
+    )
     public List<ManagedUserDTO> getUsers() {
         return userAdministrationService.getAllUsers();
     }
 
     @GetMapping("/export")
+    @PreAuthorize("@permissionSecurityService.hasPermission('" + AppPermissionCatalog.ADMIN_USERS_EXPORT + "')")
     public ResponseEntity<byte[]> exportUsers() {
         AdminSecurityExportService.ExportedSpreadsheet export = adminSecurityExportService.exportUsers(userAdministrationService.getAllUsers());
         HttpHeaders headers = new HttpHeaders();
@@ -50,16 +59,19 @@ public class AdminUserManagementResource {
     }
 
     @PostMapping("")
+    @PreAuthorize("@permissionSecurityService.hasPermission('" + AppPermissionCatalog.ADMIN_USERS_MANAGE + "')")
     public ResponseEntity<ManagedUserDTO> createUser(@Valid @RequestBody ManagedUserUpsertDTO request) {
         return ResponseEntity.ok(userAdministrationService.createUser(request));
     }
 
     @PutMapping("/{userId}")
+    @PreAuthorize("@permissionSecurityService.hasPermission('" + AppPermissionCatalog.ADMIN_USERS_MANAGE + "')")
     public ResponseEntity<ManagedUserDTO> updateUser(@PathVariable String userId, @Valid @RequestBody ManagedUserUpsertDTO request) {
         return ResponseEntity.ok(userAdministrationService.updateUser(userId, request));
     }
 
     @DeleteMapping("/{userId}")
+    @PreAuthorize("@permissionSecurityService.hasPermission('" + AppPermissionCatalog.ADMIN_USERS_MANAGE + "')")
     public ResponseEntity<Void> deleteUser(@PathVariable String userId) {
         userAdministrationService.deleteUser(userId);
         return ResponseEntity.noContent().build();

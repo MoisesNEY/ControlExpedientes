@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { Notificacion } from '../../hooks/useWebSocket';
+import { useAuth } from '../../context/AuthContext';
 
 interface ToastNotificationProps {
     notificaciones: Notificacion[];
@@ -11,9 +12,14 @@ interface ToastNotificationProps {
  * Muestra notificaciones push del WebSocket con auto-dismiss.
  */
 const ToastNotification = ({ notificaciones, onDismiss }: ToastNotificationProps) => {
+    const { hasAnyPermission } = useAuth();
+    const visibles = notificaciones
+        .map((noti, idx) => ({ noti, idx }))
+        .filter(({ noti }) => !noti.archivoDescarga || hasAnyPermission(['admin.database.export']));
+
     return (
         <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-3 max-w-sm">
-            {notificaciones.slice(0, 5).map((noti, idx) => (
+            {visibles.slice(0, 5).map(({ noti, idx }) => (
                 <ToastItem key={`${noti.citaId}-${noti.timestamp}-${idx}`} noti={noti} index={idx} onDismiss={onDismiss} />
             ))}
         </div>

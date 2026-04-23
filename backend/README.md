@@ -185,6 +185,32 @@ java -jar target/*.jar
 
 Refer to [Using JHipster in production][] for more details.
 
+### Ejecutar backend dockerizado con perfil `prod`
+
+Se agregó un stack listo en `/home/runner/work/ControlExpedientes/ControlExpedientes/backend/docker-compose.prod.yml` y una imagen en `/home/runner/work/ControlExpedientes/ControlExpedientes/backend/Dockerfile`.
+
+1. Ubícate en `/home/runner/work/ControlExpedientes/ControlExpedientes/backend`.
+2. Define en tu `.env` las variables `KEYCLOAK_ADMIN_USERNAME`, `KEYCLOAK_ADMIN_PASSWORD` y `POSTGRES_PASSWORD`.
+3. Ejecuta:
+
+```bash
+docker compose -f docker-compose.prod.yml up --build
+```
+
+4. El backend arrancará en `http://localhost:8080` usando `SPRING_PROFILES_ACTIVE=prod`.
+5. PostgreSQL quedará disponible en `localhost:5434` y Keycloak en `http://localhost:9080`.
+6. Para detener el entorno:
+
+```bash
+docker compose -f docker-compose.prod.yml down
+```
+
+Si también quieres eliminar volúmenes persistidos (base de datos y respaldos):
+
+```bash
+docker compose -f docker-compose.prod.yml down -v
+```
+
 ### Packaging as war
 
 To package your application as a war in order to deploy it to an application server, run:
