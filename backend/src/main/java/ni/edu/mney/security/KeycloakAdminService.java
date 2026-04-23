@@ -85,7 +85,7 @@ public class KeycloakAdminService {
     }
 
     public List<ManagedKeycloakRole> listRoles() {
-        List<?> body = exchange(adminRealmUrl("/roles"), HttpMethod.GET, null, List.class).getBody();
+        List<?> body = exchange(adminRealmUrl("/roles?briefRepresentation=false"), HttpMethod.GET, null, List.class).getBody();
         if (body == null) {
             return List.of();
         }
