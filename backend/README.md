@@ -195,6 +195,9 @@ Se agregó un stack listo en `docker-compose.prod.yml` y una imagen en `Dockerfi
 4. Ejecuta:
 
 ```bash
+export JAVA_HOME=/ruta/a/jdk-21
+export PATH="$JAVA_HOME/bin:$PATH"
+./mvnw -q -ntp -Pprod -DskipTests -Dmodernizer.skip=true package
 docker compose --env-file .env -f docker-compose.prod.yml up --build
 ```
 
