@@ -42,6 +42,8 @@ docker compose -f src/main/docker/keycloak.yml up -d
 
 En otra terminal:
 
+> Reemplaza `/path/to/jdk-21` por la ruta real de tu instalación de Java 21.
+
 ```bash
 export JAVA_HOME=/path/to/jdk-21
 export PATH="$JAVA_HOME/bin:$PATH"
@@ -66,6 +68,8 @@ El frontend quedará en `http://localhost:5173`.
 ## Perfil `prod` (frontend y backend dockerizados)
 
 ### Opción recomendada: ejecutar desde `backend/`
+
+> Reemplaza `/path/to/jdk-21` por la ruta real de tu instalación de Java 21.
 
 ```bash
 cd backend
