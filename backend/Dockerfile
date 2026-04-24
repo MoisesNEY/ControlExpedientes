@@ -1,13 +1,10 @@
 FROM maven:3.9.9-eclipse-temurin-21 AS build
 WORKDIR /workspace/app
 
-COPY .mvn/ .mvn/
-COPY mvnw pom.xml checkstyle.xml sonar-project.properties ./
+COPY pom.xml sonar-project.properties checkstyle.xml ./
 COPY src/ src/
 
-RUN chmod +x mvnw \
-    && ./mvnw -q -ntp -Pprod -DskipTests -Dmodernizer.skip=true package
-
+RUN mvn -q -ntp -Pprod -DskipTests -Dmodernizer.skip=true package
 
 FROM eclipse-temurin:21-jre-jammy
 WORKDIR /app
