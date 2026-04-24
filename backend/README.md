@@ -195,11 +195,13 @@ Se agregó un stack listo en `docker-compose.prod.yml` y una imagen en `Dockerfi
 4. Ejecuta:
 
 ```bash
-export JAVA_HOME=/ruta/a/jdk-21
+export JAVA_HOME=/path/to/jdk-21
 export PATH="$JAVA_HOME/bin:$PATH"
 ./mvnw -q -ntp -Pprod -DskipTests -Dmodernizer.skip=true package
 docker compose --env-file .env -f docker-compose.prod.yml up --build
 ```
+
+> Si ejecutas el compose desde la raíz del repositorio con `-f backend/docker-compose.prod.yml`, usa también `--env-file backend/.env`; de lo contrario Docker Compose no cargará automáticamente `backend/.env`.
 
 5. El stack levantará:
 
@@ -219,8 +221,6 @@ docker compose --env-file .env -f docker-compose.prod.yml down
 ```bash
 docker compose --env-file .env -f docker-compose.prod.yml down -v
 ```
-
-> Si ejecutas el compose desde la raíz del repositorio con `-f backend/docker-compose.prod.yml`, usa también `--env-file backend/.env`; de lo contrario Docker Compose no cargará automáticamente `backend/.env`.
 
 ### Packaging as war
 

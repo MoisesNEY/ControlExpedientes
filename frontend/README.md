@@ -29,3 +29,9 @@ Cuando se usa junto con `backend/docker-compose.prod.yml`:
 - sirve la aplicación en `http://localhost:4173`,
 - redirige `/api` al contenedor `backend`,
 - y redirige `/ws` al backend para WebSocket.
+
+Para levantar ese stack desde la raíz del repositorio usa:
+
+```bash
+docker compose --env-file backend/.env -f backend/docker-compose.prod.yml up --build
+```

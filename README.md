@@ -43,7 +43,7 @@ docker compose -f src/main/docker/keycloak.yml up -d
 En otra terminal:
 
 ```bash
-export JAVA_HOME=/ruta/a/jdk-21
+export JAVA_HOME=/path/to/jdk-21
 export PATH="$JAVA_HOME/bin:$PATH"
 cd backend
 ./mvnw
@@ -70,7 +70,7 @@ El frontend quedará en `http://localhost:5173`.
 ```bash
 cd backend
 cp .env.example .env
-export JAVA_HOME=/ruta/a/jdk-21
+export JAVA_HOME=/path/to/jdk-21
 export PATH="$JAVA_HOME/bin:$PATH"
 ./mvnw -q -ntp -Pprod -DskipTests -Dmodernizer.skip=true package
 docker compose --env-file .env -f docker-compose.prod.yml up --build
@@ -79,7 +79,7 @@ docker compose --env-file .env -f docker-compose.prod.yml up --build
 ### Opción alternativa: ejecutar desde la raíz del repositorio
 
 ```bash
-export JAVA_HOME=/ruta/a/jdk-21
+export JAVA_HOME=/path/to/jdk-21
 export PATH="$JAVA_HOME/bin:$PATH"
 cd backend
 ./mvnw -q -ntp -Pprod -DskipTests -Dmodernizer.skip=true package
