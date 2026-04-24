@@ -35,7 +35,7 @@ spring:
     type: com.zaxxer.hikari.HikariDataSource
     url: jdbc:postgresql://localhost:5434/controlExpedientesBackend
     username: controlExpedientesBackend
-    password:
+    password: ${POSTGRES_PASSWORD:controlExpedientesBackend}
     hikari:
       poolName: Hikari
       auto-commit: false

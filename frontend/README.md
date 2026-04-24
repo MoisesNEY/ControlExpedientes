@@ -24,14 +24,14 @@ npm run build
 
 El frontend cuenta con un `Dockerfile` productivo basado en Nginx.
 
-Cuando se usa junto con `backend/docker-compose.prod.yml`:
+Cuando se usa dentro del stack productivo raíz:
 
-- sirve la aplicación en `http://localhost:4173`,
+ - sirve la aplicación en `http://localhost:5173`,
 - redirige `/api` al contenedor `backend`,
 - y redirige `/ws` al backend para WebSocket.
 
 Para levantar ese stack desde la raíz del repositorio usa:
 
 ```bash
-docker compose --env-file backend/.env -f backend/docker-compose.prod.yml up --build
+docker-compose up --build
 ```

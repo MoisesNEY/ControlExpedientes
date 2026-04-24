@@ -185,41 +185,34 @@ java -jar target/*.jar
 
 Refer to [Using JHipster in production][] for more details.
 
-### Ejecutar backend dockerizado con perfil `prod`
+### Ejecutar stack productivo con perfil `prod`
 
-Se agregó un stack listo en `docker-compose.prod.yml` y una imagen en `Dockerfile`.
+El entorno productivo completo se levanta desde la raíz del repositorio con el archivo `docker-compose.yml` principal. Ese flujo construye también este backend dentro del contenedor, así que ya no necesitas empaquetar el JAR manualmente antes de levantar el stack.
 
-1. Ubícate en el directorio `backend/`.
-2. Copia `.env.example` a `.env`.
-3. Ajusta `KEYCLOAK_ADMIN_USERNAME`, `KEYCLOAK_ADMIN_PASSWORD` y `POSTGRES_PASSWORD` si lo necesitas.
-4. Ejecuta:
+1. Verifica que `backend/.env` exista con `KEYCLOAK_ADMIN_USERNAME`, `KEYCLOAK_ADMIN_PASSWORD` y `POSTGRES_PASSWORD`.
+2. Desde la raíz del repositorio ejecuta:
 
 ```bash
-export JAVA_HOME=/path/to/jdk-21
-export PATH="$JAVA_HOME/bin:$PATH"
-./mvnw -q -ntp -Pprod -DskipTests -Dmodernizer.skip=true package
-docker compose --env-file .env -f docker-compose.prod.yml up --build
+docker-compose up --build
 ```
 
-> Si ejecutas el compose desde la raíz del repositorio con `-f backend/docker-compose.prod.yml`, usa también `--env-file backend/.env`; de lo contrario Docker Compose no cargará automáticamente `backend/.env`.
+3. El stack levantará:
 
-5. El stack levantará:
-
-- frontend en `http://localhost:4173`
+ - frontend en `http://localhost:5173`
 - backend en `http://localhost:8080`
-- PostgreSQL en `localhost:5434`
+- PostgreSQL como contenedor interno del stack
 - Keycloak en `http://localhost:9080`
 
-6. Para detener el entorno:
+4. Para detener el entorno:
 
 ```bash
-docker compose --env-file .env -f docker-compose.prod.yml down
+docker-compose down
 ```
 
-7. Si también quieres eliminar volúmenes persistidos (base de datos y respaldos):
+5. Si también quieres eliminar volúmenes persistidos (base de datos y respaldos):
 
 ```bash
-docker compose --env-file .env -f docker-compose.prod.yml down -v
+docker-compose down -v
 ```
 
 ### Packaging as war
