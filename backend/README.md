@@ -190,25 +190,36 @@ Refer to [Using JHipster in production][] for more details.
 Se agregó un stack listo en `docker-compose.prod.yml` y una imagen en `Dockerfile`.
 
 1. Ubícate en el directorio `backend/`.
-2. Define en tu `.env` las variables `KEYCLOAK_ADMIN_USERNAME`, `KEYCLOAK_ADMIN_PASSWORD` y `POSTGRES_PASSWORD`.
-3. Ejecuta:
+2. Copia `.env.example` a `.env`.
+3. Ajusta `KEYCLOAK_ADMIN_USERNAME`, `KEYCLOAK_ADMIN_PASSWORD` y `POSTGRES_PASSWORD` si lo necesitas.
+4. Ejecuta:
 
 ```bash
-docker compose -f docker-compose.prod.yml up --build
+export JAVA_HOME=/path/to/jdk-21
+export PATH="$JAVA_HOME/bin:$PATH"
+./mvnw -q -ntp -Pprod -DskipTests -Dmodernizer.skip=true package
+docker compose --env-file .env -f docker-compose.prod.yml up --build
 ```
 
-4. El backend arrancará en `http://localhost:8080` usando `SPRING_PROFILES_ACTIVE=prod`.
-5. PostgreSQL quedará disponible en `localhost:5434` y Keycloak en `http://localhost:9080`.
+> Si ejecutas el compose desde la raíz del repositorio con `-f backend/docker-compose.prod.yml`, usa también `--env-file backend/.env`; de lo contrario Docker Compose no cargará automáticamente `backend/.env`.
+
+5. El stack levantará:
+
+- frontend en `http://localhost:4173`
+- backend en `http://localhost:8080`
+- PostgreSQL en `localhost:5434`
+- Keycloak en `http://localhost:9080`
+
 6. Para detener el entorno:
 
 ```bash
-docker compose -f docker-compose.prod.yml down
+docker compose --env-file .env -f docker-compose.prod.yml down
 ```
 
-Si también quieres eliminar volúmenes persistidos (base de datos y respaldos):
+7. Si también quieres eliminar volúmenes persistidos (base de datos y respaldos):
 
 ```bash
-docker compose -f docker-compose.prod.yml down -v
+docker compose --env-file .env -f docker-compose.prod.yml down -v
 ```
 
 ### Packaging as war
