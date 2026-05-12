@@ -320,14 +320,14 @@ export const Navbar: React.FC<NavbarProps> = ({
               <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">{user?.email}</p>
             </div>
             <div className="py-2">
-              <a href="#perfil" className="group flex items-center px-5 py-2.5 text-[13px] font-medium text-slate-600 dark:text-slate-300 hover:bg-sky-50 dark:hover:bg-white/5 hover:text-sky-600 dark:hover:text-white transition-colors">
+              <Link to="/perfil" onClick={() => setIsProfileOpen(false)} className="group flex items-center px-5 py-2.5 text-[13px] font-medium text-slate-600 dark:text-slate-300 hover:bg-sky-50 dark:hover:bg-white/5 hover:text-sky-600 dark:hover:text-white transition-colors">
                 <span className="material-symbols-outlined mr-3 text-[18px] text-slate-400 group-hover:text-sky-500">person</span>
                 Mi Perfil
-              </a>
-              <a href="#ajustes" className="group flex items-center px-5 py-2.5 text-[13px] font-medium text-slate-600 dark:text-slate-300 hover:bg-sky-50 dark:hover:bg-white/5 hover:text-sky-600 dark:hover:text-white transition-colors">
+              </Link>
+              <Link to="/ajustes" onClick={() => setIsProfileOpen(false)} className="group flex items-center px-5 py-2.5 text-[13px] font-medium text-slate-600 dark:text-slate-300 hover:bg-sky-50 dark:hover:bg-white/5 hover:text-sky-600 dark:hover:text-white transition-colors">
                 <span className="material-symbols-outlined mr-3 text-[18px] text-slate-400 group-hover:text-sky-500">settings</span>
                 Ajustes
-              </a>
+              </Link>
             </div>
             <div className="py-2 border-t border-slate-100 dark:border-white/5">
               <button 

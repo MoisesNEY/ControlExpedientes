@@ -38,6 +38,7 @@ import ReceptionHomeView from './components/reception/views/ReceptionHomeView';
 import ReceptionAgendaView from './components/reception/views/ReceptionAgendaView';
 import ReceptionExpedientesView from './components/reception/views/ReceptionExpedientesView';
 import ReportsCenterView from './components/reports/views/ReportsCenterView';
+import ProfileSettingsView from './components/account/views/ProfileSettingsView';
 
 import Unauthorized from './pages/Unauthorized';
 import Login from './pages/Login';
@@ -83,6 +84,14 @@ export const routerConfig: RouteObject[] = [
       {
         path: 'unauthorized',
         element: <Unauthorized />
+      },
+      {
+        path: 'perfil',
+        element: <ProtectedSlot><ProfileSettingsView initialSection="perfil" /></ProtectedSlot>
+      },
+      {
+        path: 'ajustes',
+        element: <ProtectedSlot><ProfileSettingsView initialSection="ajustes" /></ProtectedSlot>
       },
       {
         path: 'admin',

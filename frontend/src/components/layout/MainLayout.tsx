@@ -7,9 +7,11 @@ import { useAuth } from '../../context/AuthContext';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import ToastNotification from '../ui/ToastNotification';
 import { DatabaseAdminService } from '../../services/database-admin.service';
+import { DevicePreferencesService } from '../../services/device-preferences.service';
 import { canAccessRequirement } from '../../utils/accessControl';
 
 const SIDEBAR_STORAGE_KEY = 'scan-sidebar-collapsed';
+const DOWNLOADED_BACKUPS_STORAGE_KEY = 'control-expedientes-downloaded-device-backups';
 const DESKTOP_BREAKPOINT = 1024;
 
 const readSidebarPreference = () => {
@@ -30,6 +32,26 @@ const writeSidebarPreference = (collapsed: boolean) => {
   }
 };
 
+const readDownloadedBackups = () => {
+  if (typeof window === 'undefined') return new Set<string>();
+  try {
+    const parsed = JSON.parse(localStorage.getItem(DOWNLOADED_BACKUPS_STORAGE_KEY) || '[]') as unknown;
+    return new Set(Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === 'string') : []);
+  } catch {
+    return new Set<string>();
+  }
+};
+
+const rememberDownloadedBackup = (filename: string) => {
+  const downloaded = readDownloadedBackups();
+  downloaded.add(filename);
+  try {
+    localStorage.setItem(DOWNLOADED_BACKUPS_STORAGE_KEY, JSON.stringify(Array.from(downloaded).slice(-80)));
+  } catch {
+    // Ignorar errores de almacenamiento del navegador
+  }
+};
+
 /**
  * Main Layout - El Director Responsable (Smart Component)
  * Controla el ciclo de vida del layout compartido, la lógica responsiva y la política del Sidebar.
@@ -41,7 +63,8 @@ export const MainLayout: React.FC = () => {
   });
   const [isDesktopSidebarCollapsed, setIsDesktopSidebarCollapsed] = useState(readSidebarPreference);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  const downloadedBackupsRef = useRef<Set<string>>(new Set());
+  const [autoDownloadBackups, setAutoDownloadBackups] = useState(DevicePreferencesService.shouldAutoDownloadBackups);
+  const downloadedBackupsRef = useRef<Set<string>>(readDownloadedBackups());
 
   const { hasAnyRole, hasAnyPermission, hasPermission, user, roles, permissions } = useAuth();
   const location = useLocation();
@@ -71,6 +94,33 @@ export const MainLayout: React.FC = () => {
   }, [hasAnyPermission, hasAnyRole, user?.preferred_username]);
 
   const { notificaciones, clearNotificacion, clearAll } = useWebSocket(notificationTopics);
+
+  const canDownloadDatabaseBackups = hasAnyRole(['ROLE_ADMIN']) || hasPermission('admin.database.export');
+
+  const downloadAutomaticBackupToDevice = useCallback(
+    async (filename?: string | null) => {
+      if (!filename || !canDownloadDatabaseBackups || !autoDownloadBackups) {
+        return;
+      }
+
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        return;
+      }
+
+      if (downloadedBackupsRef.current.has(filename)) {
+        return;
+      }
+
+      try {
+        await DatabaseAdminService.downloadStoredBackup(filename);
+        downloadedBackupsRef.current.add(filename);
+        rememberDownloadedBackup(filename);
+      } catch (error) {
+        console.error('No se pudo descargar el respaldo automático en este dispositivo:', error);
+      }
+    },
+    [autoDownloadBackups, canDownloadDatabaseBackups],
+  );
 
   const toggleSidebar = useCallback(() => {
     if (isMobile) {
@@ -139,23 +189,68 @@ export const MainLayout: React.FC = () => {
   }, [permissions, roles]);
 
   useEffect(() => {
-    const latestNotification = notificaciones[0];
-    if (!latestNotification?.archivoDescarga || !hasPermission('admin.database.export')) {
+    const syncPreference = () => {
+      setAutoDownloadBackups(DevicePreferencesService.shouldAutoDownloadBackups());
+    };
+
+    window.addEventListener(DevicePreferencesService.devicePreferencesEvent, syncPreference);
+    return () => window.removeEventListener(DevicePreferencesService.devicePreferencesEvent, syncPreference);
+  }, []);
+
+  useEffect(() => {
+    notificaciones
+      .filter(notification => notification.tipo === 'RESPALDO_AUTOMATICO' && notification.archivoDescarga)
+      .forEach(notification => {
+        void downloadAutomaticBackupToDevice(notification.archivoDescarga);
+      });
+  }, [downloadAutomaticBackupToDevice, notificaciones]);
+
+  useEffect(() => {
+    if (!canDownloadDatabaseBackups || !autoDownloadBackups) {
       return;
     }
 
-    if (latestNotification.tipo !== 'RESPALDO_AUTOMATICO') {
-      return;
-    }
+    let cancelled = false;
 
-    if (downloadedBackupsRef.current.has(latestNotification.archivoDescarga)) {
-      return;
-    }
+    const syncPendingAutomaticBackup = async () => {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        return;
+      }
 
-    downloadedBackupsRef.current.add(latestNotification.archivoDescarga);
+      try {
+        const summary = await DatabaseAdminService.getSummary();
+        if (cancelled) {
+          return;
+        }
+        const latestAutomaticBackup = summary.backups.find(backup => backup.automatic);
+        if (latestAutomaticBackup && !downloadedBackupsRef.current.has(latestAutomaticBackup.filename)) {
+          await downloadAutomaticBackupToDevice(latestAutomaticBackup.filename);
+        }
+      } catch {
+        // Si el servidor no está disponible, se reintenta al recuperar conexión/foco.
+      }
+    };
 
-    void DatabaseAdminService.downloadStoredBackup(latestNotification.archivoDescarga).catch(() => undefined);
-  }, [hasPermission, notificaciones]);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void syncPendingAutomaticBackup();
+      }
+    };
+
+    void syncPendingAutomaticBackup();
+    const interval = window.setInterval(syncPendingAutomaticBackup, 60000);
+    window.addEventListener('online', syncPendingAutomaticBackup);
+    window.addEventListener('focus', syncPendingAutomaticBackup);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+      window.removeEventListener('online', syncPendingAutomaticBackup);
+      window.removeEventListener('focus', syncPendingAutomaticBackup);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [autoDownloadBackups, canDownloadDatabaseBackups, downloadAutomaticBackupToDevice]);
 
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-[#0b1a24] w-full overflow-hidden font-sans selection:bg-sky-500/30 selection:text-sky-900 dark:selection:text-sky-100">

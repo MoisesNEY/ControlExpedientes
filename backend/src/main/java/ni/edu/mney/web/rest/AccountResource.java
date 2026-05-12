@@ -1,7 +1,13 @@
 package ni.edu.mney.web.rest;
 
+import jakarta.validation.Valid;
 import java.security.Principal;
+import ni.edu.mney.security.KeycloakAdminService;
+import ni.edu.mney.security.SecurityUtils;
+import ni.edu.mney.service.CredentialValidationService;
 import ni.edu.mney.service.UserService;
+import ni.edu.mney.service.dto.AccountPasswordChangeDTO;
+import ni.edu.mney.service.dto.AccountProfileUpdateDTO;
 import ni.edu.mney.service.dto.AdminUserDTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -9,7 +15,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -32,8 +41,18 @@ public class AccountResource {
 
     private final UserService userService;
 
-    public AccountResource(UserService userService) {
+    private final CredentialValidationService credentialValidationService;
+
+    private final KeycloakAdminService keycloakAdminService;
+
+    public AccountResource(
+        UserService userService,
+        CredentialValidationService credentialValidationService,
+        KeycloakAdminService keycloakAdminService
+    ) {
         this.userService = userService;
+        this.credentialValidationService = credentialValidationService;
+        this.keycloakAdminService = keycloakAdminService;
     }
 
     /**
@@ -50,6 +69,35 @@ public class AccountResource {
         } else {
             throw new AccountResourceException("User could not be found");
         }
+    }
+
+    /**
+     * {@code PUT  /account} : update the current user's visible profile.
+     */
+    @PutMapping("/account")
+    public AdminUserDTO updateAccount(@Valid @RequestBody AccountProfileUpdateDTO request, Principal principal) {
+        if (principal instanceof AbstractAuthenticationToken authToken) {
+            return userService.updateCurrentUserProfile(request.firstName(), request.lastName(), request.email(), authToken);
+        }
+        throw new AccountResourceException("User could not be found");
+    }
+
+    /**
+     * {@code POST  /account/change-password} : change the current user's password.
+     */
+    @PostMapping("/account/change-password")
+    public ResponseEntity<Void> changePassword(@Valid @RequestBody AccountPasswordChangeDTO request, Principal principal) {
+        if (!(principal instanceof AbstractAuthenticationToken)) {
+            throw new AccountResourceException("User could not be found");
+        }
+        if (!credentialValidationService.validateCurrentUserPassword(request.currentPassword())) {
+            throw new IllegalArgumentException("La contraseña actual es incorrecta.");
+        }
+
+        String login = SecurityUtils.getCurrentUserLogin().orElseThrow(() -> new AccountResourceException("User could not be found"));
+        KeycloakAdminService.ManagedKeycloakUser currentUser = keycloakAdminService.getUserByUsername(login);
+        keycloakAdminService.resetUserPassword(currentUser.id(), request.newPassword(), false);
+        return ResponseEntity.noContent().build();
     }
 
     /**

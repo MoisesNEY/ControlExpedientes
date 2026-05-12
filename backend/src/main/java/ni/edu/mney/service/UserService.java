@@ -8,6 +8,7 @@ import ni.edu.mney.domain.Authority;
 import ni.edu.mney.domain.User;
 import ni.edu.mney.repository.AuthorityRepository;
 import ni.edu.mney.repository.UserRepository;
+import ni.edu.mney.security.KeycloakAdminService;
 import ni.edu.mney.security.PermissionAuthorityService;
 import ni.edu.mney.security.SecurityUtils;
 import ni.edu.mney.service.dto.AdminUserDTO;
@@ -41,12 +42,15 @@ public class UserService {
 
     private final PermissionAuthorityService permissionAuthorityService;
 
+    private final KeycloakAdminService keycloakAdminService;
+
     public UserService(UserRepository userRepository, AuthorityRepository authorityRepository,
-            CacheManager cacheManager, PermissionAuthorityService permissionAuthorityService) {
+            CacheManager cacheManager, PermissionAuthorityService permissionAuthorityService, KeycloakAdminService keycloakAdminService) {
         this.userRepository = userRepository;
         this.authorityRepository = authorityRepository;
         this.cacheManager = cacheManager;
         this.permissionAuthorityService = permissionAuthorityService;
+        this.keycloakAdminService = keycloakAdminService;
     }
 
     /**
@@ -74,6 +78,38 @@ public class UserService {
                     this.clearUserCaches(user);
                     LOG.debug("Changed Information for User: {}", user);
                 });
+    }
+
+    public AdminUserDTO updateCurrentUserProfile(String firstName, String lastName, String email, AbstractAuthenticationToken authToken) {
+        String login = SecurityUtils.getCurrentUserLogin().orElseThrow(() -> new IllegalStateException("No hay una sesión activa."));
+        KeycloakAdminService.ManagedKeycloakUser currentUser = keycloakAdminService.getUserByUsername(login);
+        KeycloakAdminService.ManagedKeycloakUser updatedUser = keycloakAdminService.updateUserProfile(
+            currentUser.id(),
+            normalizeNullableValue(firstName),
+            normalizeNullableValue(lastName),
+            email == null ? "" : email.trim().toLowerCase()
+        );
+
+        User user = userRepository.findById(updatedUser.id())
+            .or(() -> userRepository.findOneByLogin(updatedUser.login()))
+            .orElseGet(User::new);
+        user.setId(updatedUser.id());
+        user.setLogin(updatedUser.login());
+        user.setFirstName(normalizeNullableValue(updatedUser.firstName()));
+        user.setLastName(normalizeNullableValue(updatedUser.lastName()));
+        user.setEmail(normalizeNullableValue(updatedUser.email()));
+        user.setActivated(updatedUser.activated());
+        if (user.getLangKey() == null || user.getLangKey().isBlank()) {
+            user.setLangKey(Constants.DEFAULT_LANGUAGE);
+        }
+        user.setAuthorities(resolveAuthorities(updatedUser.roles()));
+
+        User savedUser = userRepository.save(user);
+        clearUserCaches(savedUser);
+
+        AdminUserDTO dto = new AdminUserDTO(savedUser);
+        dto.setPermissions(permissionAuthorityService.extractPermissions(authToken.getAuthorities()));
+        return dto;
     }
 
     @Transactional(readOnly = true)
@@ -246,6 +282,29 @@ public class UserService {
         }
         user.setActivated(activated);
         return user;
+    }
+
+    private Set<Authority> resolveAuthorities(Collection<String> roleNames) {
+        Set<Authority> authorities = new LinkedHashSet<>();
+        if (roleNames == null) {
+            return authorities;
+        }
+        for (String roleName : roleNames) {
+            if (roleName == null || roleName.isBlank()) {
+                continue;
+            }
+            Authority authority = authorityRepository.findById(roleName).orElseGet(() -> {
+                Authority created = new Authority();
+                created.setName(roleName);
+                return authorityRepository.save(created);
+            });
+            authorities.add(authority);
+        }
+        return authorities;
+    }
+
+    private String normalizeNullableValue(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     private void clearUserCaches(User user) {
