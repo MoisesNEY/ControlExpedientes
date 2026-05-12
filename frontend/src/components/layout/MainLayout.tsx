@@ -65,33 +65,17 @@ export const MainLayout: React.FC = () => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const downloadedBackupsRef = useRef<Set<string>>(readDownloadedBackups());
 
-  const { hasAnyRole, hasAnyPermission, hasPermission, user, roles, permissions } = useAuth();
+  const { hasAnyRole, hasPermission, user, roles, permissions } = useAuth();
   const { effectivePreferences, refreshPreferences } = useSystemSettings();
   const location = useLocation();
 
   const notificationTopics = useMemo(() => {
-    const topics = new Set<string>(['/topic/espera']);
-    if (user?.preferred_username && hasAnyRole(['ROLE_MEDICO'])) {
-      topics.add(`/topic/medico/${user.preferred_username}`);
-    }
-    if (
-      hasAnyRole(['ROLE_ADMIN']) ||
-      hasAnyPermission([
-        'admin.users.view',
-        'admin.users.manage',
-        'admin.users.export',
-        'admin.roles.view',
-        'admin.roles.manage',
-        'admin.roles.export',
-        'admin.database.view',
-        'admin.database.export',
-        'admin.database.restore',
-      ])
-    ) {
-      topics.add('/topic/admin/system');
+    const topics = new Set<string>();
+    if (user?.preferred_username) {
+      topics.add(`/topic/user/${user.preferred_username}`);
     }
     return Array.from(topics);
-  }, [hasAnyPermission, hasAnyRole, user?.preferred_username]);
+  }, [user?.preferred_username]);
 
   const { notificaciones, clearNotificacion, clearAll } = useWebSocket(notificationTopics);
 

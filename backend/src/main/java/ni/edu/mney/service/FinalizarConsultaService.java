@@ -4,7 +4,9 @@ import jakarta.transaction.Transactional;
 import ni.edu.mney.domain.*;
 import ni.edu.mney.domain.enumeration.EstadoCita;
 import ni.edu.mney.repository.*;
+import ni.edu.mney.security.AuthoritiesConstants;
 import ni.edu.mney.service.dto.FinalizarConsultaRequestDTO;
+import ni.edu.mney.service.dto.NotificacionDTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -32,6 +34,7 @@ public class FinalizarConsultaService {
     private final RecetaRepository recetaRepository;
     private final MedicamentoRepository medicamentoRepository;
     private final ExpedienteClinicoRepository expedienteClinicoRepository;
+    private final NotificacionService notificacionService;
 
     public FinalizarConsultaService(
             CitaMedicaRepository citaMedicaRepository,
@@ -39,13 +42,15 @@ public class FinalizarConsultaService {
             DiagnosticoRepository diagnosticoRepository,
             RecetaRepository recetaRepository,
             MedicamentoRepository medicamentoRepository,
-            ExpedienteClinicoRepository expedienteClinicoRepository) {
+            ExpedienteClinicoRepository expedienteClinicoRepository,
+            NotificacionService notificacionService) {
         this.citaMedicaRepository = citaMedicaRepository;
         this.consultaMedicaRepository = consultaMedicaRepository;
         this.diagnosticoRepository = diagnosticoRepository;
         this.recetaRepository = recetaRepository;
         this.medicamentoRepository = medicamentoRepository;
         this.expedienteClinicoRepository = expedienteClinicoRepository;
+        this.notificacionService = notificacionService;
     }
 
     /**
@@ -136,6 +141,29 @@ public class FinalizarConsultaService {
         // 6. Actualizar el estado de la Cita a ATENDIDA
         cita.setEstado(EstadoCita.ATENDIDA);
         citaMedicaRepository.save(cita);
+        notificarConsultaFinalizada(cita);
         LOG.debug("Cita ID {} marcada como ATENDIDA", citaId);
+    }
+
+    private void notificarConsultaFinalizada(CitaMedica cita) {
+        String paciente = cita.getPaciente() != null
+                ? ((cita.getPaciente().getNombres() != null ? cita.getPaciente().getNombres() : "") + " "
+                        + (cita.getPaciente().getApellidos() != null ? cita.getPaciente().getApellidos() : "")).trim()
+                : "Paciente";
+        if (paciente.isBlank()) {
+            paciente = "Paciente";
+        }
+        NotificacionDTO notification = new NotificacionDTO(
+                "CONSULTA_FINALIZADA",
+                "La consulta de " + paciente + " fue finalizada.",
+                cita.getId(),
+                paciente);
+        notification.setMedicoLogin(cita.getUser() != null ? cita.getUser().getLogin() : null);
+        notification.setRutaAccion("/reportes");
+        notification.setAccionLabel("Ver reportes");
+        notificacionService.notificarRoles(
+                java.util.List.of(AuthoritiesConstants.RECEPCION, AuthoritiesConstants.ENFERMERO, AuthoritiesConstants.ADMIN),
+                notification,
+                true);
     }
 }

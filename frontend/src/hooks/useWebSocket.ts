@@ -1,17 +1,20 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Client } from '@stomp/stompjs';
 import type { IMessage } from '@stomp/stompjs';
+import { NotificacionService } from '../services/notificacion.service';
 
 export interface Notificacion {
+    id?: number;
     tipo: string;
     mensaje: string;
-    citaId: number;
+    citaId?: number;
     pacienteNombre: string;
     medicoLogin?: string;
     rutaAccion?: string;
     archivoDescarga?: string;
     accionLabel?: string;
     timestamp: string;
+    leida?: boolean;
 }
 
 /**
@@ -27,12 +30,38 @@ export function useWebSocket(topicos: string[], enabled = true) {
     const [connected, setConnected] = useState(false);
 
     const clearNotificacion = useCallback((index: number) => {
-        setNotificaciones(prev => prev.filter((_, i) => i !== index));
+        setNotificaciones(prev => {
+            const target = prev[index];
+            if (target?.id) {
+                void NotificacionService.markRead(target.id);
+            }
+            return prev.filter((_, i) => i !== index);
+        });
     }, []);
 
     const clearAll = useCallback(() => {
+        void NotificacionService.markAllRead();
         setNotificaciones([]);
     }, []);
+
+    useEffect(() => {
+        if (!enabled) return;
+        let cancelled = false;
+        NotificacionService.getMine()
+            .then((items) => {
+                if (!cancelled) {
+                    setNotificaciones(items);
+                }
+            })
+            .catch(() => {
+                if (!cancelled) {
+                    setNotificaciones([]);
+                }
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [enabled]);
 
     useEffect(() => {
         if (!enabled) return;
@@ -57,7 +86,12 @@ export function useWebSocket(topicos: string[], enabled = true) {
                     client.subscribe(topico, (message: IMessage) => {
                         try {
                             const body: Notificacion = JSON.parse(message.body);
-                            setNotificaciones(prev => [body, ...prev]);
+                            setNotificaciones(prev => {
+                                if (body.id && prev.some(notification => notification.id === body.id)) {
+                                    return prev;
+                                }
+                                return [body, ...prev].slice(0, 50);
+                            });
                         } catch (e) {
                             console.error('[WS] Error parsing message:', e);
                         }

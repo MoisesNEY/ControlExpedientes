@@ -124,15 +124,16 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   const handleNotificationNavigate = (notification: Notificacion) => {
+    if (notification.rutaAccion) {
+      setNotificationPanelMessage(null);
+      setIsNotificationsOpen(false);
+      navigate(notification.rutaAccion);
+      return;
+    }
+
     if (!notification.citaId) {
       if (notification.archivoDescarga && hasAnyPermission(['admin.database.export'])) {
         void DatabaseAdminService.downloadStoredBackup(notification.archivoDescarga);
-      }
-      if (notification.rutaAccion) {
-        setNotificationPanelMessage(null);
-        setIsNotificationsOpen(false);
-        navigate(notification.rutaAccion);
-        return;
       }
       setNotificationPanelMessage('Esta notificación no tiene un destino asociado.');
       return;

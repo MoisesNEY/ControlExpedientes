@@ -1,6 +1,7 @@
 package ni.edu.mney.repository;
 
 import java.util.Optional;
+import java.util.List;
 import ni.edu.mney.domain.User;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.*;
@@ -29,4 +30,7 @@ public interface UserRepository extends JpaRepository<User, String> {
 
     @Query("select distinct u from User u join u.authorities a where a.name = :authority")
     Page<User> findAllByAuthority(@Param("authority") String authority, Pageable pageable);
+
+    @Query("select distinct u from User u join u.authorities a where a.name = :authority and u.activated = true")
+    List<User> findActivatedByAuthority(@Param("authority") String authority);
 }
