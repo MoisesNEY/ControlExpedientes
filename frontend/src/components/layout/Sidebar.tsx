@@ -1,6 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import type { NavGroup } from '../../config/navigation';
+import { useSystemSettings } from '../../context/SystemSettingsContext';
 
 interface SidebarProps {
   groups: NavGroup[];
@@ -13,6 +14,14 @@ interface SidebarProps {
  * Depende totalmente de las Props proporcionadas por su Contenedor.
  */
 export const Sidebar: React.FC<SidebarProps> = ({ groups, isCollapsed, onCloseMobile }) => {
+  const { effectivePreferences } = useSystemSettings();
+  const brandName = effectivePreferences.brandName;
+  const sidebarStyle = {
+    backgroundColor: 'var(--system-sidebar-500)',
+  };
+  const sidebarHeaderStyle = {
+    background: 'linear-gradient(180deg, color-mix(in srgb, var(--system-sidebar-500) 86%, white), var(--system-sidebar-700))',
+  };
 
   return (
     <>
@@ -27,21 +36,22 @@ export const Sidebar: React.FC<SidebarProps> = ({ groups, isCollapsed, onCloseMo
 
       {/* Contenedor del Sidebar con transiciones */}
       <aside 
-        className={`fixed lg:static inset-y-0 left-0 z-40 flex flex-col bg-[#071e2b] text-slate-300 
+        className={`fixed lg:static inset-y-0 left-0 z-40 flex flex-col text-slate-300 
           transition-all duration-300 ease-in-out border-r border-white/5 shadow-xl lg:shadow-none
           ${isCollapsed ? '-translate-x-full lg:translate-x-0 lg:w-20' : 'translate-x-0 w-72'}
         `}
+        style={sidebarStyle}
       >
         {/* Cabecera Sidebar (Logo & Marca) */}
         <div className="h-16 flex items-center justify-center border-b border-white/5 shrink-0 relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-r from-sky-600/10 to-indigo-600/10 pointer-events-none"></div>
+          <div className="absolute inset-0 pointer-events-none" style={sidebarHeaderStyle}></div>
           
           <div className="w-8 h-8 rounded-lg bg-sky-500/10 border border-sky-500/20 flex items-center justify-center shrink-0 z-10 transition-transform hover:scale-105">
             <span className="material-symbols-outlined text-sky-400 text-[18px]">local_hospital</span>
           </div>
           
           <div className={`ml-3 overflow-hidden transition-all duration-300 flex flex-col justify-center z-10 ${isCollapsed ? 'lg:w-0 lg:opacity-0' : 'w-auto opacity-100'}`}>
-            <span className="text-white text-base font-black tracking-tight leading-none">ClinData</span>
+            <span className="text-white text-base font-black tracking-tight leading-none">{brandName}</span>
             <span className="text-sky-500/60 text-[9px] font-bold uppercase tracking-widest mt-[2px] leading-none">Health</span>
           </div>
 

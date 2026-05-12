@@ -46,17 +46,20 @@ public class ReporteClinicoExportService {
     private final ExpedienteClinicoRepository expedienteClinicoRepository;
     private final ConsultaMedicaRepository consultaMedicaRepository;
     private final ResultadoLaboratorioRepository resultadoLaboratorioRepository;
+    private final SystemSettingsService systemSettingsService;
 
     public ReporteClinicoExportService(
         PacienteRepository pacienteRepository,
         ExpedienteClinicoRepository expedienteClinicoRepository,
         ConsultaMedicaRepository consultaMedicaRepository,
-        ResultadoLaboratorioRepository resultadoLaboratorioRepository
+        ResultadoLaboratorioRepository resultadoLaboratorioRepository,
+        SystemSettingsService systemSettingsService
     ) {
         this.pacienteRepository = pacienteRepository;
         this.expedienteClinicoRepository = expedienteClinicoRepository;
         this.consultaMedicaRepository = consultaMedicaRepository;
         this.resultadoLaboratorioRepository = resultadoLaboratorioRepository;
+        this.systemSettingsService = systemSettingsService;
     }
 
     public AdminSecurityExportService.ExportedSpreadsheet generarHistorialExcel(Long pacienteId) {
@@ -182,6 +185,7 @@ public class ReporteClinicoExportService {
             PdfReportSupport.addHeader(
                 document,
                 fonts,
+                systemSettingsService.getSettings().brandName(),
                 "Resumen de consultas",
                 "Reporte filtrado por rango de fechas",
                 "Periodo",

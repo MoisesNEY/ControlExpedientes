@@ -50,12 +50,25 @@ public final class PdfReportSupport {
             String referenceValue,
             LocalDate generatedDate)
             throws DocumentException {
+        addHeader(document, fonts, "ClinData", reportTitle, subtitle, referenceLabel, referenceValue, generatedDate);
+    }
+
+    public static void addHeader(
+            Document document,
+            Fonts fonts,
+            String brandName,
+            String reportTitle,
+            String subtitle,
+            String referenceLabel,
+            String referenceValue,
+            LocalDate generatedDate)
+            throws DocumentException {
         PdfPTable header = new PdfPTable(new float[] { 3f, 1.4f });
         header.setWidthPercentage(100);
         header.setSpacingAfter(16f);
 
         PdfPCell left = createCell(true);
-        left.addElement(new Paragraph("ClinData", fonts.title()));
+        left.addElement(new Paragraph(brandName == null || brandName.isBlank() ? "ClinData" : brandName, fonts.title()));
         left.addElement(new Paragraph(subtitle, fonts.muted()));
 
         PdfPCell right = createCell(true);

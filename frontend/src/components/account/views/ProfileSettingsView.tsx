@@ -2,10 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { AppButton } from '../../ui/AppButton';
 import { useAuth } from '../../../context/AuthContext';
-import { useTheme } from '../../../context/ThemeContext';
-import { DevicePreferencesService } from '../../../services/device-preferences.service';
 import { UserService, type UserAccount } from '../../../services/userService';
 import { getApiErrorMessage } from '../../../utils/apiError';
+import { useSystemSettings } from '../../../context/SystemSettingsContext';
+import { defaultSystemSettings, defaultUserPreferences, type SystemSettings, type UserPreferences } from '../../../services/system-settings.service';
 
 type AccountSection = 'perfil' | 'ajustes';
 
@@ -20,17 +20,81 @@ const roleLabels: Record<string, string> = {
   ROLE_RECEPCION: 'Recepción',
 };
 
+const actionColors = ['#0284c7', '#0f766e', '#2563eb', '#7c3aed', '#be123c'];
+const sidebarColors = ['#071e2b', '#111827', '#0f172a', '#164e63', '#312e81', '#3f1d2b'];
+
+interface ColorSelectorProps {
+  label: string;
+  value: string;
+  colors: string[];
+  onChange: (color: string) => void;
+  resetLabel?: string;
+  onReset?: () => void;
+}
+
+const ColorSelector = ({ label, value, colors, onChange, resetLabel, onReset }: ColorSelectorProps) => (
+  <div className="space-y-2">
+    <span className="text-xs font-black uppercase tracking-widest text-slate-500">{label}</span>
+    <div className="flex flex-wrap items-center gap-3">
+      <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-black uppercase tracking-widest text-slate-600 shadow-sm hover:bg-slate-50 dark:border-white/10 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-white/5">
+        <span className="h-6 w-6 rounded-full border border-slate-200 dark:border-white/10" style={{ backgroundColor: value }} />
+        Color personalizado
+        <input
+          type="color"
+          value={value}
+          onChange={event => onChange(event.target.value)}
+          className="h-0 w-0 opacity-0"
+          aria-label={`Elegir ${label.toLowerCase()}`}
+        />
+      </label>
+      {colors.map(color => (
+        <button
+          type="button"
+          key={color}
+          onClick={() => onChange(color)}
+          className={`h-8 w-8 rounded-full border-2 ${value.toLowerCase() === color ? 'border-slate-950 dark:border-white' : 'border-transparent'}`}
+          style={{ backgroundColor: color }}
+          aria-label={`Seleccionar color ${color}`}
+        />
+      ))}
+      {resetLabel && onReset && (
+        <button
+          type="button"
+          onClick={onReset}
+          className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 dark:border-white/10 dark:text-slate-300 dark:hover:bg-white/5"
+        >
+          {resetLabel}
+        </button>
+      )}
+    </div>
+  </div>
+);
+
 const ProfileSettingsView = ({ initialSection = 'perfil' }: ProfileSettingsViewProps) => {
   const { user, roles, permissions, hasAnyRole, hasPermission, applyAccount } = useAuth();
-  const { theme, toggleTheme } = useTheme();
+  const {
+    systemSettings,
+    userPreferences,
+    effectivePreferences,
+    updateSystemSettings,
+    updateUserPreferences,
+  } = useSystemSettings();
   const [activeSection, setActiveSection] = useState<AccountSection>(initialSection);
   const [account, setAccount] = useState<UserAccount | null>(null);
   const [loading, setLoading] = useState(true);
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
+  const [savingSystemSettings, setSavingSystemSettings] = useState(false);
+  const [savingUserPreferences, setSavingUserPreferences] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [autoDownloadBackups, setAutoDownloadBackups] = useState(DevicePreferencesService.shouldAutoDownloadBackups);
+  const [systemSettingsForm, setSystemSettingsForm] = useState<SystemSettings>(defaultSystemSettings);
+  const [userPreferencesForm, setUserPreferencesForm] = useState<UserPreferences>({
+    primaryColor: defaultSystemSettings.primaryColor,
+    sidebarColor: defaultSystemSettings.sidebarColor,
+    theme: defaultSystemSettings.defaultTheme,
+    deviceBackupDownloadsEnabled: defaultSystemSettings.defaultDeviceBackupDownloadsEnabled,
+  });
   const [profileForm, setProfileForm] = useState({
     firstName: '',
     lastName: '',
@@ -42,7 +106,9 @@ const ProfileSettingsView = ({ initialSection = 'perfil' }: ProfileSettingsViewP
     confirmationPassword: '',
   });
 
-  const canManageDeviceBackups = hasAnyRole(['ROLE_ADMIN']) || hasPermission('admin.database.export');
+  const isAdmin = hasAnyRole(['ROLE_ADMIN']);
+  const canSeeDeviceBackupPreference = isAdmin || hasPermission('admin.database.export');
+  const canEnableDeviceBackups = systemSettings.defaultDeviceBackupDownloadsEnabled && canSeeDeviceBackupPreference;
 
   const displayRoles = useMemo(
     () => roles.map(role => roleLabels[role] ?? role.replace('ROLE_', '')).join(', ') || 'Sin rol asignado',
@@ -52,6 +118,19 @@ const ProfileSettingsView = ({ initialSection = 'perfil' }: ProfileSettingsViewP
   useEffect(() => {
     setActiveSection(initialSection);
   }, [initialSection]);
+
+  useEffect(() => {
+    setSystemSettingsForm(systemSettings);
+  }, [systemSettings]);
+
+  useEffect(() => {
+    setUserPreferencesForm({
+      primaryColor: userPreferences.primaryColor ?? effectivePreferences.primaryColor,
+      sidebarColor: userPreferences.sidebarColor ?? effectivePreferences.sidebarColor,
+      theme: userPreferences.theme ?? effectivePreferences.theme,
+      deviceBackupDownloadsEnabled: userPreferences.deviceBackupDownloadsEnabled ?? effectivePreferences.deviceBackupDownloadsEnabled,
+    });
+  }, [effectivePreferences, userPreferences]);
 
   useEffect(() => {
     let isMounted = true;
@@ -134,16 +213,84 @@ const ProfileSettingsView = ({ initialSection = 'perfil' }: ProfileSettingsViewP
     }
   };
 
-  const handleAutoDownloadChange = (enabled: boolean) => {
-    setAutoDownloadBackups(enabled);
-    DevicePreferencesService.setAutoDownloadBackups(enabled);
-    setMessage(enabled ? 'Las descargas automáticas en este dispositivo quedaron activas.' : 'Las descargas automáticas en este dispositivo quedaron desactivadas.');
-    setError(null);
+  const handleSystemSettingsSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    clearFeedback();
+    setSavingSystemSettings(true);
+    try {
+      const updated = await updateSystemSettings({
+        ...systemSettingsForm,
+        applicationName: systemSettingsForm.applicationName.trim() || defaultSystemSettings.applicationName,
+        brandName: systemSettingsForm.brandName.trim() || defaultSystemSettings.brandName,
+        primaryColor: systemSettingsForm.primaryColor || defaultSystemSettings.primaryColor,
+        sidebarColor: systemSettingsForm.sidebarColor || defaultSystemSettings.sidebarColor,
+      });
+      setSystemSettingsForm(updated);
+      setMessage('Ajustes globales actualizados correctamente.');
+    } catch (settingsError) {
+      setError(await getApiErrorMessage(settingsError, 'No se pudieron guardar los ajustes globales.'));
+    } finally {
+      setSavingSystemSettings(false);
+    }
   };
 
-  const toggleThemeIfNeeded = (nextTheme: 'light' | 'dark') => {
-    if (theme !== nextTheme) {
-      toggleTheme();
+  const handleUserPreferencesSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    clearFeedback();
+    setSavingUserPreferences(true);
+    try {
+      const updated = await updateUserPreferences({
+        primaryColor: userPreferencesForm.primaryColor || null,
+        sidebarColor: userPreferencesForm.sidebarColor || null,
+        theme: userPreferencesForm.theme || null,
+        deviceBackupDownloadsEnabled: canSeeDeviceBackupPreference ? userPreferencesForm.deviceBackupDownloadsEnabled : null,
+      });
+      setUserPreferencesForm({
+        primaryColor: updated.primaryColor ?? systemSettings.primaryColor,
+        sidebarColor: updated.sidebarColor ?? systemSettings.sidebarColor,
+        theme: updated.theme ?? systemSettings.defaultTheme,
+        deviceBackupDownloadsEnabled: updated.deviceBackupDownloadsEnabled ?? systemSettings.defaultDeviceBackupDownloadsEnabled,
+      });
+      setMessage('Preferencias personales actualizadas correctamente.');
+    } catch (preferencesError) {
+      setError(await getApiErrorMessage(preferencesError, 'No se pudieron guardar tus preferencias.'));
+    } finally {
+      setSavingUserPreferences(false);
+    }
+  };
+
+  const handleResetUserPreferences = async () => {
+    clearFeedback();
+    setSavingUserPreferences(true);
+    try {
+      const updated = await updateUserPreferences({
+        ...defaultUserPreferences,
+      });
+      setUserPreferencesForm({
+        primaryColor: updated.primaryColor ?? systemSettings.primaryColor,
+        sidebarColor: updated.sidebarColor ?? systemSettings.sidebarColor,
+        theme: updated.theme ?? systemSettings.defaultTheme,
+        deviceBackupDownloadsEnabled: updated.deviceBackupDownloadsEnabled ?? systemSettings.defaultDeviceBackupDownloadsEnabled,
+      });
+      setMessage('Tus preferencias vuelven a usar los valores por defecto del sistema.');
+    } catch (preferencesError) {
+      setError(await getApiErrorMessage(preferencesError, 'No se pudieron restablecer tus preferencias.'));
+    } finally {
+      setSavingUserPreferences(false);
+    }
+  };
+
+  const handleResetSystemSettings = async () => {
+    clearFeedback();
+    setSavingSystemSettings(true);
+    try {
+      const updated = await updateSystemSettings(defaultSystemSettings);
+      setSystemSettingsForm(updated);
+      setMessage('Las preferencias del sistema volvieron a los valores por defecto.');
+    } catch (settingsError) {
+      setError(await getApiErrorMessage(settingsError, 'No se pudieron restablecer los ajustes globales.'));
+    } finally {
+      setSavingSystemSettings(false);
     }
   };
 
@@ -285,7 +432,6 @@ const ProfileSettingsView = ({ initialSection = 'perfil' }: ProfileSettingsViewP
                   placeholder="Nueva contraseña"
                   value={passwordForm.newPassword}
                   onChange={event => setPasswordForm(current => ({ ...current, newPassword: event.target.value }))}
-                  minLength={8}
                   className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-100 dark:border-white/10 dark:bg-slate-950 dark:text-white dark:focus:ring-sky-500/10"
                   required
                 />
@@ -294,7 +440,6 @@ const ProfileSettingsView = ({ initialSection = 'perfil' }: ProfileSettingsViewP
                   placeholder="Confirmar contraseña"
                   value={passwordForm.confirmationPassword}
                   onChange={event => setPasswordForm(current => ({ ...current, confirmationPassword: event.target.value }))}
-                  minLength={8}
                   className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-100 dark:border-white/10 dark:bg-slate-950 dark:text-white dark:focus:ring-sky-500/10"
                   required
                 />
@@ -308,68 +453,188 @@ const ProfileSettingsView = ({ initialSection = 'perfil' }: ProfileSettingsViewP
           </aside>
         </div>
       ) : (
-        <div className="grid gap-6 lg:grid-cols-2">
-          <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-900">
+        <div className="space-y-6">
+          <form onSubmit={handleUserPreferencesSubmit} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-900">
             <div className="mb-5 flex items-center gap-3">
-              <span className="material-symbols-outlined text-sky-600 dark:text-sky-300">palette</span>
+              <span className="material-symbols-outlined text-sky-600 dark:text-sky-300">tune</span>
               <div>
-                <h2 className="text-base font-black text-slate-950 dark:text-white">Apariencia</h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400">Preferencia guardada en este navegador.</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={() => toggleThemeIfNeeded('light')}
-                className={`rounded-lg border px-4 py-3 text-left transition ${
-                  theme === 'light'
-                    ? 'border-sky-300 bg-sky-50 text-sky-800'
-                    : 'border-slate-200 text-slate-600 hover:border-slate-300 dark:border-white/10 dark:text-slate-300'
-                }`}
-              >
-                <span className="material-symbols-outlined block text-xl">light_mode</span>
-                <span className="mt-2 block text-sm font-black">Claro</span>
-              </button>
-              <button
-                onClick={() => toggleThemeIfNeeded('dark')}
-                className={`rounded-lg border px-4 py-3 text-left transition ${
-                  theme === 'dark'
-                    ? 'border-sky-400 bg-sky-500/10 text-sky-200'
-                    : 'border-slate-200 text-slate-600 hover:border-slate-300 dark:border-white/10 dark:text-slate-300'
-                }`}
-              >
-                <span className="material-symbols-outlined block text-xl">dark_mode</span>
-                <span className="mt-2 block text-sm font-black">Oscuro</span>
-              </button>
-            </div>
-          </section>
-
-          <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-900">
-            <div className="mb-5 flex items-center gap-3">
-              <span className="material-symbols-outlined text-emerald-600 dark:text-emerald-300">download_for_offline</span>
-              <div>
-                <h2 className="text-base font-black text-slate-950 dark:text-white">Respaldos en este dispositivo</h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400">
-                  {canManageDeviceBackups ? 'Descarga una copia local cuando el servidor genere respaldos automáticos.' : 'Disponible para usuarios con acceso a exportación de base de datos.'}
-                </p>
+                <h2 className="text-base font-black text-slate-950 dark:text-white">Preferencias de usuario</h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Aplican solo a tu cuenta. Si las restableces, se usan los valores por defecto del sistema.</p>
               </div>
             </div>
 
-            <label className={`flex items-center justify-between gap-4 rounded-lg border p-4 ${canManageDeviceBackups ? 'border-slate-200 dark:border-white/10' : 'border-slate-200 opacity-60 dark:border-white/10'}`}>
-              <span>
-                <span className="block text-sm font-black text-slate-900 dark:text-white">Descarga automática local</span>
-                <span className="mt-1 block text-xs text-slate-500 dark:text-slate-400">
-                  {autoDownloadBackups ? 'Activa en este navegador.' : 'Desactivada en este navegador.'}
-                </span>
-              </span>
-              <input
-                type="checkbox"
-                checked={autoDownloadBackups}
-                disabled={!canManageDeviceBackups}
-                onChange={event => handleAutoDownloadChange(event.target.checked)}
-                className="h-5 w-5 accent-sky-600"
+            <div className="grid gap-5 lg:grid-cols-2">
+              <ColorSelector
+                label="Color personal de botones y enlaces"
+                value={userPreferencesForm.primaryColor ?? effectivePreferences.primaryColor}
+                colors={actionColors}
+                onChange={color => setUserPreferencesForm(current => ({ ...current, primaryColor: color }))}
               />
-            </label>
-          </section>
+
+              <ColorSelector
+                label="Color personal del menú lateral"
+                value={userPreferencesForm.sidebarColor ?? effectivePreferences.sidebarColor}
+                colors={sidebarColors}
+                onChange={color => setUserPreferencesForm(current => ({ ...current, sidebarColor: color }))}
+              />
+
+              <section className="space-y-3">
+                <span className="text-xs font-black uppercase tracking-widest text-slate-500">Tema</span>
+                <div className="grid grid-cols-2 gap-3">
+                  {(['light', 'dark'] as const).map(nextTheme => (
+                    <button
+                      type="button"
+                      key={nextTheme}
+                      onClick={() => setUserPreferencesForm(current => ({ ...current, theme: nextTheme }))}
+                      className={`rounded-lg border px-4 py-3 text-left transition ${
+                        userPreferencesForm.theme === nextTheme
+                          ? 'border-sky-300 bg-sky-50 text-sky-800 dark:border-sky-400 dark:bg-sky-500/10 dark:text-sky-200'
+                          : 'border-slate-200 text-slate-600 hover:border-slate-300 dark:border-white/10 dark:text-slate-300'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined block text-xl">{nextTheme === 'light' ? 'light_mode' : 'dark_mode'}</span>
+                      <span className="mt-2 block text-sm font-black">{nextTheme === 'light' ? 'Claro' : 'Oscuro'}</span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            </div>
+
+            {canSeeDeviceBackupPreference && (
+              <div className="mt-5">
+                <label className={`flex items-center justify-between gap-4 rounded-lg border p-4 ${canEnableDeviceBackups ? 'border-slate-200 dark:border-white/10' : 'border-slate-200 opacity-60 dark:border-white/10'}`}>
+                  <span>
+                    <span className="block text-sm font-black text-slate-900 dark:text-white">Descarga automática local de respaldos</span>
+                    <span className="mt-1 block text-xs text-slate-500 dark:text-slate-400">
+                      {canEnableDeviceBackups
+                        ? 'Guarda en esta computadora el respaldo automático más reciente cuando esté disponible.'
+                        : 'Las descargas locales de respaldos están desactivadas por la configuración global.'}
+                    </span>
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(userPreferencesForm.deviceBackupDownloadsEnabled)}
+                    disabled={!canEnableDeviceBackups}
+                    onChange={event => setUserPreferencesForm(current => ({ ...current, deviceBackupDownloadsEnabled: event.target.checked }))}
+                    className="h-5 w-5 accent-sky-600"
+                  />
+                </label>
+              </div>
+            )}
+
+            <div className="mt-6 flex flex-wrap justify-end gap-3">
+              <AppButton type="button" variant="outline" disabled={savingUserPreferences} onClick={handleResetUserPreferences}>
+                Usar valores por defecto
+              </AppButton>
+              <AppButton type="submit" variant="primary" disabled={savingUserPreferences}>
+                {savingUserPreferences ? 'Guardando...' : 'Guardar preferencias'}
+              </AppButton>
+            </div>
+          </form>
+
+          {isAdmin && (
+            <form onSubmit={handleSystemSettingsSubmit} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-900">
+              <div className="mb-5 flex items-center gap-3">
+                <span className="material-symbols-outlined text-sky-600 dark:text-sky-300">admin_panel_settings</span>
+                <div>
+                  <h2 className="text-base font-black text-slate-950 dark:text-white">Preferencias del sistema</h2>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">Valores por defecto para todo el proyecto. Solo los administra el rol administrador.</p>
+                </div>
+              </div>
+
+              <div className="grid gap-4 lg:grid-cols-2">
+                <label className="space-y-2">
+                  <span className="text-xs font-black uppercase tracking-widest text-slate-500">Nombre del sistema</span>
+                  <input
+                    value={systemSettingsForm.applicationName}
+                    onChange={event => setSystemSettingsForm(current => ({ ...current, applicationName: event.target.value }))}
+                    maxLength={80}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-100 dark:border-white/10 dark:bg-slate-950 dark:text-white dark:focus:ring-sky-500/10"
+                  />
+                </label>
+                <label className="space-y-2">
+                  <span className="text-xs font-black uppercase tracking-widest text-slate-500">Nombre corto de marca</span>
+                  <input
+                    value={systemSettingsForm.brandName}
+                    onChange={event => setSystemSettingsForm(current => ({ ...current, brandName: event.target.value }))}
+                    maxLength={80}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-100 dark:border-white/10 dark:bg-slate-950 dark:text-white dark:focus:ring-sky-500/10"
+                  />
+                </label>
+                <ColorSelector
+                  label="Color de botones y enlaces por defecto"
+                  value={systemSettingsForm.primaryColor}
+                  colors={actionColors}
+                  onChange={color => setSystemSettingsForm(current => ({ ...current, primaryColor: color }))}
+                  resetLabel="Azul predeterminado"
+                  onReset={() => setSystemSettingsForm(current => ({ ...current, primaryColor: defaultSystemSettings.primaryColor }))}
+                />
+                <ColorSelector
+                  label="Color del menú lateral por defecto"
+                  value={systemSettingsForm.sidebarColor}
+                  colors={sidebarColors}
+                  onChange={color => setSystemSettingsForm(current => ({ ...current, sidebarColor: color }))}
+                  resetLabel="Menú predeterminado"
+                  onReset={() => setSystemSettingsForm(current => ({ ...current, sidebarColor: defaultSystemSettings.sidebarColor }))}
+                />
+              </div>
+
+              <div className="mt-5 grid gap-3 lg:grid-cols-3">
+                <div className="rounded-lg border border-slate-200 p-4 dark:border-white/10">
+                  <span className="block text-sm font-black text-slate-900 dark:text-white">Tema por defecto</span>
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    {(['light', 'dark'] as const).map(nextTheme => (
+                      <button
+                        type="button"
+                        key={nextTheme}
+                        onClick={() => setSystemSettingsForm(current => ({ ...current, defaultTheme: nextTheme }))}
+                        className={`rounded-md border px-3 py-2 text-sm font-bold ${
+                          systemSettingsForm.defaultTheme === nextTheme
+                            ? 'border-sky-300 bg-sky-50 text-sky-800 dark:border-sky-400 dark:bg-sky-500/10 dark:text-sky-200'
+                            : 'border-slate-200 text-slate-600 dark:border-white/10 dark:text-slate-300'
+                        }`}
+                      >
+                        {nextTheme === 'light' ? 'Claro' : 'Oscuro'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <label className="flex items-center justify-between gap-4 rounded-lg border border-slate-200 p-4 dark:border-white/10">
+                  <span>
+                    <span className="block text-sm font-black text-slate-900 dark:text-white">Descargas locales por defecto</span>
+                    <span className="mt-1 block text-xs text-slate-500 dark:text-slate-400">Valor inicial para usuarios sin preferencia propia.</span>
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={systemSettingsForm.defaultDeviceBackupDownloadsEnabled}
+                    onChange={event => setSystemSettingsForm(current => ({ ...current, defaultDeviceBackupDownloadsEnabled: event.target.checked }))}
+                    className="h-5 w-5 accent-sky-600"
+                  />
+                </label>
+                <label className="flex items-center justify-between gap-4 rounded-lg border border-slate-200 p-4 dark:border-white/10">
+                  <span>
+                    <span className="block text-sm font-black text-slate-900 dark:text-white">Recordatorios de descarga</span>
+                    <span className="mt-1 block text-xs text-slate-500 dark:text-slate-400">Mantiene visible la preferencia de copias locales en dispositivos autorizados.</span>
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={systemSettingsForm.showBackupDownloadReminders}
+                    onChange={event => setSystemSettingsForm(current => ({ ...current, showBackupDownloadReminders: event.target.checked }))}
+                    className="h-5 w-5 accent-sky-600"
+                  />
+                </label>
+              </div>
+
+              <div className="mt-6 flex flex-wrap justify-end gap-3">
+                <AppButton type="button" variant="outline" disabled={savingSystemSettings} onClick={handleResetSystemSettings}>
+                  Usar valores por defecto
+                </AppButton>
+                <AppButton type="submit" variant="primary" disabled={savingSystemSettings}>
+                  {savingSystemSettings ? 'Guardando...' : 'Guardar ajustes globales'}
+                </AppButton>
+              </div>
+            </form>
+          )}
         </div>
       )}
     </div>

@@ -263,6 +263,10 @@ public class KeycloakAdminService {
         return findUserById(userId);
     }
 
+    public void resetUserPasswordWithoutReload(String userId, String password, boolean temporaryPassword) {
+        exchange(userUrl(userId) + "/reset-password", HttpMethod.PUT, passwordPayload(password, temporaryPassword), Void.class);
+    }
+
     public boolean validateUserCredentials(String username, String password) {
         if (password == null || password.isBlank()) {
             return false;

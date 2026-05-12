@@ -7,8 +7,8 @@ import { useAuth } from '../../context/AuthContext';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import ToastNotification from '../ui/ToastNotification';
 import { DatabaseAdminService } from '../../services/database-admin.service';
-import { DevicePreferencesService } from '../../services/device-preferences.service';
 import { canAccessRequirement } from '../../utils/accessControl';
+import { useSystemSettings } from '../../context/SystemSettingsContext';
 
 const SIDEBAR_STORAGE_KEY = 'scan-sidebar-collapsed';
 const DOWNLOADED_BACKUPS_STORAGE_KEY = 'control-expedientes-downloaded-device-backups';
@@ -63,10 +63,10 @@ export const MainLayout: React.FC = () => {
   });
   const [isDesktopSidebarCollapsed, setIsDesktopSidebarCollapsed] = useState(readSidebarPreference);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  const [autoDownloadBackups, setAutoDownloadBackups] = useState(DevicePreferencesService.shouldAutoDownloadBackups);
   const downloadedBackupsRef = useRef<Set<string>>(readDownloadedBackups());
 
   const { hasAnyRole, hasAnyPermission, hasPermission, user, roles, permissions } = useAuth();
+  const { effectivePreferences, refreshPreferences } = useSystemSettings();
   const location = useLocation();
 
   const notificationTopics = useMemo(() => {
@@ -95,11 +95,15 @@ export const MainLayout: React.FC = () => {
 
   const { notificaciones, clearNotificacion, clearAll } = useWebSocket(notificationTopics);
 
-  const canDownloadDatabaseBackups = hasAnyRole(['ROLE_ADMIN']) || hasPermission('admin.database.export');
+  useEffect(() => {
+    void refreshPreferences();
+  }, [refreshPreferences]);
+
+  const canDownloadDatabaseBackups = effectivePreferences.deviceBackupDownloadsEnabled && (hasAnyRole(['ROLE_ADMIN']) || hasPermission('admin.database.export'));
 
   const downloadAutomaticBackupToDevice = useCallback(
     async (filename?: string | null) => {
-      if (!filename || !canDownloadDatabaseBackups || !autoDownloadBackups) {
+      if (!filename || !canDownloadDatabaseBackups) {
         return;
       }
 
@@ -119,7 +123,7 @@ export const MainLayout: React.FC = () => {
         console.error('No se pudo descargar el respaldo automático en este dispositivo:', error);
       }
     },
-    [autoDownloadBackups, canDownloadDatabaseBackups],
+    [canDownloadDatabaseBackups],
   );
 
   const toggleSidebar = useCallback(() => {
@@ -189,15 +193,6 @@ export const MainLayout: React.FC = () => {
   }, [permissions, roles]);
 
   useEffect(() => {
-    const syncPreference = () => {
-      setAutoDownloadBackups(DevicePreferencesService.shouldAutoDownloadBackups());
-    };
-
-    window.addEventListener(DevicePreferencesService.devicePreferencesEvent, syncPreference);
-    return () => window.removeEventListener(DevicePreferencesService.devicePreferencesEvent, syncPreference);
-  }, []);
-
-  useEffect(() => {
     notificaciones
       .filter(notification => notification.tipo === 'RESPALDO_AUTOMATICO' && notification.archivoDescarga)
       .forEach(notification => {
@@ -206,7 +201,7 @@ export const MainLayout: React.FC = () => {
   }, [downloadAutomaticBackupToDevice, notificaciones]);
 
   useEffect(() => {
-    if (!canDownloadDatabaseBackups || !autoDownloadBackups) {
+    if (!canDownloadDatabaseBackups) {
       return;
     }
 
@@ -250,7 +245,7 @@ export const MainLayout: React.FC = () => {
       window.removeEventListener('focus', syncPendingAutomaticBackup);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [autoDownloadBackups, canDownloadDatabaseBackups, downloadAutomaticBackupToDevice]);
+  }, [canDownloadDatabaseBackups, downloadAutomaticBackupToDevice]);
 
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-[#0b1a24] w-full overflow-hidden font-sans selection:bg-sky-500/30 selection:text-sky-900 dark:selection:text-sky-100">

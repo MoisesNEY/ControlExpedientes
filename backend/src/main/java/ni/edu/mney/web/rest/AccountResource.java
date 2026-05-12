@@ -96,7 +96,7 @@ public class AccountResource {
 
         String login = SecurityUtils.getCurrentUserLogin().orElseThrow(() -> new AccountResourceException("User could not be found"));
         KeycloakAdminService.ManagedKeycloakUser currentUser = keycloakAdminService.getUserByUsername(login);
-        keycloakAdminService.resetUserPassword(currentUser.id(), request.newPassword(), false);
+        keycloakAdminService.resetUserPasswordWithoutReload(currentUser.id(), request.newPassword(), false);
         return ResponseEntity.noContent().build();
     }
 

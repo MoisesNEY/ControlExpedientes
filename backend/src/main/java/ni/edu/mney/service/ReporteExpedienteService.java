@@ -37,15 +37,18 @@ public class ReporteExpedienteService {
     private final ExpedienteClinicoRepository expedienteClinicoRepository;
     private final ConsultaMedicaRepository consultaMedicaRepository;
     private final PacienteRepository pacienteRepository;
+    private final SystemSettingsService systemSettingsService;
 
     public ReporteExpedienteService(
         ExpedienteClinicoRepository expedienteClinicoRepository,
         ConsultaMedicaRepository consultaMedicaRepository,
-        PacienteRepository pacienteRepository
+        PacienteRepository pacienteRepository,
+        SystemSettingsService systemSettingsService
     ) {
         this.expedienteClinicoRepository = expedienteClinicoRepository;
         this.consultaMedicaRepository = consultaMedicaRepository;
         this.pacienteRepository = pacienteRepository;
+        this.systemSettingsService = systemSettingsService;
     }
 
     /**
@@ -98,6 +101,7 @@ public class ReporteExpedienteService {
             PdfReportSupport.addHeader(
                 document,
                 fonts,
+                systemSettingsService.getSettings().brandName(),
                 "Expediente clínico",
                 "Resumen consolidado del expediente del paciente",
                 "Expediente",

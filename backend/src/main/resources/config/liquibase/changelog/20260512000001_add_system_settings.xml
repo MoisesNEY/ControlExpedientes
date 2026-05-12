@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="20260512000001-1" author="codex">
+        <createTable tableName="app_system_settings">
+            <column name="id" type="bigint">
+                <constraints primaryKey="true" nullable="false" primaryKeyName="pk_app_system_settings"/>
+            </column>
+            <column name="application_name" type="varchar(80)" defaultValue="Control Expedientes">
+                <constraints nullable="false"/>
+            </column>
+            <column name="primary_color" type="varchar(7)" defaultValue="#0284c7">
+                <constraints nullable="false"/>
+            </column>
+            <column name="support_email" type="varchar(254)"/>
+            <column name="device_backup_downloads_enabled" type="boolean" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="show_backup_download_reminders" type="boolean" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="maintenance_message" type="varchar(160)"/>
+            <column name="created_by" type="varchar(50)" defaultValue="system">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_date" type="timestamp" defaultValueComputed="CURRENT_TIMESTAMP"/>
+            <column name="last_modified_by" type="varchar(50)"/>
+            <column name="last_modified_date" type="timestamp" defaultValueComputed="CURRENT_TIMESTAMP"/>
+        </createTable>
+
+        <sql>
+            ALTER TABLE app_system_settings
+            ADD CONSTRAINT chk_app_system_settings_primary_color
+            CHECK (primary_color ~ '^#[0-9A-Fa-f]{6}$');
+        </sql>
+
+        <insert tableName="app_system_settings">
+            <column name="id" valueNumeric="1"/>
+            <column name="application_name" value="Control Expedientes"/>
+            <column name="primary_color" value="#0284c7"/>
+            <column name="device_backup_downloads_enabled" valueBoolean="true"/>
+            <column name="show_backup_download_reminders" valueBoolean="true"/>
+            <column name="created_by" value="system"/>
+            <column name="created_date" valueComputed="CURRENT_TIMESTAMP"/>
+            <column name="last_modified_date" valueComputed="CURRENT_TIMESTAMP"/>
+        </insert>
+    </changeSet>
+
+    <changeSet id="20260512000001-2" author="codex" context="dev,prod">
+        <addColumn tableName="app_system_settings">
+            <column name="default_theme" type="varchar(10)" defaultValue="light">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+
+        <renameColumn
+            tableName="app_system_settings"
+            oldColumnName="device_backup_downloads_enabled"
+            newColumnName="default_device_backup_downloads_enabled"
+            columnDataType="boolean"/>
+
+        <dropColumn tableName="app_system_settings" columnName="support_email"/>
+        <dropColumn tableName="app_system_settings" columnName="maintenance_message"/>
+
+        <sql>
+            ALTER TABLE app_system_settings
+            ADD CONSTRAINT chk_app_system_settings_default_theme
+            CHECK (default_theme IN ('light', 'dark'));
+        </sql>
+
+        <createTable tableName="app_user_preferences">
+            <column name="user_login" type="varchar(50)">
+                <constraints primaryKey="true" nullable="false" primaryKeyName="pk_app_user_preferences"/>
+            </column>
+            <column name="primary_color" type="varchar(7)"/>
+            <column name="theme" type="varchar(10)"/>
+            <column name="device_backup_downloads_enabled" type="boolean"/>
+            <column name="created_by" type="varchar(50)" defaultValue="system">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_date" type="timestamp" defaultValueComputed="CURRENT_TIMESTAMP"/>
+            <column name="last_modified_by" type="varchar(50)"/>
+            <column name="last_modified_date" type="timestamp" defaultValueComputed="CURRENT_TIMESTAMP"/>
+        </createTable>
+
+        <sql>
+            ALTER TABLE app_user_preferences
+            ADD CONSTRAINT chk_app_user_preferences_primary_color
+            CHECK (primary_color IS NULL OR primary_color ~ '^#[0-9A-Fa-f]{6}$');
+        </sql>
+        <sql>
+            ALTER TABLE app_user_preferences
+            ADD CONSTRAINT chk_app_user_preferences_theme
+            CHECK (theme IS NULL OR theme IN ('light', 'dark'));
+        </sql>
+    </changeSet>
+
+    <changeSet id="20260512000001-3" author="codex" context="dev,prod">
+        <addColumn tableName="app_system_settings">
+            <column name="brand_name" type="varchar(80)" defaultValue="ClinData">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sidebar_color" type="varchar(7)" defaultValue="#071e2b">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+
+        <addColumn tableName="app_user_preferences">
+            <column name="sidebar_color" type="varchar(7)"/>
+        </addColumn>
+
+        <sql>
+            ALTER TABLE app_system_settings
+            ADD CONSTRAINT chk_app_system_settings_sidebar_color
+            CHECK (sidebar_color ~ '^#[0-9A-Fa-f]{6}$');
+        </sql>
+        <sql>
+            ALTER TABLE app_user_preferences
+            ADD CONSTRAINT chk_app_user_preferences_sidebar_color
+            CHECK (sidebar_color IS NULL OR sidebar_color ~ '^#[0-9A-Fa-f]{6}$');
+        </sql>
+    </changeSet>
+</databaseChangeLog>
