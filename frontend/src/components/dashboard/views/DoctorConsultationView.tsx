@@ -7,7 +7,6 @@ import { ExpedienteService } from '../../../services/expediente.service';
 import api from '../../../services/api';
 import type { SignosVitalesDTO } from '../../../services/signosVitales.service';
 import { useAuth } from '../../../context/AuthContext';
-import PrintableReceta from './PrintableReceta';
 import { AppButton } from '../../ui/AppButton';
 import { PatientCard } from '../../ui/PatientCard';
 import { InteraccionService, type InteraccionMedicamentosaDTO } from '../../../services/interaccion.service';
@@ -25,9 +24,9 @@ interface Prescription {
 const DoctorConsultationView = () => {
     const { citaId } = useParams<{ citaId: string }>();
     const navigate = useNavigate();
-    const { account, hasAnyRole } = useAuth();
-    const doctorName = account
-        ? `Dr. ${buildFullName([account.firstName, account.lastName], account.email ?? 'Médico Tratante')}`
+    const { account, user, hasAnyRole } = useAuth();
+    const doctorName = account || user
+        ? `Dr. ${buildFullName([account?.firstName, account?.lastName], user?.name || user?.preferred_username || 'Médico Tratante')}`
         : 'Médico Tratante';
     const [appointment, setAppointment] = useState<Appointment | null>(null);
     const [loading, setLoading] = useState(true);
@@ -302,14 +301,6 @@ const DoctorConsultationView = () => {
         }
     };
 
-    const handlePrint = () => {
-        if (!selectedDiagnosis) {
-            setSaveError('Seleccione un diagnóstico antes de imprimir la receta.');
-            return;
-        }
-        window.print();
-    };
-
     if (loading || !appointment) {
         return (
             <div className="p-8 flex items-center justify-center h-[calc(100vh-100px)]">
@@ -345,16 +336,6 @@ const DoctorConsultationView = () => {
                         title="Descargar Receta en PDF desde el servidor"
                     >
                         {isDownloadingPdf ? 'Generando...' : 'Descargar PDF'}
-                    </AppButton>
-                    <AppButton
-                        variant="outline"
-                        size="md"
-                        icon="print"
-                        onClick={handlePrint}
-                        disabled={!selectedDiagnosis}
-                        title={!selectedDiagnosis ? 'Seleccione un diagnóstico para imprimir' : 'Imprimir receta'}
-                    >
-                        Imprimir Receta
                     </AppButton>
                     <AppButton
                         variant="primary"
@@ -678,16 +659,6 @@ const DoctorConsultationView = () => {
                 </div>
             )}
 
-            {/* Componente de receta imprimible — oculto en pantalla, visible solo al imprimir */}
-            {appointment && selectedDiagnosis && (
-                <PrintableReceta
-                    appointment={appointment}
-                    diagnosis={selectedDiagnosis}
-                    prescriptions={prescriptions}
-                    notasMedicas={notasMedicas}
-                    doctorName={doctorName}
-                />
-            )}
         </div>
     );
 };

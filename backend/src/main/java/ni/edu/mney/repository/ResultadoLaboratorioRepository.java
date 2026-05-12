@@ -5,6 +5,7 @@ import java.util.List;
 import ni.edu.mney.domain.ResultadoLaboratorio;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.*;
 import org.springframework.stereotype.Repository;
 
@@ -22,4 +23,7 @@ public interface ResultadoLaboratorioRepository
 
     Page<ResultadoLaboratorio> findByPacienteIdAndFechaExamenBetween(
             Long pacienteId, LocalDate from, LocalDate to, Pageable pageable);
+
+    @EntityGraph(attributePaths = { "paciente", "consulta", "consulta.user" })
+    List<ResultadoLaboratorio> findAllWithReportDetailsByFechaExamenBetween(LocalDate from, LocalDate to, Sort sort);
 }

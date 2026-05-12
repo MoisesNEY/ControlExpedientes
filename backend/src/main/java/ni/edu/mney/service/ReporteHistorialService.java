@@ -102,10 +102,12 @@ public class ReporteHistorialService {
             document.open();
 
             PdfReportSupport.Fonts fonts = PdfReportSupport.fonts();
+            var settings = systemSettingsService.getSettings();
             PdfReportSupport.addHeader(
                 document,
                 fonts,
-                systemSettingsService.getSettings().brandName(),
+                settings.brandName(),
+                settings.applicationName(),
                 "Historial clínico",
                 "Seguimiento completo de atenciones y laboratorios",
                 "Expediente",

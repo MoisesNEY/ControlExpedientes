@@ -98,10 +98,12 @@ public class ReporteExpedienteService {
             document.open();
 
             PdfReportSupport.Fonts fonts = PdfReportSupport.fonts();
+            var settings = systemSettingsService.getSettings();
             PdfReportSupport.addHeader(
                 document,
                 fonts,
-                systemSettingsService.getSettings().brandName(),
+                settings.brandName(),
+                settings.applicationName(),
                 "Expediente clínico",
                 "Resumen consolidado del expediente del paciente",
                 "Expediente",

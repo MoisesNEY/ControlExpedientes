@@ -154,10 +154,12 @@ public class ReporteRecetaService {
             document.open();
 
             PdfReportSupport.Fonts fonts = PdfReportSupport.fonts();
+            var settings = systemSettingsService.getSettings();
             PdfReportSupport.addHeader(
                     document,
                     fonts,
-                    systemSettingsService.getSettings().brandName(),
+                    settings.brandName(),
+                    settings.applicationName(),
                     "Receta médica",
                     "Documento clínico generado por el sistema",
                     data.citaId() != null ? "Cita" : "Consulta",

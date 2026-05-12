@@ -92,4 +92,20 @@ export const ReporteService = {
         });
         downloadBlob(response.data, getFilenameFromDisposition(response.headers['content-disposition']) ?? `consultas-${payload.fechaInicio}-${payload.fechaFin}.xlsx`);
     },
+
+    descargarMovimientosSistemaPdf: async (payload: Pick<ConsultasResumenPayload, 'fechaInicio' | 'fechaFin'>): Promise<void> => {
+        const response = await api.get('/api/reportes/sistema/movimientos', {
+            params: payload,
+            responseType: 'blob',
+        });
+        downloadBlob(response.data, getFilenameFromDisposition(response.headers['content-disposition']) ?? `movimientos-sistema-${payload.fechaInicio}-${payload.fechaFin}.pdf`);
+    },
+
+    descargarMovimientosSistemaExcel: async (payload: Pick<ConsultasResumenPayload, 'fechaInicio' | 'fechaFin'>): Promise<void> => {
+        const response = await api.get('/api/reportes/sistema/movimientos/excel', {
+            params: payload,
+            responseType: 'blob',
+        });
+        downloadBlob(response.data, getFilenameFromDisposition(response.headers['content-disposition']) ?? `movimientos-sistema-${payload.fechaInicio}-${payload.fechaFin}.xlsx`);
+    },
 };
