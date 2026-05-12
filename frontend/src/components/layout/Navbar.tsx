@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { AppointmentService, type Appointment } from '../../services/appointment.service';
 import { DatabaseAdminService } from '../../services/database-admin.service';
 import type { Notificacion } from '../../hooks/useWebSocket';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface NavbarProps {
   onToggleSidebar: () => void;
@@ -24,6 +25,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onClearNotifications,
 }) => {
   const { user, roles, logout, hasAnyRole, hasAnyPermission } = useAuth();
+  const { language, setLanguage } = useLanguage();
   const location = useLocation();
   const navigate = useNavigate();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -190,6 +192,18 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       {/* Lado Derecho: Acciones y Perfil */}
       <div className="flex items-center gap-3 lg:gap-5 relative">
+        <label className="hidden sm:flex items-center gap-1.5 text-slate-400 dark:text-slate-500">
+          <span className="material-symbols-outlined text-[18px]">language</span>
+          <select
+            value={language}
+            onChange={event => setLanguage(event.target.value === 'en' ? 'en' : 'es')}
+            className="rounded-md border border-transparent bg-transparent px-1 py-1 text-[11px] font-bold outline-none transition-colors hover:text-slate-700 focus:border-sky-200 dark:hover:text-slate-200 dark:focus:border-sky-500/30"
+            aria-label="Idioma"
+          >
+            <option value="es">Español</option>
+            <option value="en">English</option>
+          </select>
+        </label>
         
         <div className="relative hidden sm:block" ref={notificationsRef}>
           <button

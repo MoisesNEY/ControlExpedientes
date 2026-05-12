@@ -5,6 +5,7 @@ import api from '../services/api';
 import { AppointmentService } from '../services/appointment.service';
 import { resolveAuthorizedHomePath } from '../utils/authNavigation';
 import { useSystemSettings } from '../context/SystemSettingsContext';
+import { useLanguage } from '../context/LanguageContext';
 
 /* ─── SVG: Visualización abstracta de nodos médicos ─── */
 const NodePattern = () => (
@@ -64,13 +65,13 @@ const NodePattern = () => (
 const Login = () => {
     const { isAuthenticated, login, completeRequiredActions, hasAnyRole } = useAuth();
     const { effectivePreferences } = useSystemSettings();
+    const { language, setLanguage } = useLanguage();
     const navigate = useNavigate();
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
-    const [language, setLanguage] = useState('es');
     const [requiredActions, setRequiredActions] = useState<string[]>([]);
     const [pendingProfile, setPendingProfile] = useState({ login: '', firstName: '', lastName: '', email: '' });
     const [newPassword, setNewPassword] = useState('');
@@ -276,7 +277,7 @@ const Login = () => {
                         <span className="material-symbols-outlined text-[15px]">language</span>
                         <select
                             value={language}
-                            onChange={(e) => setLanguage(e.target.value)}
+                            onChange={(e) => setLanguage(e.target.value === 'en' ? 'en' : 'es')}
                             className="text-[11px] font-bold bg-transparent border-none outline-none cursor-pointer hover:text-slate-600 dark:hover:text-slate-300 transition-colors appearance-none"
                         >
                             <option value="es">Español</option>
