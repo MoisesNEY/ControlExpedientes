@@ -8,8 +8,10 @@ import { useWebSocket } from '../../hooks/useWebSocket';
 import ToastNotification from '../ui/ToastNotification';
 import { DatabaseAdminService } from '../../services/database-admin.service';
 import { canAccessRequirement } from '../../utils/accessControl';
+import { useSystemSettings } from '../../context/SystemSettingsContext';
 
 const SIDEBAR_STORAGE_KEY = 'scan-sidebar-collapsed';
+const DOWNLOADED_BACKUPS_STORAGE_KEY = 'control-expedientes-downloaded-device-backups';
 const DESKTOP_BREAKPOINT = 1024;
 
 const readSidebarPreference = () => {
@@ -30,6 +32,26 @@ const writeSidebarPreference = (collapsed: boolean) => {
   }
 };
 
+const readDownloadedBackups = () => {
+  if (typeof window === 'undefined') return new Set<string>();
+  try {
+    const parsed = JSON.parse(localStorage.getItem(DOWNLOADED_BACKUPS_STORAGE_KEY) || '[]') as unknown;
+    return new Set(Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === 'string') : []);
+  } catch {
+    return new Set<string>();
+  }
+};
+
+const rememberDownloadedBackup = (filename: string) => {
+  const downloaded = readDownloadedBackups();
+  downloaded.add(filename);
+  try {
+    localStorage.setItem(DOWNLOADED_BACKUPS_STORAGE_KEY, JSON.stringify(Array.from(downloaded).slice(-80)));
+  } catch {
+    // Ignorar errores de almacenamiento del navegador
+  }
+};
+
 /**
  * Main Layout - El Director Responsable (Smart Component)
  * Controla el ciclo de vida del layout compartido, la lógica responsiva y la política del Sidebar.
@@ -41,36 +63,52 @@ export const MainLayout: React.FC = () => {
   });
   const [isDesktopSidebarCollapsed, setIsDesktopSidebarCollapsed] = useState(readSidebarPreference);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  const downloadedBackupsRef = useRef<Set<string>>(new Set());
+  const downloadedBackupsRef = useRef<Set<string>>(readDownloadedBackups());
 
-  const { hasAnyRole, hasAnyPermission, hasPermission, user, roles, permissions } = useAuth();
+  const { hasAnyRole, hasPermission, user, roles, permissions } = useAuth();
+  const { effectivePreferences, refreshPreferences } = useSystemSettings();
   const location = useLocation();
 
   const notificationTopics = useMemo(() => {
-    const topics = new Set<string>(['/topic/espera']);
-    if (user?.preferred_username && hasAnyRole(['ROLE_MEDICO'])) {
-      topics.add(`/topic/medico/${user.preferred_username}`);
-    }
-    if (
-      hasAnyRole(['ROLE_ADMIN']) ||
-      hasAnyPermission([
-        'admin.users.view',
-        'admin.users.manage',
-        'admin.users.export',
-        'admin.roles.view',
-        'admin.roles.manage',
-        'admin.roles.export',
-        'admin.database.view',
-        'admin.database.export',
-        'admin.database.restore',
-      ])
-    ) {
-      topics.add('/topic/admin/system');
+    const topics = new Set<string>();
+    if (user?.preferred_username) {
+      topics.add(`/topic/user/${user.preferred_username}`);
     }
     return Array.from(topics);
-  }, [hasAnyPermission, hasAnyRole, user?.preferred_username]);
+  }, [user?.preferred_username]);
 
   const { notificaciones, clearNotificacion, clearAll } = useWebSocket(notificationTopics);
+
+  useEffect(() => {
+    void refreshPreferences();
+  }, [refreshPreferences]);
+
+  const canDownloadDatabaseBackups = effectivePreferences.deviceBackupDownloadsEnabled && (hasAnyRole(['ROLE_ADMIN']) || hasPermission('admin.database.export'));
+
+  const downloadAutomaticBackupToDevice = useCallback(
+    async (filename?: string | null) => {
+      if (!filename || !canDownloadDatabaseBackups) {
+        return;
+      }
+
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        return;
+      }
+
+      if (downloadedBackupsRef.current.has(filename)) {
+        return;
+      }
+
+      try {
+        await DatabaseAdminService.downloadStoredBackup(filename);
+        downloadedBackupsRef.current.add(filename);
+        rememberDownloadedBackup(filename);
+      } catch (error) {
+        console.error('No se pudo descargar el respaldo automático en este dispositivo:', error);
+      }
+    },
+    [canDownloadDatabaseBackups],
+  );
 
   const toggleSidebar = useCallback(() => {
     if (isMobile) {
@@ -139,23 +177,59 @@ export const MainLayout: React.FC = () => {
   }, [permissions, roles]);
 
   useEffect(() => {
-    const latestNotification = notificaciones[0];
-    if (!latestNotification?.archivoDescarga || !hasPermission('admin.database.export')) {
+    notificaciones
+      .filter(notification => notification.tipo === 'RESPALDO_AUTOMATICO' && notification.archivoDescarga)
+      .forEach(notification => {
+        void downloadAutomaticBackupToDevice(notification.archivoDescarga);
+      });
+  }, [downloadAutomaticBackupToDevice, notificaciones]);
+
+  useEffect(() => {
+    if (!canDownloadDatabaseBackups) {
       return;
     }
 
-    if (latestNotification.tipo !== 'RESPALDO_AUTOMATICO') {
-      return;
-    }
+    let cancelled = false;
 
-    if (downloadedBackupsRef.current.has(latestNotification.archivoDescarga)) {
-      return;
-    }
+    const syncPendingAutomaticBackup = async () => {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        return;
+      }
 
-    downloadedBackupsRef.current.add(latestNotification.archivoDescarga);
+      try {
+        const summary = await DatabaseAdminService.getSummary();
+        if (cancelled) {
+          return;
+        }
+        const latestAutomaticBackup = summary.backups.find(backup => backup.automatic);
+        if (latestAutomaticBackup && !downloadedBackupsRef.current.has(latestAutomaticBackup.filename)) {
+          await downloadAutomaticBackupToDevice(latestAutomaticBackup.filename);
+        }
+      } catch {
+        // Si el servidor no está disponible, se reintenta al recuperar conexión/foco.
+      }
+    };
 
-    void DatabaseAdminService.downloadStoredBackup(latestNotification.archivoDescarga).catch(() => undefined);
-  }, [hasPermission, notificaciones]);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void syncPendingAutomaticBackup();
+      }
+    };
+
+    void syncPendingAutomaticBackup();
+    const interval = window.setInterval(syncPendingAutomaticBackup, 60000);
+    window.addEventListener('online', syncPendingAutomaticBackup);
+    window.addEventListener('focus', syncPendingAutomaticBackup);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+      window.removeEventListener('online', syncPendingAutomaticBackup);
+      window.removeEventListener('focus', syncPendingAutomaticBackup);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [canDownloadDatabaseBackups, downloadAutomaticBackupToDevice]);
 
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-[#0b1a24] w-full overflow-hidden font-sans selection:bg-sky-500/30 selection:text-sky-900 dark:selection:text-sky-100">

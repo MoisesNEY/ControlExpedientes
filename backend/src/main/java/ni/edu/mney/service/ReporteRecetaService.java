@@ -39,14 +39,17 @@ public class ReporteRecetaService {
     private final CitaMedicaRepository citaMedicaRepository;
     private final ConsultaMedicaRepository consultaMedicaRepository;
     private final ExpedienteClinicoRepository expedienteClinicoRepository;
+    private final SystemSettingsService systemSettingsService;
 
     public ReporteRecetaService(
             CitaMedicaRepository citaMedicaRepository,
             ConsultaMedicaRepository consultaMedicaRepository,
-            ExpedienteClinicoRepository expedienteClinicoRepository) {
+            ExpedienteClinicoRepository expedienteClinicoRepository,
+            SystemSettingsService systemSettingsService) {
         this.citaMedicaRepository = citaMedicaRepository;
         this.consultaMedicaRepository = consultaMedicaRepository;
         this.expedienteClinicoRepository = expedienteClinicoRepository;
+        this.systemSettingsService = systemSettingsService;
     }
 
     public byte[] generarRecetaPdf(Long citaId) {
@@ -151,9 +154,12 @@ public class ReporteRecetaService {
             document.open();
 
             PdfReportSupport.Fonts fonts = PdfReportSupport.fonts();
+            var settings = systemSettingsService.getSettings();
             PdfReportSupport.addHeader(
                     document,
                     fonts,
+                    settings.brandName(),
+                    settings.applicationName(),
                     "Receta médica",
                     "Documento clínico generado por el sistema",
                     data.citaId() != null ? "Cita" : "Consulta",

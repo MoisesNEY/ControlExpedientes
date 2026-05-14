@@ -43,13 +43,35 @@ const ToastItem = ({ noti, index, onDismiss }: { noti: Notificacion; index: numb
     }, [index, onDismiss]);
 
     const iconMap: Record<string, string> = {
+        CITA_AGENDADA: 'event_available',
+        CITA_REPROGRAMADA: 'event_repeat',
+        CITA_REASIGNADA: 'swap_horiz',
+        CITA_ELIMINADA: 'event_busy',
+        CITA_CANCELADA: 'event_busy',
+        PACIENTE_EN_SALA: 'meeting_room',
+        PACIENTE_LLEGO: 'person_pin_circle',
         PACIENTE_LISTO: 'person_check',
+        TRIAGE_INICIADO: 'health_and_safety',
+        TRIAGE_FINALIZADO: 'assignment_turned_in',
+        CONSULTA_INICIADA: 'stethoscope',
         CONSULTA_FINALIZADA: 'task_alt',
+        RESPALDO_AUTOMATICO: 'backup',
     };
 
     const colorMap: Record<string, string> = {
+        CITA_AGENDADA: 'bg-sky-50 dark:bg-sky-500/10 border-sky-200 dark:border-sky-500/30 text-sky-800 dark:text-sky-200',
+        CITA_REPROGRAMADA: 'bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/30 text-amber-800 dark:text-amber-200',
+        CITA_REASIGNADA: 'bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/30 text-amber-800 dark:text-amber-200',
+        CITA_ELIMINADA: 'bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/30 text-rose-800 dark:text-rose-200',
+        CITA_CANCELADA: 'bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/30 text-rose-800 dark:text-rose-200',
+        PACIENTE_EN_SALA: 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30 text-emerald-800 dark:text-emerald-200',
+        PACIENTE_LLEGO: 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30 text-emerald-800 dark:text-emerald-200',
         PACIENTE_LISTO: 'bg-teal-50 dark:bg-teal-500/10 border-teal-200 dark:border-teal-500/30 text-teal-800 dark:text-teal-200',
+        TRIAGE_INICIADO: 'bg-indigo-50 dark:bg-indigo-500/10 border-indigo-200 dark:border-indigo-500/30 text-indigo-800 dark:text-indigo-200',
+        TRIAGE_FINALIZADO: 'bg-indigo-50 dark:bg-indigo-500/10 border-indigo-200 dark:border-indigo-500/30 text-indigo-800 dark:text-indigo-200',
+        CONSULTA_INICIADA: 'bg-violet-50 dark:bg-violet-500/10 border-violet-200 dark:border-violet-500/30 text-violet-800 dark:text-violet-200',
         CONSULTA_FINALIZADA: 'bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/30 text-blue-800 dark:text-blue-200',
+        RESPALDO_AUTOMATICO: 'bg-slate-50 dark:bg-slate-500/10 border-slate-200 dark:border-slate-500/30 text-slate-800 dark:text-slate-200',
     };
 
     const icon = iconMap[noti.tipo] || 'notifications';

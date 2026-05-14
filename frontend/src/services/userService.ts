@@ -14,6 +14,19 @@ export interface UserAccount {
     lastModifiedBy: string;
     lastModifiedDate: string;
     authorities: string[];
+    permissions?: string[];
+}
+
+export interface AccountProfileUpdatePayload {
+    firstName: string;
+    lastName: string;
+    email: string;
+}
+
+export interface AccountPasswordChangePayload {
+    currentPassword: string;
+    newPassword: string;
+    confirmationPassword: string;
 }
 
 export interface PublicUser {
@@ -25,6 +38,15 @@ export const UserService = {
     getAccount: async (): Promise<UserAccount> => {
         const response = await api.get<UserAccount>('/api/account');
         return response.data;
+    },
+
+    updateAccount: async (payload: AccountProfileUpdatePayload): Promise<UserAccount> => {
+        const response = await api.put<UserAccount>('/api/account', payload);
+        return response.data;
+    },
+
+    changePassword: async (payload: AccountPasswordChangePayload): Promise<void> => {
+        await api.post('/api/account/change-password', payload);
     },
 
     getPublicUsers: async (params?: Record<string, any>): Promise<PublicUser[]> => {

@@ -2,6 +2,22 @@
 
 @variant dark (&:where(.dark, .dark *));
 
+:root {
+    --system-primary-50: #f0f9ff;
+    --system-primary-100: #e0f2fe;
+    --system-primary-200: #bae6fd;
+    --system-primary-300: #7dd3fc;
+    --system-primary-400: #38bdf8;
+    --system-primary-500: #0284c7;
+    --system-primary-600: #0369a1;
+    --system-primary-700: #075985;
+    --system-primary-800: #0c4a6e;
+    --system-sidebar-500: #071e2b;
+    --system-sidebar-600: #061925;
+    --system-sidebar-700: #05141d;
+    --system-sidebar-soft: #e6e9eb;
+}
+
 @theme {
     --color-primary: #0284c5;
     --color-success: #10B981;
@@ -12,6 +28,85 @@
 
     --radius-lg: 10px;
     --radius-xl: 0.75rem;
+}
+
+@layer utilities {
+    .bg-sky-50,
+    .hover\:bg-sky-50:hover {
+        background-color: var(--system-primary-50) !important;
+    }
+
+    .bg-sky-100,
+    .hover\:bg-sky-100:hover {
+        background-color: var(--system-primary-100) !important;
+    }
+
+    .bg-sky-500,
+    .hover\:bg-sky-500:hover {
+        background-color: var(--system-primary-500) !important;
+    }
+
+    .bg-sky-600,
+    .hover\:bg-sky-600:hover {
+        background-color: var(--system-primary-600) !important;
+    }
+
+    .text-sky-200 {
+        color: var(--system-primary-200) !important;
+    }
+
+    .text-sky-300 {
+        color: var(--system-primary-300) !important;
+    }
+
+    .text-sky-400,
+    .hover\:text-sky-400:hover {
+        color: var(--system-primary-400) !important;
+    }
+
+    .text-sky-500,
+    .hover\:text-sky-500:hover {
+        color: var(--system-primary-500) !important;
+    }
+
+    .text-sky-600,
+    .hover\:text-sky-600:hover {
+        color: var(--system-primary-600) !important;
+    }
+
+    .text-sky-700 {
+        color: var(--system-primary-700) !important;
+    }
+
+    .text-sky-800 {
+        color: var(--system-primary-800) !important;
+    }
+
+    .border-sky-300 {
+        border-color: var(--system-primary-300) !important;
+    }
+
+    .border-sky-400,
+    .focus\:border-sky-400:focus {
+        border-color: var(--system-primary-400) !important;
+    }
+
+    .accent-sky-600 {
+        accent-color: var(--system-primary-600) !important;
+    }
+
+    .shadow-sky-500\/30 {
+        --tw-shadow-color: color-mix(in srgb, var(--system-primary-500) 30%, transparent) !important;
+    }
+
+    .shadow-sky-500\/50,
+    .hover\:shadow-sky-500\/50:hover {
+        --tw-shadow-color: color-mix(in srgb, var(--system-primary-500) 50%, transparent) !important;
+    }
+
+    .focus\:ring-sky-100:focus {
+        --tw-ring-color: var(--system-primary-100) !important;
+    }
 }
 
 @layer base {

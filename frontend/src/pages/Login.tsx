@@ -4,6 +4,8 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { AppointmentService } from '../services/appointment.service';
 import { resolveAuthorizedHomePath } from '../utils/authNavigation';
+import { useSystemSettings } from '../context/SystemSettingsContext';
+import { useLanguage } from '../context/LanguageContext';
 
 /* ─── SVG: Visualización abstracta de nodos médicos ─── */
 const NodePattern = () => (
@@ -62,18 +64,21 @@ const NodePattern = () => (
 /* ─── Componente principal ─── */
 const Login = () => {
     const { isAuthenticated, login, completeRequiredActions, hasAnyRole } = useAuth();
+    const { effectivePreferences } = useSystemSettings();
+    const { language, setLanguage } = useLanguage();
     const navigate = useNavigate();
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
-    const [language, setLanguage] = useState('es');
     const [requiredActions, setRequiredActions] = useState<string[]>([]);
     const [pendingProfile, setPendingProfile] = useState({ login: '', firstName: '', lastName: '', email: '' });
     const [newPassword, setNewPassword] = useState('');
     const [confirmNewPassword, setConfirmNewPassword] = useState('');
     const requiredActionSet = useMemo(() => new Set(requiredActions), [requiredActions]);
+    const brandName = effectivePreferences.brandName;
+    const applicationName = effectivePreferences.applicationName;
 
     if (isAuthenticated) return <Navigate to="/" replace />;
 
@@ -183,10 +188,15 @@ const Login = () => {
             {/* ══════════════════════════════════════════
                 PANEL IZQUIERDO — 35% — Solo en desktop
             ══════════════════════════════════════════ */}
-            <aside className="hidden lg:flex lg:w-[35%] relative flex-col justify-between bg-[#071e2b] overflow-hidden">
+            <aside className="hidden lg:flex lg:w-[35%] relative flex-col justify-between overflow-hidden" style={{ backgroundColor: 'var(--system-sidebar-500)' }}>
 
                 {/* Fondo con gradiente muy sutil */}
-                <div className="absolute inset-0 bg-gradient-to-b from-[#0a2d42] via-[#071e2b] to-[#050f19]" />
+                <div
+                    className="absolute inset-0"
+                    style={{
+                        background: 'linear-gradient(180deg, color-mix(in srgb, var(--system-sidebar-500) 88%, white), var(--system-sidebar-500), var(--system-sidebar-700))',
+                    }}
+                />
 
                 {/* Patrón de cuadrícula fina */}
                 <div
@@ -217,8 +227,8 @@ const Login = () => {
                             <span className="material-symbols-outlined text-sky-400 text-[17px]">local_hospital</span>
                         </div>
                         <div>
-                            <p className="text-white text-sm font-black leading-none tracking-tight">ClinData</p>
-                            <p className="text-sky-500/60 text-[9px] font-bold uppercase tracking-[3px] mt-0.5">Health Platform</p>
+                            <p className="text-white text-sm font-black leading-none tracking-tight">{brandName}</p>
+                            <p className="text-sky-500/60 text-[9px] font-bold uppercase tracking-[3px] mt-0.5">{applicationName}</p>
                         </div>
                     </div>
 
@@ -228,8 +238,7 @@ const Login = () => {
                     {/* Headline */}
                     <div className="mb-10">
                         <h1 className="text-white/90 text-2xl font-black leading-snug tracking-tight">
-                            Expedientes<br />
-                            Clínicos<br />
+                            {applicationName}<br />
                             <span className="text-sky-400">Inteligentes.</span>
                         </h1>
                         <p className="text-white/30 text-xs mt-3 leading-relaxed font-medium max-w-[200px]">
@@ -239,7 +248,7 @@ const Login = () => {
 
                     {/* Copyright */}
                     <p className="text-white/15 text-[10px] font-medium tracking-wide">
-                        © {new Date().getFullYear()} ClinData
+                        © {new Date().getFullYear()} {brandName}
                     </p>
                 </div>
 
@@ -259,7 +268,7 @@ const Login = () => {
                         <div className="w-7 h-7 rounded-lg bg-sky-500/15 border border-sky-500/25 flex items-center justify-center">
                             <span className="material-symbols-outlined text-sky-500 text-[15px]">local_hospital</span>
                         </div>
-                        <p className="text-slate-900 dark:text-white text-sm font-black tracking-tight">ClinData</p>
+                        <p className="text-slate-900 dark:text-white text-sm font-black tracking-tight">{brandName}</p>
                     </div>
                     <div className="hidden lg:block" />
 
@@ -268,7 +277,7 @@ const Login = () => {
                         <span className="material-symbols-outlined text-[15px]">language</span>
                         <select
                             value={language}
-                            onChange={(e) => setLanguage(e.target.value)}
+                            onChange={(e) => setLanguage(e.target.value === 'en' ? 'en' : 'es')}
                             className="text-[11px] font-bold bg-transparent border-none outline-none cursor-pointer hover:text-slate-600 dark:hover:text-slate-300 transition-colors appearance-none"
                         >
                             <option value="es">Español</option>
@@ -538,7 +547,7 @@ const Login = () => {
                             <span className="material-symbols-outlined text-sky-500 text-[11px]">local_hospital</span>
                         </div>
                         <span className="text-[11px] font-semibold text-slate-400 dark:text-white/20">
-                            ClinData
+                            {brandName}
                         </span>
                     </div>
                     <span className="text-[10px] font-bold text-slate-300 dark:text-white/15 border border-slate-200 dark:border-white/10 px-2 py-0.5 rounded-md">

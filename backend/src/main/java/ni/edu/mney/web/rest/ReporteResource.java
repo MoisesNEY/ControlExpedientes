@@ -191,4 +191,31 @@ public class ReporteResource {
         headers.setContentDispositionFormData("attachment", export.filename());
         return ResponseEntity.ok().headers(headers).body(export.content());
     }
+
+    @GetMapping(value = "/sistema/movimientos", produces = MediaType.APPLICATION_PDF_VALUE)
+    @PreAuthorize("hasAuthority('" + AuthoritiesConstants.ADMIN + "')")
+    public ResponseEntity<byte[]> obtenerMovimientosSistemaPdf(
+        @RequestParam("fechaInicio") LocalDate fechaInicio,
+        @RequestParam("fechaFin") LocalDate fechaFin
+    ) {
+        byte[] pdfBytes = reporteClinicoExportService.generarMovimientosSistemaPdf(fechaInicio, fechaFin);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentDispositionFormData("inline", "movimientos-sistema-" + fechaInicio + "-" + fechaFin + ".pdf");
+        return ResponseEntity.ok().headers(headers).body(pdfBytes);
+    }
+
+    @GetMapping("/sistema/movimientos/excel")
+    @PreAuthorize("hasAuthority('" + AuthoritiesConstants.ADMIN + "')")
+    public ResponseEntity<byte[]> obtenerMovimientosSistemaExcel(
+        @RequestParam("fechaInicio") LocalDate fechaInicio,
+        @RequestParam("fechaFin") LocalDate fechaFin
+    ) {
+        AdminSecurityExportService.ExportedSpreadsheet export =
+            reporteClinicoExportService.generarMovimientosSistemaExcel(fechaInicio, fechaFin);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.parseMediaType(export.contentType()));
+        headers.setContentDispositionFormData("attachment", export.filename());
+        return ResponseEntity.ok().headers(headers).body(export.content());
+    }
 }

@@ -47,6 +47,9 @@ public interface CitaMedicaRepository extends JpaRepository<CitaMedica, Long>, J
     @Query("select c from CitaMedica c left join fetch c.paciente p left join fetch p.expediente where c.id = :id")
     Optional<CitaMedica> findWithPacienteAndExpedienteById(@Param("id") Long id);
 
+    @Query("select c from CitaMedica c left join fetch c.user left join fetch c.paciente where c.id = :id")
+    Optional<CitaMedica> findWithNotificationDetailsById(@Param("id") Long id);
+
     List<CitaMedica> findAllByFechaHoraBetween(ZonedDateTime start, ZonedDateTime end);
 
     List<CitaMedica> findAllByFechaHoraBetweenAndUserLogin(ZonedDateTime start, ZonedDateTime end, String login);

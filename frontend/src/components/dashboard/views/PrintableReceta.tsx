@@ -1,4 +1,5 @@
 import type { Appointment } from '../../../services/appointment.service';
+import { useSystemSettings } from '../../../context/SystemSettingsContext';
 import { buildFullName } from '../../../utils/personName';
 
 interface Prescription {
@@ -34,6 +35,9 @@ const PrintableReceta = ({
     notasMedicas,
     doctorName,
 }: PrintableRecetaProps) => {
+    const { effectivePreferences } = useSystemSettings();
+    const brandName = effectivePreferences.brandName;
+    const primaryColor = effectivePreferences.primaryColor;
     const today = new Date().toLocaleDateString('es-NI', {
         year: 'numeric',
         month: 'long',
@@ -62,7 +66,7 @@ const PrintableReceta = ({
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'flex-start',
-                    borderBottom: '3px solid #0a6e75',
+                    borderBottom: `3px solid ${primaryColor}`,
                     paddingBottom: '14px',
                     marginBottom: '18px',
                 }}>
@@ -71,7 +75,7 @@ const PrintableReceta = ({
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <div style={{
                                 width: '46px', height: '46px',
-                                background: 'linear-gradient(135deg, #0a6e75, #0ea5b8)',
+                                background: `linear-gradient(135deg, ${primaryColor}, color-mix(in srgb, ${primaryColor} 68%, white))`,
                                 borderRadius: '10px',
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                                 color: '#fff', fontWeight: 900, fontSize: '18px', flexShrink: 0,
@@ -79,8 +83,8 @@ const PrintableReceta = ({
                                 ✚
                             </div>
                             <div>
-                                <div style={{ fontSize: '20px', fontWeight: 900, color: '#0a6e75', lineHeight: 1 }}>
-                                    ClinData
+                                <div style={{ fontSize: '20px', fontWeight: 900, color: primaryColor, lineHeight: 1 }}>
+                                    {brandName}
                                 </div>
                                 <div style={{ fontSize: '11px', color: '#666', marginTop: '2px' }}>
                                     Atención Médica Integral y de Calidad
@@ -91,7 +95,7 @@ const PrintableReceta = ({
                     <div style={{ textAlign: 'right' }}>
                         <div style={{
                             fontSize: '13px', fontWeight: 700,
-                            color: '#0a6e75', textTransform: 'uppercase', letterSpacing: '1px',
+                            color: primaryColor, textTransform: 'uppercase', letterSpacing: '1px',
                         }}>
                             Receta Médica
                         </div>
@@ -247,7 +251,7 @@ const PrintableReceta = ({
                 }}>
                     <div style={{ fontSize: '10px', color: '#aaa', lineHeight: 1.7 }}>
                         <div>Este documento es válido únicamente con firma y sello del médico.</div>
-                        <div>Generado por ClinData</div>
+                        <div>Generado por {brandName}</div>
                     </div>
                     <div style={{ textAlign: 'center', minWidth: '160px' }}>
                         <div style={{

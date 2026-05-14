@@ -15,6 +15,16 @@ export interface User {
   lastName?: string;
 }
 
+export interface AccountSnapshot {
+  id?: string;
+  login?: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  authorities?: string[];
+  permissions?: string[];
+}
+
 export interface AuthState {
   isAuthenticated: boolean;
   user: User | null;
@@ -26,6 +36,8 @@ export interface AuthState {
   login: (username: string, password?: string) => Promise<AuthActionResult>;
   completeRequiredActions: (payload: RequiredActionPayload) => Promise<AuthActionResult>;
   logout: () => void;
+  applyAccount: (accountData: AccountSnapshot) => void;
+  refreshAccount: () => Promise<boolean>;
   hasRole: (role: string) => boolean;
   hasAnyRole: (roles: string[]) => boolean;
   hasPermission: (permission: string) => boolean;
@@ -65,6 +77,30 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [permissions, setPermissions] = useState<string[]>([]);
   const [account, setAccount] = useState<{ authorities: string[]; permissions: string[]; firstName?: string; lastName?: string; email?: string } | null>(null);
 
+  const applyAccount = useCallback((acc: AccountSnapshot) => {
+    const nextAuthorities = acc.authorities || [];
+    const nextPermissions = acc.permissions || [];
+
+    setIsAuthenticated(true);
+    setAccount({
+      authorities: nextAuthorities,
+      permissions: nextPermissions,
+      firstName: acc.firstName,
+      lastName: acc.lastName,
+      email: acc.email,
+    });
+    setRoles(nextAuthorities);
+    setPermissions(nextPermissions);
+    setUser({
+      id: acc.id?.toString() || acc.login || '',
+      name: `${acc.firstName || ''} ${acc.lastName || ''}`.trim() || acc.login || 'Usuario',
+      email: acc.email || '',
+      preferred_username: acc.login,
+      firstName: acc.firstName,
+      lastName: acc.lastName,
+    });
+  }, []);
+
   /**
    * Obtiene los datos de la sesión activa desde /api/account (BFF).
    * Si hay sesión válida en el backend (cookie de sesión), retorna el usuario real con sus roles efectivos.
@@ -75,24 +111,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const response = await api.get('/api/account');
       const acc = response.data;
 
-      setIsAuthenticated(true);
-      setAccount({
-        authorities: acc.authorities || [],
-        permissions: acc.permissions || [],
-        firstName: acc.firstName,
-        lastName: acc.lastName,
-        email: acc.email,
-      });
-      setRoles(acc.authorities || []);
-      setPermissions(acc.permissions || []);
-      setUser({
-        id: acc.id?.toString() || acc.login,
-        name: `${acc.firstName || ''} ${acc.lastName || ''}`.trim() || acc.login,
-        email: acc.email || '',
-        preferred_username: acc.login,
-        firstName: acc.firstName,
-        lastName: acc.lastName,
-      });
+      applyAccount(acc);
 
       return true;
     } catch {
@@ -104,7 +123,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setAccount(null);
       return false;
     }
-  }, []);
+  }, [applyAccount]);
 
   // Al montar el provider, intentar recuperar la sesión existente
   useEffect(() => {
@@ -224,6 +243,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         login,
         completeRequiredActions,
         logout,
+        applyAccount,
+        refreshAccount: fetchAccount,
         hasRole,
         hasAnyRole,
         hasPermission,

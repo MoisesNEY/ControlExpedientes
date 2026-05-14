@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { AppointmentService, type Appointment } from '../../services/appointment.service';
 import { DatabaseAdminService } from '../../services/database-admin.service';
 import type { Notificacion } from '../../hooks/useWebSocket';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface NavbarProps {
   onToggleSidebar: () => void;
@@ -24,6 +25,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onClearNotifications,
 }) => {
   const { user, roles, logout, hasAnyRole, hasAnyPermission } = useAuth();
+  const { language, setLanguage } = useLanguage();
   const location = useLocation();
   const navigate = useNavigate();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -122,15 +124,16 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   const handleNotificationNavigate = (notification: Notificacion) => {
+    if (notification.rutaAccion) {
+      setNotificationPanelMessage(null);
+      setIsNotificationsOpen(false);
+      navigate(notification.rutaAccion);
+      return;
+    }
+
     if (!notification.citaId) {
       if (notification.archivoDescarga && hasAnyPermission(['admin.database.export'])) {
         void DatabaseAdminService.downloadStoredBackup(notification.archivoDescarga);
-      }
-      if (notification.rutaAccion) {
-        setNotificationPanelMessage(null);
-        setIsNotificationsOpen(false);
-        navigate(notification.rutaAccion);
-        return;
       }
       setNotificationPanelMessage('Esta notificación no tiene un destino asociado.');
       return;
@@ -190,6 +193,18 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       {/* Lado Derecho: Acciones y Perfil */}
       <div className="flex items-center gap-3 lg:gap-5 relative">
+        <label className="hidden sm:flex items-center gap-1.5 text-slate-400 dark:text-slate-500">
+          <span className="material-symbols-outlined text-[18px]">language</span>
+          <select
+            value={language}
+            onChange={event => setLanguage(event.target.value === 'en' ? 'en' : 'es')}
+            className="rounded-md border border-transparent bg-transparent px-1 py-1 text-[11px] font-bold outline-none transition-colors hover:text-slate-700 focus:border-sky-200 dark:hover:text-slate-200 dark:focus:border-sky-500/30"
+            aria-label="Idioma"
+          >
+            <option value="es">Español</option>
+            <option value="en">English</option>
+          </select>
+        </label>
         
         <div className="relative hidden sm:block" ref={notificationsRef}>
           <button
@@ -320,14 +335,14 @@ export const Navbar: React.FC<NavbarProps> = ({
               <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">{user?.email}</p>
             </div>
             <div className="py-2">
-              <a href="#perfil" className="group flex items-center px-5 py-2.5 text-[13px] font-medium text-slate-600 dark:text-slate-300 hover:bg-sky-50 dark:hover:bg-white/5 hover:text-sky-600 dark:hover:text-white transition-colors">
+              <Link to="/perfil" onClick={() => setIsProfileOpen(false)} className="group flex items-center px-5 py-2.5 text-[13px] font-medium text-slate-600 dark:text-slate-300 hover:bg-sky-50 dark:hover:bg-white/5 hover:text-sky-600 dark:hover:text-white transition-colors">
                 <span className="material-symbols-outlined mr-3 text-[18px] text-slate-400 group-hover:text-sky-500">person</span>
                 Mi Perfil
-              </a>
-              <a href="#ajustes" className="group flex items-center px-5 py-2.5 text-[13px] font-medium text-slate-600 dark:text-slate-300 hover:bg-sky-50 dark:hover:bg-white/5 hover:text-sky-600 dark:hover:text-white transition-colors">
+              </Link>
+              <Link to="/ajustes" onClick={() => setIsProfileOpen(false)} className="group flex items-center px-5 py-2.5 text-[13px] font-medium text-slate-600 dark:text-slate-300 hover:bg-sky-50 dark:hover:bg-white/5 hover:text-sky-600 dark:hover:text-white transition-colors">
                 <span className="material-symbols-outlined mr-3 text-[18px] text-slate-400 group-hover:text-sky-500">settings</span>
                 Ajustes
-              </a>
+              </Link>
             </div>
             <div className="py-2 border-t border-slate-100 dark:border-white/5">
               <button 

@@ -20,6 +20,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -84,6 +85,7 @@ public class SecurityConfiguration {
                         .requestMatchers(mvc.pattern("/api/authenticate/browser")).permitAll()
                         .requestMatchers(mvc.pattern("/api/authenticate/keycloak")).permitAll()
                         .requestMatchers(mvc.pattern("/api/auth-info")).permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/system/settings").permitAll()
                         .requestMatchers(mvc.pattern("/oauth2/**")).permitAll()
                         .requestMatchers(mvc.pattern("/login/oauth2/**")).permitAll()
                         .requestMatchers(mvc.pattern("/ws/**")).permitAll()

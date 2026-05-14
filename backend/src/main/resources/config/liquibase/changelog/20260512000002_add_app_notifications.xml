@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="20260512000002-1" author="codex">
+        <createTable tableName="app_notification">
+            <column name="id" type="bigint">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="user_id" type="varchar(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tipo" type="varchar(60)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="mensaje" type="varchar(500)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="cita_id" type="bigint"/>
+            <column name="paciente_nombre" type="varchar(180)"/>
+            <column name="medico_login" type="varchar(50)"/>
+            <column name="ruta_accion" type="varchar(180)"/>
+            <column name="archivo_descarga" type="varchar(255)"/>
+            <column name="accion_label" type="varchar(80)"/>
+            <column name="timestamp" type="${datetimeType}">
+                <constraints nullable="false"/>
+            </column>
+            <column name="read_at" type="${datetimeType}"/>
+        </createTable>
+
+        <addForeignKeyConstraint
+            baseTableName="app_notification"
+            baseColumnNames="user_id"
+            constraintName="fk_app_notification__user_id"
+            referencedTableName="jhi_user"
+            referencedColumnNames="id"/>
+
+        <createIndex indexName="idx_app_notification__user_time" tableName="app_notification">
+            <column name="user_id"/>
+            <column name="timestamp"/>
+        </createIndex>
+
+        <createIndex indexName="idx_app_notification__read_at" tableName="app_notification">
+            <column name="read_at"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>
