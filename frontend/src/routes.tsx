@@ -22,6 +22,11 @@ import AdminMedicamentosView from './components/admin/views/AdminMedicamentosVie
 import AdminCitasView from './components/admin/views/AdminCitasView';
 import AdminExpedientesView from './components/admin/views/AdminExpedientesView';
 import AdminAuditoriaView from './components/admin/views/AdminAuditoriaView';
+import AdminInteraccionesView from './components/admin/views/AdminInteraccionesView';
+import AdminDatabaseView from './components/admin/views/AdminDatabaseView';
+import AdminUsersView from './components/admin/views/AdminUsersView';
+import AdminRolesView from './components/admin/views/AdminRolesView';
+import DiagnosticoCatalogView from './components/shared/views/DiagnosticoCatalogView';
 
 import NurseDashboard from './pages/NurseDashboard';
 import NurseHomeView from './components/nurse/views/NurseHomeView';
@@ -32,28 +37,35 @@ import ReceptionDashboard from './pages/ReceptionDashboard';
 import ReceptionHomeView from './components/reception/views/ReceptionHomeView';
 import ReceptionAgendaView from './components/reception/views/ReceptionAgendaView';
 import ReceptionExpedientesView from './components/reception/views/ReceptionExpedientesView';
+import ReportsCenterView from './components/reports/views/ReportsCenterView';
+import ProfileSettingsView from './components/account/views/ProfileSettingsView';
 
 import Unauthorized from './pages/Unauthorized';
 import Login from './pages/Login';
+import { resolveAuthorizedHomePath, resolveAuthorizedModulePath } from './utils/authNavigation';
 
 /**
  * Componente dinámico para la ruta raíz ("/").
  * Evalúa los roles desde AuthContext y redirige al dashboard correspondiente.
  */
 const RootRedirect: React.FC = () => {
-  const { isAuthenticated, hasRole, loading } = useAuth();
+  const { isAuthenticated, roles, permissions, loading } = useAuth();
 
   // Evitar redirecciones prematuras hasta que se confirme el estado de autenticación
   if (loading) return null;
 
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
-  if (hasRole('ROLE_ADMIN')) return <Navigate to="/admin/dashboard" replace />;
-  if (hasRole('ROLE_MEDICO')) return <Navigate to="/medico/dashboard" replace />;
-  if (hasRole('ROLE_ENFERMERO')) return <Navigate to="/enfermeria/dashboard" replace />;
-  if (hasRole('ROLE_RECEPCION')) return <Navigate to="/recepcion/dashboard" replace />;
+  return <Navigate to={resolveAuthorizedHomePath(roles, permissions)} replace />;
+};
 
-  return <Navigate to="/unauthorized" replace />;
+const ModuleRedirect: React.FC<{ pathPrefix: string }> = ({ pathPrefix }) => {
+  const { isAuthenticated, roles, permissions, loading } = useAuth();
+
+  if (loading) return null;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+
+  return <Navigate to={resolveAuthorizedModulePath(roles, permissions, pathPrefix)} replace />;
 };
 
 export const routerConfig: RouteObject[] = [
@@ -74,20 +86,54 @@ export const routerConfig: RouteObject[] = [
         element: <Unauthorized />
       },
       {
+        path: 'perfil',
+        element: <ProtectedSlot><ProfileSettingsView initialSection="perfil" /></ProtectedSlot>
+      },
+      {
+        path: 'ajustes',
+        element: <ProtectedSlot><ProfileSettingsView initialSection="ajustes" /></ProtectedSlot>
+      },
+      {
         path: 'admin',
         element: (
-          <ProtectedSlot requiredRoles={['ROLE_ADMIN']}>
+          <ProtectedSlot
+            requiredRoles={['ROLE_ADMIN']}
+            requiredPermissions={[
+              'admin.dashboard.view',
+              'admin.patients.view',
+              'admin.medications.view',
+              'admin.interactions.view',
+              'admin.diagnoses.view',
+              'admin.appointments.view',
+              'admin.records.view',
+              'admin.users.view',
+              'admin.users.manage',
+              'admin.users.export',
+              'admin.roles.view',
+              'admin.roles.manage',
+              'admin.roles.export',
+              'admin.database.view',
+              'admin.database.export',
+              'admin.database.restore',
+              'admin.audit.view',
+            ]}
+          >
             <AdminDashboard />
           </ProtectedSlot>
         ),
         children: [
-          { index: true, element: <Navigate to="dashboard" replace /> },
-          { path: 'dashboard', element: <AdminHomeView /> },
-          { path: 'pacientes', element: <AdminPacientesView /> },
-          { path: 'medicamentos', element: <AdminMedicamentosView /> },
-          { path: 'citas', element: <AdminCitasView /> },
-          { path: 'expedientes', element: <AdminExpedientesView /> },
-          { path: 'auditoria', element: <AdminAuditoriaView /> }
+          { index: true, element: <ModuleRedirect pathPrefix="/admin" /> },
+          { path: 'dashboard', element: <ProtectedSlot requiredRoles={['ROLE_ADMIN']} requiredPermissions={['admin.dashboard.view']}><AdminHomeView /></ProtectedSlot> },
+          { path: 'pacientes', element: <ProtectedSlot requiredRoles={['ROLE_ADMIN']} requiredPermissions={['admin.patients.view']}><AdminPacientesView /></ProtectedSlot> },
+          { path: 'medicamentos', element: <ProtectedSlot requiredRoles={['ROLE_ADMIN']} requiredPermissions={['admin.medications.view']}><AdminMedicamentosView /></ProtectedSlot> },
+          { path: 'interacciones', element: <ProtectedSlot requiredRoles={['ROLE_ADMIN']} requiredPermissions={['admin.interactions.view']}><AdminInteraccionesView /></ProtectedSlot> },
+          { path: 'diagnosticos', element: <ProtectedSlot requiredRoles={['ROLE_ADMIN']} requiredPermissions={['admin.diagnoses.view']}><DiagnosticoCatalogView /></ProtectedSlot> },
+          { path: 'citas', element: <ProtectedSlot requiredRoles={['ROLE_ADMIN']} requiredPermissions={['admin.appointments.view']}><AdminCitasView /></ProtectedSlot> },
+          { path: 'expedientes', element: <ProtectedSlot requiredRoles={['ROLE_ADMIN']} requiredPermissions={['admin.records.view']}><AdminExpedientesView /></ProtectedSlot> },
+          { path: 'usuarios', element: <ProtectedSlot requiredRoles={['ROLE_ADMIN']} requiredPermissions={['admin.users.view', 'admin.users.manage', 'admin.users.export']}><AdminUsersView /></ProtectedSlot> },
+          { path: 'roles', element: <ProtectedSlot requiredRoles={['ROLE_ADMIN']} requiredPermissions={['admin.roles.view', 'admin.roles.manage', 'admin.roles.export']}><AdminRolesView /></ProtectedSlot> },
+          { path: 'base-datos', element: <ProtectedSlot requiredRoles={['ROLE_ADMIN']} requiredPermissions={['admin.database.view', 'admin.database.export', 'admin.database.restore']}><AdminDatabaseView /></ProtectedSlot> },
+          { path: 'auditoria', element: <ProtectedSlot requiredRoles={['ROLE_ADMIN']} requiredPermissions={['admin.audit.view']}><AdminAuditoriaView /></ProtectedSlot> }
         ]
       },
       {
@@ -98,9 +144,10 @@ export const routerConfig: RouteObject[] = [
           </ProtectedSlot>
         ),
         children: [
-          { index: true, element: <Navigate to="dashboard" replace /> },
+          { index: true, element: <ModuleRedirect pathPrefix="/medico" /> },
           { path: 'dashboard', element: <DoctorHomeView /> },
           { path: 'consulta/:citaId', element: <DoctorConsultationView /> },
+          { path: 'diagnosticos', element: <DiagnosticoCatalogView /> },
           { path: 'pacientes', element: <PatientListView /> },
           { path: 'citas', element: <AppointmentView /> },
           { path: 'inventario', element: <InventoryView /> },
@@ -116,7 +163,7 @@ export const routerConfig: RouteObject[] = [
           </ProtectedSlot>
         ),
         children: [
-          { index: true, element: <Navigate to="dashboard" replace /> },
+          { index: true, element: <ModuleRedirect pathPrefix="/enfermeria" /> },
           { path: 'dashboard', element: <NurseHomeView /> },
           { path: 'sala-espera', element: <WaitingRoomView /> },
           { path: 'triage/:citaId', element: <TriageView /> },
@@ -131,12 +178,20 @@ export const routerConfig: RouteObject[] = [
           </ProtectedSlot>
         ),
         children: [
-          { index: true, element: <Navigate to="dashboard" replace /> },
+          { index: true, element: <ModuleRedirect pathPrefix="/recepcion" /> },
           { path: 'dashboard', element: <ReceptionHomeView /> },
           { path: 'pacientes', element: <AdminPacientesView /> },
           { path: 'expedientes', element: <ReceptionExpedientesView /> },
           { path: 'citas', element: <ReceptionAgendaView /> }
         ]
+      },
+      {
+        path: 'reportes',
+        element: (
+          <ProtectedSlot requiredRoles={['ROLE_ADMIN', 'ROLE_MEDICO']}>
+            <ReportsCenterView />
+          </ProtectedSlot>
+        ),
       },
       {
         path: '*',

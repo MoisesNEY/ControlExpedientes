@@ -73,6 +73,12 @@ public class DiagnosticoResource {
         if (diagnosticoDTO.getId() != null) {
             throw new BadRequestAlertException("A new diagnostico cannot already have an ID", ENTITY_NAME, "idexists");
         }
+
+        Optional<DiagnosticoDTO> existingDiagnostico = diagnosticoService.findReusableCatalogMatch(diagnosticoDTO);
+        if (existingDiagnostico.isPresent()) {
+            return ResponseEntity.ok(existingDiagnostico.get());
+        }
+
         diagnosticoDTO = diagnosticoService.save(diagnosticoDTO);
         return ResponseEntity.created(new URI("/api/diagnosticos/" + diagnosticoDTO.getId()))
             .headers(HeaderUtil.createEntityCreationAlert(applicationName, true, ENTITY_NAME, diagnosticoDTO.getId().toString()))
@@ -90,7 +96,7 @@ public class DiagnosticoResource {
      * @throws URISyntaxException if the Location URI syntax is incorrect.
      */
     @PutMapping("/{id}")
-    @PreAuthorize("hasAuthority('" + AuthoritiesConstants.ADMIN + "')")
+    @PreAuthorize("hasAnyAuthority('" + AuthoritiesConstants.ADMIN + "', '" + AuthoritiesConstants.MEDICO + "')")
     public ResponseEntity<DiagnosticoDTO> updateDiagnostico(
         @PathVariable(value = "id", required = false) final Long id,
         @Valid @RequestBody DiagnosticoDTO diagnosticoDTO
@@ -125,7 +131,7 @@ public class DiagnosticoResource {
      * @throws URISyntaxException if the Location URI syntax is incorrect.
      */
     @PatchMapping(value = "/{id}", consumes = { "application/json", "application/merge-patch+json" })
-    @PreAuthorize("hasAuthority('" + AuthoritiesConstants.ADMIN + "')")
+    @PreAuthorize("hasAnyAuthority('" + AuthoritiesConstants.ADMIN + "', '" + AuthoritiesConstants.MEDICO + "')")
     public ResponseEntity<DiagnosticoDTO> partialUpdateDiagnostico(
         @PathVariable(value = "id", required = false) final Long id,
         @NotNull @RequestBody DiagnosticoDTO diagnosticoDTO

@@ -3,9 +3,11 @@ import type { ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { UnauthorizedView } from '../layout/UnauthorizedView';
+import { canAccessRequirement } from '../../utils/accessControl';
 
 interface ProtectedSlotProps {
   requiredRoles?: string[];
+  requiredPermissions?: string[];
   children: ReactNode;
 }
 
@@ -13,8 +15,8 @@ interface ProtectedSlotProps {
  * Componente Wrapper para garantizar la seguridad a nivel de Frontend.
  * Valida de forma estructurada que el usuario esté autenticado y posea los roles.
  */
-export const ProtectedSlot: React.FC<ProtectedSlotProps> = ({ requiredRoles = [], children }) => {
-  const { isAuthenticated, hasAnyRole, loading } = useAuth();
+export const ProtectedSlot: React.FC<ProtectedSlotProps> = ({ requiredRoles = [], requiredPermissions = [], children }) => {
+  const { isAuthenticated, roles, permissions, loading } = useAuth();
 
   // Mientras se comprueba la sesión (fetch inicial), no renderizamos nada
   if (loading) return null;
@@ -25,7 +27,9 @@ export const ProtectedSlot: React.FC<ProtectedSlotProps> = ({ requiredRoles = []
   }
 
   // Si está autenticado pero no tiene los roles necesarios, mostramos la vista de acceso denegado
-  if (requiredRoles.length > 0 && !hasAnyRole(requiredRoles)) {
+  const hasRestrictions = requiredRoles.length > 0 || requiredPermissions.length > 0;
+
+  if (hasRestrictions && !canAccessRequirement(roles, permissions, { requiredRoles, requiredPermissions })) {
     return <UnauthorizedView />;
   }
 

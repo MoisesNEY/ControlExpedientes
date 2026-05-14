@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="20260421000001-1" author="copilot" context="faker">
+        <sql dbms="postgresql">
+            DO $$
+            DECLARE
+                med_a_id bigint;
+                med_b_id bigint;
+            BEGIN
+                SELECT id INTO med_a_id
+                FROM medicamento
+                WHERE LOWER(nombre) LIKE LOWER('Amoxicilina%')
+                ORDER BY id
+                LIMIT 1;
+
+                SELECT id INTO med_b_id
+                FROM medicamento
+                WHERE LOWER(nombre) LIKE LOWER('Methotrexato%')
+                   OR LOWER(nombre) LIKE LOWER('Methotrexate%')
+                ORDER BY id
+                LIMIT 1;
+
+                IF med_a_id IS NOT NULL AND med_b_id IS NOT NULL
+                   AND NOT EXISTS (
+                        SELECT 1
+                        FROM interaccion_medicamentosa
+                        WHERE (medicamento_a_id = med_a_id AND medicamento_b_id = med_b_id)
+                           OR (medicamento_a_id = med_b_id AND medicamento_b_id = med_a_id)
+                   ) THEN
+                    INSERT INTO interaccion_medicamentosa (id, medicamento_a_id, medicamento_b_id, severidad, descripcion, recomendacion)
+                    VALUES (
+                        nextval('sequence_generator'),
+                        med_a_id,
+                        med_b_id,
+                        'GRAVE',
+                        'La amoxicilina puede disminuir la eliminación renal del methotrexato, aumentando sus niveles plasmáticos y el riesgo de toxicidad.',
+                        'Vigilar niveles, toxicidad hematológica y considerar alternativa antibiótica o ajuste del tratamiento.'
+                    );
+                END IF;
+
+                SELECT id INTO med_a_id
+                FROM medicamento
+                WHERE LOWER(nombre) LIKE LOWER('Ibuprofeno%')
+                ORDER BY id
+                LIMIT 1;
+
+                SELECT id INTO med_b_id
+                FROM medicamento
+                WHERE LOWER(nombre) LIKE LOWER('Aspirina%')
+                ORDER BY id
+                LIMIT 1;
+
+                IF med_a_id IS NOT NULL AND med_b_id IS NOT NULL
+                   AND NOT EXISTS (
+                        SELECT 1
+                        FROM interaccion_medicamentosa
+                        WHERE (medicamento_a_id = med_a_id AND medicamento_b_id = med_b_id)
+                           OR (medicamento_a_id = med_b_id AND medicamento_b_id = med_a_id)
+                   ) THEN
+                    INSERT INTO interaccion_medicamentosa (id, medicamento_a_id, medicamento_b_id, severidad, descripcion, recomendacion)
+                    VALUES (
+                        nextval('sequence_generator'),
+                        med_a_id,
+                        med_b_id,
+                        'MODERADA',
+                        'El uso concomitante de ibuprofeno y aspirina puede reducir el efecto antiagregante plaquetario de la aspirina y aumentar el riesgo de eventos cardiovasculares.',
+                        'Administrar la aspirina al menos 30 minutos antes del ibuprofeno o considerar un analgésico alternativo.'
+                    );
+                END IF;
+
+                SELECT id INTO med_a_id
+                FROM medicamento
+                WHERE LOWER(nombre) LIKE LOWER('Warfarina%')
+                ORDER BY id
+                LIMIT 1;
+
+                SELECT id INTO med_b_id
+                FROM medicamento
+                WHERE LOWER(nombre) LIKE LOWER('Aspirina%')
+                ORDER BY id
+                LIMIT 1;
+
+                IF med_a_id IS NOT NULL AND med_b_id IS NOT NULL
+                   AND NOT EXISTS (
+                        SELECT 1
+                        FROM interaccion_medicamentosa
+                        WHERE (medicamento_a_id = med_a_id AND medicamento_b_id = med_b_id)
+                           OR (medicamento_a_id = med_b_id AND medicamento_b_id = med_a_id)
+                   ) THEN
+                    INSERT INTO interaccion_medicamentosa (id, medicamento_a_id, medicamento_b_id, severidad, descripcion, recomendacion)
+                    VALUES (
+                        nextval('sequence_generator'),
+                        med_a_id,
+                        med_b_id,
+                        'GRAVE',
+                        'La combinación de warfarina con aspirina aumenta significativamente el riesgo de hemorragia gastrointestinal y sangrado en general.',
+                        'Evitar la combinación salvo indicación estricta y monitorizar INR y signos de sangrado.'
+                    );
+                END IF;
+
+                SELECT id INTO med_a_id
+                FROM medicamento
+                WHERE LOWER(nombre) LIKE LOWER('Fluconazol%')
+                ORDER BY id
+                LIMIT 1;
+
+                SELECT id INTO med_b_id
+                FROM medicamento
+                WHERE LOWER(nombre) LIKE LOWER('Warfarina%')
+                ORDER BY id
+                LIMIT 1;
+
+                IF med_a_id IS NOT NULL AND med_b_id IS NOT NULL
+                   AND NOT EXISTS (
+                        SELECT 1
+                        FROM interaccion_medicamentosa
+                        WHERE (medicamento_a_id = med_a_id AND medicamento_b_id = med_b_id)
+                           OR (medicamento_a_id = med_b_id AND medicamento_b_id = med_a_id)
+                   ) THEN
+                    INSERT INTO interaccion_medicamentosa (id, medicamento_a_id, medicamento_b_id, severidad, descripcion, recomendacion)
+                    VALUES (
+                        nextval('sequence_generator'),
+                        med_a_id,
+                        med_b_id,
+                        'GRAVE',
+                        'El fluconazol inhibe el metabolismo de la warfarina, aumentando el efecto anticoagulante y el riesgo de hemorragia.',
+                        'Ajustar anticoagulación, monitorizar INR con mayor frecuencia y valorar alternativas.'
+                    );
+                END IF;
+            END $$;
+        </sql>
+    </changeSet>
+</databaseChangeLog>

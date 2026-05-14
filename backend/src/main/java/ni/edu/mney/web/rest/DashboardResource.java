@@ -1,5 +1,6 @@
 package ni.edu.mney.web.rest;
 
+import ni.edu.mney.security.AppPermissionCatalog;
 import ni.edu.mney.security.AuthoritiesConstants;
 import ni.edu.mney.service.DashboardService;
 import ni.edu.mney.service.dto.DashboardMetricsDTO;
@@ -20,7 +21,13 @@ public class DashboardResource {
     }
 
     @GetMapping("/admin")
-    @PreAuthorize("hasAuthority('" + AuthoritiesConstants.ADMIN + "')")
+    @PreAuthorize(
+        "hasAuthority('" +
+        AuthoritiesConstants.ADMIN +
+        "') or @permissionSecurityService.hasPermission('" +
+        AppPermissionCatalog.ADMIN_DASHBOARD_VIEW +
+        "')"
+    )
     public ResponseEntity<DashboardMetricsDTO> getAdminDashboard() {
         return ResponseEntity.ok(dashboardService.getAdminMetrics());
     }

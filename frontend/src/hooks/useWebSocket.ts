@@ -1,35 +1,67 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Client } from '@stomp/stompjs';
 import type { IMessage } from '@stomp/stompjs';
+import { NotificacionService } from '../services/notificacion.service';
 
 export interface Notificacion {
+    id?: number;
     tipo: string;
     mensaje: string;
-    citaId: number;
+    citaId?: number;
     pacienteNombre: string;
     medicoLogin?: string;
+    rutaAccion?: string;
+    archivoDescarga?: string;
+    accionLabel?: string;
     timestamp: string;
+    leida?: boolean;
 }
 
 /**
  * Hook personalizado para conectar al WebSocket STOMP del backend.
  * Usa WebSocket nativo (sin SockJS) para compatibilidad con Vite/ESM.
  *
- * @param topico  El tópico STOMP al que suscribirse (ej: '/topic/espera')
+ * @param topicos El o los tópicos STOMP a los que suscribirse
  * @param enabled Si está habilitado o no
  */
-export function useWebSocket(topico: string, enabled = true) {
+export function useWebSocket(topicos: string[], enabled = true) {
     const clientRef = useRef<Client | null>(null);
     const [notificaciones, setNotificaciones] = useState<Notificacion[]>([]);
     const [connected, setConnected] = useState(false);
 
     const clearNotificacion = useCallback((index: number) => {
-        setNotificaciones(prev => prev.filter((_, i) => i !== index));
+        setNotificaciones(prev => {
+            const target = prev[index];
+            if (target?.id) {
+                void NotificacionService.markRead(target.id);
+            }
+            return prev.filter((_, i) => i !== index);
+        });
     }, []);
 
     const clearAll = useCallback(() => {
+        void NotificacionService.markAllRead();
         setNotificaciones([]);
     }, []);
+
+    useEffect(() => {
+        if (!enabled) return;
+        let cancelled = false;
+        NotificacionService.getMine()
+            .then((items) => {
+                if (!cancelled) {
+                    setNotificaciones(items);
+                }
+            })
+            .catch(() => {
+                if (!cancelled) {
+                    setNotificaciones([]);
+                }
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [enabled]);
 
     useEffect(() => {
         if (!enabled) return;
@@ -50,15 +82,20 @@ export function useWebSocket(topico: string, enabled = true) {
             },
             onConnect: () => {
                 setConnected(true);
-                console.log('[WS] Conectado a', topico);
-
-                client.subscribe(topico, (message: IMessage) => {
-                    try {
-                        const body: Notificacion = JSON.parse(message.body);
-                        setNotificaciones(prev => [body, ...prev]);
-                    } catch (e) {
-                        console.error('[WS] Error parsing message:', e);
-                    }
+                topicos.forEach((topico) => {
+                    client.subscribe(topico, (message: IMessage) => {
+                        try {
+                            const body: Notificacion = JSON.parse(message.body);
+                            setNotificaciones(prev => {
+                                if (body.id && prev.some(notification => notification.id === body.id)) {
+                                    return prev;
+                                }
+                                return [body, ...prev].slice(0, 50);
+                            });
+                        } catch (e) {
+                            console.error('[WS] Error parsing message:', e);
+                        }
+                    });
                 });
             },
             onDisconnect: () => {
@@ -78,7 +115,7 @@ export function useWebSocket(topico: string, enabled = true) {
                 clientRef.current.deactivate();
             }
         };
-    }, [topico, enabled]);
+    }, [enabled, topicos]);
 
     return { notificaciones, connected, clearNotificacion, clearAll };
 }

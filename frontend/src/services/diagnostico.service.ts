@@ -2,27 +2,60 @@ import api from './api';
 
 export interface Diagnostico {
     id: number;
-    codigoCie10: string;
+    codigoCIE: string;
     descripcion: string;
+    consultaId?: number;
 }
+
+interface DiagnosticoApiResponse {
+    id?: number;
+    codigoCIE?: string | null;
+    codigoCie10?: string | null;
+    descripcion?: string | null;
+    consulta?: { id?: number | null } | null;
+}
+
+const mapDiagnostico = (item: DiagnosticoApiResponse): Diagnostico => ({
+    id: item.id ?? 0,
+    codigoCIE: item.codigoCIE ?? item.codigoCie10 ?? '',
+    descripcion: item.descripcion ?? '',
+    consultaId: item.consulta?.id ?? undefined,
+});
 
 export const DiagnosticoService = {
     search: async (query: string): Promise<Diagnostico[]> => {
         if (!query || query.length < 2) return [];
-        // Spring Boot JHipster generates filtering endpoints using criteria
-        // We will search by 'descripcion.contains' or 'codigoCie10.contains'
-        // For simplicity we will fetch 'descripcion.contains' first.
-        const response = await api.get('/api/diagnosticos', {
+        const response = await api.get('/api/diagnosticos/search', {
             params: {
-                'descripcion.contains': query,
-                'size': 10 // Limit results
+                query,
+                size: 10,
+                sort: 'descripcion,asc',
             }
         });
-        return response.data;
+        return (response.data as DiagnosticoApiResponse[]).map(mapDiagnostico);
     },
 
-    create: async (codigoCie10: string, descripcion: string): Promise<Diagnostico> => {
-        const response = await api.post('/api/diagnosticos', { codigoCie10, descripcion });
-        return response.data;
-    }
+    getAll: async (params?: Record<string, string | number | boolean>): Promise<Diagnostico[]> => {
+        const response = await api.get('/api/diagnosticos', {
+            params: {
+                sort: 'descripcion,asc',
+                ...params,
+            },
+        });
+        return (response.data as DiagnosticoApiResponse[]).map(mapDiagnostico);
+    },
+
+    create: async (codigoCIE: string, descripcion: string): Promise<Diagnostico> => {
+        const response = await api.post('/api/diagnosticos', { codigoCIE, descripcion });
+        return mapDiagnostico(response.data as DiagnosticoApiResponse);
+    },
+
+    update: async (id: number, diagnostico: Omit<Diagnostico, 'id'>): Promise<Diagnostico> => {
+        const response = await api.put(`/api/diagnosticos/${id}`, { id, ...diagnostico });
+        return mapDiagnostico(response.data as DiagnosticoApiResponse);
+    },
+
+    delete: async (id: number): Promise<void> => {
+        await api.delete(`/api/diagnosticos/${id}`);
+    },
 };

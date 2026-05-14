@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
+import type { AxiosError } from 'axios';
 import api from '../services/api';
 
 export interface User {
@@ -14,17 +15,56 @@ export interface User {
   lastName?: string;
 }
 
+export interface AccountSnapshot {
+  id?: string;
+  login?: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  authorities?: string[];
+  permissions?: string[];
+}
+
 export interface AuthState {
   isAuthenticated: boolean;
   user: User | null;
   roles: string[];
-  account: { authorities: string[]; firstName?: string; lastName?: string; email?: string } | null;
+  permissions: string[];
+  account: { authorities: string[]; permissions: string[]; firstName?: string; lastName?: string; email?: string } | null;
   loading: boolean;
 
-  login: (username: string, password?: string) => Promise<{success: boolean, error?: string}>;
+  login: (username: string, password?: string) => Promise<AuthActionResult>;
+  completeRequiredActions: (payload: RequiredActionPayload) => Promise<AuthActionResult>;
   logout: () => void;
+  applyAccount: (accountData: AccountSnapshot) => void;
+  refreshAccount: () => Promise<boolean>;
   hasRole: (role: string) => boolean;
   hasAnyRole: (roles: string[]) => boolean;
+  hasPermission: (permission: string) => boolean;
+  hasAnyPermission: (permissions: string[]) => boolean;
+}
+
+export interface PendingAuthProfile {
+  login: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+}
+
+export interface RequiredActionPayload {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  currentPassword?: string;
+  newPassword?: string;
+}
+
+export interface AuthActionResult {
+  success: boolean;
+  error?: string;
+  requiresActionCompletion?: boolean;
+  requiredActions?: string[];
+  profile?: PendingAuthProfile;
 }
 
 const AuthContext = createContext<AuthState | undefined>(undefined);
@@ -34,11 +74,36 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [loading, setLoading] = useState(true); // Empieza cargando para verificar sesión
   const [user, setUser] = useState<User | null>(null);
   const [roles, setRoles] = useState<string[]>([]);
-  const [account, setAccount] = useState<{ authorities: string[]; firstName?: string; lastName?: string; email?: string } | null>(null);
+  const [permissions, setPermissions] = useState<string[]>([]);
+  const [account, setAccount] = useState<{ authorities: string[]; permissions: string[]; firstName?: string; lastName?: string; email?: string } | null>(null);
+
+  const applyAccount = useCallback((acc: AccountSnapshot) => {
+    const nextAuthorities = acc.authorities || [];
+    const nextPermissions = acc.permissions || [];
+
+    setIsAuthenticated(true);
+    setAccount({
+      authorities: nextAuthorities,
+      permissions: nextPermissions,
+      firstName: acc.firstName,
+      lastName: acc.lastName,
+      email: acc.email,
+    });
+    setRoles(nextAuthorities);
+    setPermissions(nextPermissions);
+    setUser({
+      id: acc.id?.toString() || acc.login || '',
+      name: `${acc.firstName || ''} ${acc.lastName || ''}`.trim() || acc.login || 'Usuario',
+      email: acc.email || '',
+      preferred_username: acc.login,
+      firstName: acc.firstName,
+      lastName: acc.lastName,
+    });
+  }, []);
 
   /**
    * Obtiene los datos de la sesión activa desde /api/account (BFF).
-   * Si hay sesión válida en el backend (cookie de sesión), retorna el usuario real con sus roles de Keycloak.
+   * Si hay sesión válida en el backend (cookie de sesión), retorna el usuario real con sus roles efectivos.
    * Si no hay sesión, lanza error 401.
    */
   const fetchAccount = useCallback(async () => {
@@ -46,22 +111,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const response = await api.get('/api/account');
       const acc = response.data;
 
-      setIsAuthenticated(true);
-      setAccount({
-        authorities: acc.authorities || [],
-        firstName: acc.firstName,
-        lastName: acc.lastName,
-        email: acc.email,
-      });
-      setRoles(acc.authorities || []);
-      setUser({
-        id: acc.id?.toString() || acc.login,
-        name: `${acc.firstName || ''} ${acc.lastName || ''}`.trim() || acc.login,
-        email: acc.email || '',
-        preferred_username: acc.login,
-        firstName: acc.firstName,
-        lastName: acc.lastName,
-      });
+      applyAccount(acc);
 
       return true;
     } catch {
@@ -69,10 +119,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setIsAuthenticated(false);
       setUser(null);
       setRoles([]);
+      setPermissions([]);
       setAccount(null);
       return false;
     }
-  }, []);
+  }, [applyAccount]);
 
   // Al montar el provider, intentar recuperar la sesión existente
   useEffect(() => {
@@ -84,7 +135,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     init();
   }, [fetchAccount]);
 
-  const login = async (username: string, password?: string) => {
+  const login = async (username: string, password?: string): Promise<AuthActionResult> => {
     setLoading(true);
     try {
       // El login real va por /api/authenticate (BFF) que crea la sesión
@@ -98,9 +149,49 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return { success: true };
       }
       return { success: false, error: 'No se pudo cargar la cuenta después del login' };
-    } catch (err: any) {
+    } catch (err) {
+      const axiosError = err as AxiosError<{
+        detail?: string;
+        requiresActionCompletion?: boolean;
+        requiredActions?: string[];
+        profile?: PendingAuthProfile;
+      }>;
       setLoading(false);
-      return { success: false, error: err?.response?.data?.detail || 'Error al iniciar sesión' };
+      return {
+        success: false,
+        error: axiosError.response?.data?.detail || 'Error al iniciar sesión',
+        requiresActionCompletion: Boolean(axiosError.response?.data?.requiresActionCompletion),
+        requiredActions: axiosError.response?.data?.requiredActions,
+        profile: axiosError.response?.data?.profile,
+      };
+    }
+  };
+
+  const completeRequiredActions = async (payload: RequiredActionPayload): Promise<AuthActionResult> => {
+    setLoading(true);
+    try {
+      await api.post('/api/authenticate/required-actions', payload);
+      const success = await fetchAccount();
+      setLoading(false);
+      if (success) {
+        return { success: true };
+      }
+      return { success: false, error: 'No se pudo cargar la cuenta después de completar las acciones obligatorias.' };
+    } catch (err) {
+      const axiosError = err as AxiosError<{
+        detail?: string;
+        requiresActionCompletion?: boolean;
+        requiredActions?: string[];
+        profile?: PendingAuthProfile;
+      }>;
+      setLoading(false);
+      return {
+        success: false,
+        error: axiosError.response?.data?.detail || 'No se pudieron completar las acciones obligatorias.',
+        requiresActionCompletion: Boolean(axiosError.response?.data?.requiresActionCompletion),
+        requiredActions: axiosError.response?.data?.requiredActions,
+        profile: axiosError.response?.data?.profile,
+      };
     }
   };
 
@@ -110,10 +201,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } catch {
       // Ignorar — limpiar estado local de todas formas
     }
-    try { localStorage.removeItem('activeConsultation'); } catch (e) { }
+    try {
+      localStorage.removeItem('activeConsultation');
+    } catch {
+      void 0;
+    }
     setIsAuthenticated(false);
     setUser(null);
     setRoles([]);
+    setPermissions([]);
     setAccount(null);
   };
 
@@ -126,8 +222,35 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return requiredRoles.some((role) => roles.includes(role));
   };
 
+  const hasPermission = (permission: string) => {
+    return permissions.includes(permission);
+  };
+
+  const hasAnyPermission = (requiredPermissions: string[]) => {
+    if (requiredPermissions.length === 0) return true;
+    return requiredPermissions.some((permission) => permissions.includes(permission));
+  };
+
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, roles, account, loading, login, logout, hasRole, hasAnyRole }}>
+      <AuthContext.Provider
+      value={{
+        isAuthenticated,
+        user,
+        roles,
+        permissions,
+        account,
+        loading,
+        login,
+        completeRequiredActions,
+        logout,
+        applyAccount,
+        refreshAccount: fetchAccount,
+        hasRole,
+        hasAnyRole,
+        hasPermission,
+        hasAnyPermission,
+      }}
+      >
       {children}
     </AuthContext.Provider>
   );

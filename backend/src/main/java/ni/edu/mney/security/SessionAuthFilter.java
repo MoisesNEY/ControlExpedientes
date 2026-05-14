@@ -49,6 +49,7 @@ public class SessionAuthFilter extends OncePerRequestFilter {
     private static final String SESSION_ATTR_TOKEN_EXPIRY = "KC_TOKEN_EXPIRY";
 
     private final JwtDecoder jwtDecoder;
+    private final PermissionAuthorityService permissionAuthorityService;
 
     @Value("${spring.security.oauth2.client.provider.oidc.issuer-uri}")
     private String issuerUri;
@@ -61,8 +62,9 @@ public class SessionAuthFilter extends OncePerRequestFilter {
 
     private final RestTemplate restTemplate = new RestTemplate();
 
-    public SessionAuthFilter(@Lazy JwtDecoder jwtDecoder) {
+    public SessionAuthFilter(@Lazy JwtDecoder jwtDecoder, PermissionAuthorityService permissionAuthorityService) {
         this.jwtDecoder = jwtDecoder;
+        this.permissionAuthorityService = permissionAuthorityService;
     }
 
     @Override
@@ -182,21 +184,8 @@ public class SessionAuthFilter extends OncePerRequestFilter {
      * Extract authorities/roles from the Keycloak JWT claims.
      */
     private Collection<GrantedAuthority> extractAuthorities(Jwt jwt) {
-        List<GrantedAuthority> authorities = new ArrayList<>();
-
-        Map<String, Object> realmAccess = jwt.getClaim("realm_access");
-        if (realmAccess != null) {
-            @SuppressWarnings("unchecked")
-            List<String> roles = (List<String>) realmAccess.get("roles");
-            if (roles != null) {
-                roles.stream()
-                        .filter(role -> role.startsWith("ROLE_"))
-                        .map(SimpleGrantedAuthority::new)
-                        .forEach(authorities::add);
-            }
-        }
-
-        return authorities;
+        List<String> roles = new ArrayList<>(SecurityUtils.extractRoleNamesFromClaims(jwt.getClaims()));
+        return new ArrayList<>(permissionAuthorityService.buildAuthorities(roles));
     }
 
     @Override

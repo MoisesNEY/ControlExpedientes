@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { CitaService, type CitaMedicaDTO } from '../../../services/cita.service';
 import { PacienteService, type PacienteDTO } from '../../../services/paciente.service';
 import { UserService, type PublicUser } from '../../../services/userService';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
+import SearchableSelect, { type SearchableSelectOption } from '../../ui/SearchableSelect';
 
 const emptyCita: CitaMedicaDTO = {
     fechaHora: '',
@@ -76,6 +77,56 @@ const ReceptionAgendaView = () => {
     const [editing, setEditing] = useState<CitaMedicaDTO | null>(null);
     const [form, setForm] = useState<CitaMedicaDTO>(emptyCita);
     const [saving, setSaving] = useState(false);
+
+    const pacienteOptions = useMemo<SearchableSelectOption[]>(() => {
+        const options = new Map<string, SearchableSelectOption>();
+
+        if (form.paciente?.id) {
+            const label = form.paciente.nombres
+                ? `${form.paciente.nombres} ${form.paciente.apellidos || ''}`.trim()
+                : `Paciente #${form.paciente.id}`;
+            options.set(String(form.paciente.id), {
+                value: String(form.paciente.id),
+                label,
+                description: form.paciente.id ? `ID ${form.paciente.id}` : undefined,
+            });
+        }
+
+        pacientes.forEach(paciente => {
+            if (!paciente.id) return;
+            options.set(String(paciente.id), {
+                value: String(paciente.id),
+                label: `${paciente.nombres} ${paciente.apellidos}`.trim(),
+                description: paciente.cedula || paciente.codigo,
+                keywords: [paciente.codigo, paciente.cedula || '', paciente.nombres, paciente.apellidos],
+            });
+        });
+
+        return Array.from(options.values());
+    }, [form.paciente, pacientes]);
+
+    const medicoOptions = useMemo<SearchableSelectOption[]>(() => {
+        const options = new Map<string, SearchableSelectOption>();
+
+        if (form.user?.id) {
+            options.set(form.user.id, {
+                value: form.user.id,
+                label: form.user.login || `Usuario ${form.user.id}`,
+                description: form.user.id,
+            });
+        }
+
+        medicos.forEach(medico => {
+            options.set(medico.id, {
+                value: medico.id,
+                label: medico.login,
+                description: medico.id,
+                keywords: [medico.login, medico.id],
+            });
+        });
+
+        return Array.from(options.values());
+    }, [form.user, medicos]);
 
     const canDeleteAppointments = hasRole('ROLE_ADMIN');
 
@@ -391,7 +442,7 @@ const ReceptionAgendaView = () => {
             {showForm && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
                     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={handleClose} />
-                    <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-md">
+                    <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-3xl">
                         <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
                             <h3 className="text-lg font-black text-slate-900 dark:text-white">
                                 {editing ? 'Editar Cita' : 'Nueva Cita'}
@@ -400,32 +451,49 @@ const ReceptionAgendaView = () => {
                                 <span className="material-symbols-outlined">close</span>
                             </button>
                         </div>
-                        <div className="p-6 space-y-4">
+                        <div className="grid grid-cols-1 gap-4 p-6 md:grid-cols-2">
                             <div className="flex flex-col gap-1.5">
                                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Paciente *</label>
-                                <select
-                                    value={form.paciente?.id || ''}
-                                    onChange={e => setForm({ ...form, paciente: { id: parseInt(e.target.value) } })}
-                                    className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary"
-                                >
-                                    <option value="">— Seleccionar paciente —</option>
-                                    {pacientes.map(p => (
-                                        <option key={p.id} value={p.id}>{p.nombres} {p.apellidos} ({p.codigo})</option>
-                                    ))}
-                                </select>
+                                <SearchableSelect
+                                    value={form.paciente?.id ? String(form.paciente.id) : undefined}
+                                    options={pacienteOptions}
+                                    placeholder="Seleccionar paciente"
+                                    searchPlaceholder="Buscar paciente por nombre, código o cédula..."
+                                    emptyMessage="No se encontraron pacientes."
+                                    onChange={selectedValue => {
+                                        const selectedPaciente = pacientes.find(paciente => String(paciente.id) === selectedValue);
+                                        setForm({
+                                            ...form,
+                                            paciente:
+                                                selectedPaciente?.id != null
+                                                    ? {
+                                                        id: selectedPaciente.id,
+                                                        nombres: selectedPaciente.nombres,
+                                                        apellidos: selectedPaciente.apellidos,
+                                                    }
+                                                    : { id: parseInt(selectedValue, 10) },
+                                        });
+                                    }}
+                                />
                             </div>
                             <div className="flex flex-col gap-1.5">
                                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Médico</label>
-                                <select
-                                    value={form.user?.id || ''}
-                                    onChange={e => setForm({ ...form, user: e.target.value ? { id: e.target.value } : undefined })}
-                                    className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary"
-                                >
-                                    <option value="">— Seleccionar médico —</option>
-                                    {medicos.map(m => (
-                                        <option key={m.id} value={m.id}>{m.login}</option>
-                                    ))}
-                                </select>
+                                <SearchableSelect
+                                    value={form.user?.id || undefined}
+                                    options={medicoOptions}
+                                    placeholder="Seleccionar médico"
+                                    searchPlaceholder="Buscar médico por usuario..."
+                                    emptyMessage="No se encontraron médicos."
+                                    onChange={selectedValue => {
+                                        const selectedMedico = medicos.find(medico => medico.id === selectedValue);
+                                        setForm({
+                                            ...form,
+                                            user: selectedMedico
+                                                ? { id: selectedMedico.id, login: selectedMedico.login }
+                                                : { id: selectedValue },
+                                        });
+                                    }}
+                                />
                             </div>
                             <div className="flex flex-col gap-1.5">
                                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Fecha y Hora *</label>
@@ -436,7 +504,7 @@ const ReceptionAgendaView = () => {
                                     className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary text-slate-900 dark:text-white"
                                 />
                             </div>
-                            <div className="flex flex-col gap-1.5">
+                            <div className="flex flex-col gap-1.5 md:col-span-2">
                                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Observaciones</label>
                                 <textarea
                                     value={form.observaciones || ''}

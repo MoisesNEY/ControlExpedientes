@@ -2467,12 +2467,16 @@
       "requiredActions": [],
       "realmRoles": [
         "offline_access",
-        "uma_authorization"
+        "uma_authorization",
+        "ROLE_ADMIN"
       ],
       "clientRoles": {
         "account": [
           "view-profile",
           "manage-account"
+        ],
+        "realm-management": [
+          "realm-admin"
         ]
       },
       "notBefore": 0,

@@ -185,6 +185,36 @@ java -jar target/*.jar
 
 Refer to [Using JHipster in production][] for more details.
 
+### Ejecutar stack productivo con perfil `prod`
+
+El entorno productivo completo se levanta desde la raíz del repositorio con el archivo `docker-compose.yml` principal. Ese flujo construye también este backend dentro del contenedor, así que ya no necesitas empaquetar el JAR manualmente antes de levantar el stack.
+
+1. Verifica que `backend/.env` exista con `KEYCLOAK_ADMIN_USERNAME`, `KEYCLOAK_ADMIN_PASSWORD` y `POSTGRES_PASSWORD`.
+2. Desde la raíz del repositorio ejecuta:
+
+```bash
+docker-compose up --build
+```
+
+3. El stack levantará:
+
+ - frontend en `http://localhost:5173`
+- backend en `http://localhost:8080`
+- PostgreSQL como contenedor interno del stack
+- Keycloak en `http://localhost:9080`
+
+4. Para detener el entorno:
+
+```bash
+docker-compose down
+```
+
+5. Si también quieres eliminar volúmenes persistidos (base de datos y respaldos):
+
+```bash
+docker-compose down -v
+```
+
 ### Packaging as war
 
 To package your application as a war in order to deploy it to an application server, run:

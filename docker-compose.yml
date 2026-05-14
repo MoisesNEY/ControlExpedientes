@@ -1,0 +1,100 @@
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: control-expedientes-frontend:prod
+    container_name: control-expedientes-frontend
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - '5173:80'
+    healthcheck:
+      test: ['CMD-SHELL', 'test -f /usr/share/nginx/html/index.html && nginx -t']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: control-expedientes-backend:prod
+    container_name: control-expedientes-backend
+    env_file:
+      - ./backend/.env
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgresql:5432/controlExpedientesBackend
+      SPRING_DATASOURCE_USERNAME: controlExpedientesBackend
+      SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_OIDC_ISSUER_URI: http://keycloak:9080/realms/jhipster
+      SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_OIDC_CLIENT_ID: web_app
+      SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_OIDC_CLIENT_SECRET: web_app
+      APPLICATION_DATABASE_BACKUP_STORAGE_PATH: /app/data/backups
+      _JAVA_OPTIONS: -Xms256m -Xmx768m
+    ports:
+      - '8080:8080'
+    volumes:
+      - backend-backups:/app/data/backups
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8080/management/health']
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+
+  postgresql:
+    image: postgres:14
+    container_name: control-expedientes-postgresql
+    env_file:
+      - ./backend/.env
+    environment:
+      POSTGRES_DB: controlExpedientesBackend
+      POSTGRES_USER: controlExpedientesBackend
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.2.3
+    container_name: control-expedientes-keycloak
+    env_file:
+      - ./backend/.env
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        export KEYCLOAK_ADMIN="$$KEYCLOAK_ADMIN_USERNAME"
+        exec /opt/keycloak/bin/kc.sh start-dev --import-realm --http-port=9080
+    environment:
+      KC_DB: dev-file
+      KC_FEATURES: scripts
+      KC_HEALTH_ENABLED: 'true'
+      KC_HTTP_MANAGEMENT_PORT: 9990
+    ports:
+      - '9080:9080'
+      - '9443:9443'
+    volumes:
+      - ./backend/src/main/docker/realm-config:/opt/keycloak/data/import
+      - ./backend/src/main/docker/realm-config/keycloak-health-check.sh:/opt/keycloak/health-check.sh
+    healthcheck:
+      test: ['CMD-SHELL', 'bash /opt/keycloak/health-check.sh']
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+volumes:
+  postgres-data:
+  backend-backups:

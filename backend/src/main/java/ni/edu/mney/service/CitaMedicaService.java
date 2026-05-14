@@ -2,8 +2,8 @@ package ni.edu.mney.service;
 
 import java.util.Optional;
 import ni.edu.mney.domain.CitaMedica;
-import ni.edu.mney.domain.Paciente;
 import ni.edu.mney.domain.ConsultaMedica;
+import ni.edu.mney.domain.Paciente;
 import ni.edu.mney.domain.SignosVitales;
 import ni.edu.mney.domain.enumeration.EstadoCita;
 import ni.edu.mney.repository.CitaMedicaRepository;
@@ -12,6 +12,7 @@ import ni.edu.mney.service.dto.CitaMedicaDTO;
 import ni.edu.mney.service.dto.CitaTriageDTO;
 import ni.edu.mney.service.dto.NotificacionDTO;
 import ni.edu.mney.service.mapper.CitaMedicaMapper;
+import ni.edu.mney.security.AuthoritiesConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -55,6 +56,7 @@ public class CitaMedicaService {
         LOG.debug("Request to save CitaMedica : {}", citaMedicaDTO);
         CitaMedica citaMedica = citaMedicaMapper.toEntity(citaMedicaDTO);
         citaMedica = citaMedicaRepository.save(citaMedica);
+        citaMedicaRepository.findWithNotificationDetailsById(citaMedica.getId()).ifPresent(this::notifyAppointmentCreated);
         return citaMedicaMapper.toDto(citaMedica);
     }
 
@@ -66,8 +68,11 @@ public class CitaMedicaService {
      */
     public CitaMedicaDTO update(CitaMedicaDTO citaMedicaDTO) {
         LOG.debug("Request to update CitaMedica : {}", citaMedicaDTO);
+        CitaMedica previous = citaMedicaRepository.findWithNotificationDetailsById(citaMedicaDTO.getId()).orElse(null);
         CitaMedica citaMedica = citaMedicaMapper.toEntity(citaMedicaDTO);
         citaMedica = citaMedicaRepository.save(citaMedica);
+        CitaMedica current = citaMedicaRepository.findWithNotificationDetailsById(citaMedica.getId()).orElse(citaMedica);
+        notifyAppointmentUpdated(previous, current);
         return citaMedicaMapper.toDto(citaMedica);
     }
 
@@ -85,28 +90,7 @@ public class CitaMedicaService {
             .map(existingCitaMedica -> {
                 EstadoCita estadoAnterior = existingCitaMedica.getEstado();
                 citaMedicaMapper.partialUpdate(existingCitaMedica, citaMedicaDTO);
-
-                // Si transiciona a ESPERANDO_MEDICO, enviar notificación WebSocket
-                if (existingCitaMedica.getEstado() == EstadoCita.ESPERANDO_MEDICO
-                        && estadoAnterior != EstadoCita.ESPERANDO_MEDICO) {
-                    String nombrePaciente = existingCitaMedica.getPaciente() != null
-                            ? existingCitaMedica.getPaciente().getNombres() + " " + existingCitaMedica.getPaciente().getApellidos()
-                            : "Paciente";
-                    NotificacionDTO noti = new NotificacionDTO(
-                            "PACIENTE_LISTO",
-                            nombrePaciente + " está listo para atención médica",
-                            existingCitaMedica.getId(),
-                            nombrePaciente);
-                    
-                    // Notificar al tópico general
-                    notificacionService.notificarPacienteListo(noti);
-
-                    // Si hay un médico asignado, notificar también de forma personal
-                    if (existingCitaMedica.getUser() != null && existingCitaMedica.getUser().getLogin() != null) {
-                        noti.setMedicoLogin(existingCitaMedica.getUser().getLogin());
-                        notificacionService.notificarMedicoEspecifico(existingCitaMedica.getUser().getLogin(), noti);
-                    }
-                }
+                notifyStateTransition(existingCitaMedica, estadoAnterior, existingCitaMedica.getEstado());
 
                 return existingCitaMedica;
             })
@@ -142,6 +126,7 @@ public class CitaMedicaService {
      */
     public void delete(Long id) {
         LOG.debug("Request to delete CitaMedica : {}", id);
+        citaMedicaRepository.findWithNotificationDetailsById(id).ifPresent(this::notifyAppointmentDeleted);
         citaMedicaRepository.deleteById(id);
     }
 
@@ -167,6 +152,7 @@ public class CitaMedicaService {
         // Change state to EN_CONSULTA
         cita.setEstado(EstadoCita.EN_CONSULTA);
         citaMedicaRepository.save(cita);
+        notifyStateTransition(cita, EstadoCita.ESPERANDO_MEDICO, EstadoCita.EN_CONSULTA);
 
         // Manual Data Assembling mapped towards Clean Architecture
         CitaTriageDTO dto = new CitaTriageDTO();
@@ -201,5 +187,208 @@ public class CitaMedicaService {
         }
         
         return dto;
+    }
+
+    private void notifyAppointmentCreated(CitaMedica cita) {
+        NotificacionDTO notification = baseNotification(
+            "CITA_AGENDADA",
+            patientName(cita) + " tiene una cita agendada para " + formatAppointmentDate(cita),
+            cita,
+            "Ver agenda",
+            "/medico/citas"
+        );
+        notifyAssignedDoctor(cita, notification);
+        if (cita.getEstado() == EstadoCita.EN_SALA_ESPERA) {
+            notifyStateTransition(cita, null, EstadoCita.EN_SALA_ESPERA);
+        }
+    }
+
+    private void notifyAppointmentUpdated(CitaMedica previous, CitaMedica current) {
+        if (previous == null) {
+            return;
+        }
+        if (previous.getEstado() != current.getEstado()) {
+            notifyStateTransition(current, previous.getEstado(), current.getEstado());
+            return;
+        }
+        boolean doctorChanged = login(previous) != null && !login(previous).equals(login(current));
+        boolean dateChanged = previous.getFechaHora() != null && !previous.getFechaHora().equals(current.getFechaHora());
+        if (doctorChanged || dateChanged) {
+            NotificacionDTO notification = baseNotification(
+                "CITA_REPROGRAMADA",
+                patientName(current) + " tiene cambios en su cita. Nueva hora: " + formatAppointmentDate(current),
+                current,
+                "Ver agenda",
+                "/medico/citas"
+            );
+            notifyAssignedDoctor(current, notification);
+            if (doctorChanged) {
+                NotificacionDTO previousDoctorNotification = baseNotification(
+                    "CITA_REASIGNADA",
+                    "La cita de " + patientName(current) + " fue reasignada a otro médico.",
+                    current,
+                    "Ver agenda",
+                    "/medico/citas"
+                );
+                notificacionService.notificarUsuario(login(previous), previousDoctorNotification);
+            }
+        }
+    }
+
+    private void notifyAppointmentDeleted(CitaMedica cita) {
+        NotificacionDTO notification = baseNotification(
+            "CITA_ELIMINADA",
+            "La cita de " + patientName(cita) + " fue eliminada de la agenda.",
+            cita,
+            "Ver agenda",
+            "/medico/citas"
+        );
+        notifyAssignedDoctor(cita, notification);
+        notificacionService.notificarRoles(
+            java.util.List.of(AuthoritiesConstants.RECEPCION, AuthoritiesConstants.ADMIN),
+            notification,
+            true
+        );
+    }
+
+    private void notifyStateTransition(CitaMedica cita, EstadoCita previous, EstadoCita current) {
+        if (current == null || current == previous) {
+            return;
+        }
+        switch (current) {
+            case EN_SALA_ESPERA -> {
+                NotificacionDTO notification = baseNotification(
+                    "PACIENTE_EN_SALA",
+                    patientName(cita) + " llegó y está esperando triage.",
+                    cita,
+                    "Abrir sala",
+                    "/enfermeria/sala-espera"
+                );
+                notificacionService.notificarRoles(java.util.List.of(AuthoritiesConstants.ENFERMERO), notification, true);
+                notifyAssignedDoctor(cita, baseNotification(
+                    "PACIENTE_LLEGO",
+                    patientName(cita) + " ya hizo check-in en recepción.",
+                    cita,
+                    "Ver agenda",
+                    "/medico/citas"
+                ));
+            }
+            case EN_TRIAGE -> {
+                NotificacionDTO notification = baseNotification(
+                    "TRIAGE_INICIADO",
+                    "Triage iniciado para " + patientName(cita) + ".",
+                    cita,
+                    "Abrir sala",
+                    "/enfermeria/sala-espera"
+                );
+                notificacionService.notificarRoles(
+                    java.util.List.of(AuthoritiesConstants.RECEPCION, AuthoritiesConstants.ADMIN),
+                    notification,
+                    true
+                );
+            }
+            case ESPERANDO_MEDICO -> {
+                NotificacionDTO notification = baseNotification(
+                    "PACIENTE_LISTO",
+                    patientName(cita) + " está listo para atención médica.",
+                    cita,
+                    "Iniciar consulta",
+                    "/medico/consulta/" + cita.getId()
+                );
+                notificacionService.notificarPacienteListo(notification);
+                notifyAssignedDoctor(cita, notification);
+                notificacionService.notificarRoles(java.util.List.of(AuthoritiesConstants.RECEPCION), baseNotification(
+                    "TRIAGE_FINALIZADO",
+                    patientName(cita) + " finalizó triage y espera al médico.",
+                    cita,
+                    "Ver agenda",
+                    "/recepcion/citas"
+                ), true);
+            }
+            case EN_CONSULTA -> {
+                NotificacionDTO notification = baseNotification(
+                    "CONSULTA_INICIADA",
+                    "El médico inició la consulta de " + patientName(cita) + ".",
+                    cita,
+                    "Ver sala",
+                    "/enfermeria/sala-espera"
+                );
+                notificacionService.notificarRoles(
+                    java.util.List.of(AuthoritiesConstants.ENFERMERO, AuthoritiesConstants.RECEPCION),
+                    notification,
+                    true
+                );
+            }
+            case ATENDIDA -> notifyAppointmentCompleted(cita);
+            case CANCELADA -> {
+                NotificacionDTO notification = baseNotification(
+                    "CITA_CANCELADA",
+                    "La cita de " + patientName(cita) + " fue cancelada.",
+                    cita,
+                    "Ver agenda",
+                    "/medico/citas"
+                );
+                notifyAssignedDoctor(cita, notification);
+                notificacionService.notificarRoles(
+                    java.util.List.of(AuthoritiesConstants.ENFERMERO, AuthoritiesConstants.RECEPCION, AuthoritiesConstants.ADMIN),
+                    notification,
+                    true
+                );
+            }
+            default -> {
+            }
+        }
+    }
+
+    public void notifyAppointmentCompleted(CitaMedica cita) {
+        NotificacionDTO notification = baseNotification(
+            "CONSULTA_FINALIZADA",
+            "La consulta de " + patientName(cita) + " fue finalizada.",
+            cita,
+            "Ver reportes",
+            "/reportes"
+        );
+        notificacionService.notificarRoles(
+            java.util.List.of(AuthoritiesConstants.RECEPCION, AuthoritiesConstants.ENFERMERO, AuthoritiesConstants.ADMIN),
+            notification,
+            true
+        );
+    }
+
+    private void notifyAssignedDoctor(CitaMedica cita, NotificacionDTO notification) {
+        String login = login(cita);
+        if (login == null || login.isBlank()) {
+            return;
+        }
+        notification.setMedicoLogin(login);
+        notificacionService.notificarMedicoEspecifico(login, notification);
+    }
+
+    private NotificacionDTO baseNotification(String type, String message, CitaMedica cita, String actionLabel, String route) {
+        NotificacionDTO notification = new NotificacionDTO(type, message, cita.getId(), patientName(cita));
+        notification.setMedicoLogin(login(cita));
+        notification.setAccionLabel(actionLabel);
+        notification.setRutaAccion(route);
+        return notification;
+    }
+
+    private String patientName(CitaMedica cita) {
+        if (cita == null || cita.getPaciente() == null) {
+            return "Paciente";
+        }
+        String nombres = cita.getPaciente().getNombres() != null ? cita.getPaciente().getNombres() : "";
+        String apellidos = cita.getPaciente().getApellidos() != null ? cita.getPaciente().getApellidos() : "";
+        String fullName = (nombres + " " + apellidos).trim();
+        return fullName.isBlank() ? "Paciente" : fullName;
+    }
+
+    private String login(CitaMedica cita) {
+        return cita != null && cita.getUser() != null ? cita.getUser().getLogin() : null;
+    }
+
+    private String formatAppointmentDate(CitaMedica cita) {
+        return cita.getFechaHora() != null
+            ? cita.getFechaHora().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))
+            : "fecha pendiente";
     }
 }

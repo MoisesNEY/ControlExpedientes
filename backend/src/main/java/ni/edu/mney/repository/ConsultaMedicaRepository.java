@@ -51,5 +51,11 @@ public interface ConsultaMedicaRepository
 
     List<ConsultaMedica> findAllByFechaConsultaBetweenAndUserLogin(LocalDate start, LocalDate end, String login);
 
+    @EntityGraph(attributePaths = { "user", "expediente", "expediente.paciente", "diagnosticos", "recetas", "recetas.medicamento" })
+    List<ConsultaMedica> findAllWithReportDetailsByFechaConsultaBetween(LocalDate start, LocalDate end);
+
+    @EntityGraph(attributePaths = { "user", "expediente", "expediente.paciente", "diagnosticos", "recetas", "recetas.medicamento" })
+    List<ConsultaMedica> findAllWithReportDetailsByFechaConsultaBetweenAndUserLogin(LocalDate start, LocalDate end, String login);
+
     List<ConsultaMedica> findByExpedienteIdOrderByFechaConsultaDesc(Long expedienteId);
 }

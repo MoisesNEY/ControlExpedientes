@@ -1,8 +1,11 @@
-import { useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Navigate, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { AppointmentService } from '../services/appointment.service';
+import { resolveAuthorizedHomePath } from '../utils/authNavigation';
+import { useSystemSettings } from '../context/SystemSettingsContext';
+import { useLanguage } from '../context/LanguageContext';
 
 /* ─── SVG: Visualización abstracta de nodos médicos ─── */
 const NodePattern = () => (
@@ -60,33 +63,31 @@ const NodePattern = () => (
 
 /* ─── Componente principal ─── */
 const Login = () => {
-    const { isAuthenticated, login, hasAnyRole } = useAuth();
+    const { isAuthenticated, login, completeRequiredActions, hasAnyRole } = useAuth();
+    const { effectivePreferences } = useSystemSettings();
+    const { language, setLanguage } = useLanguage();
     const navigate = useNavigate();
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
-    const [language, setLanguage] = useState('es');
+    const [requiredActions, setRequiredActions] = useState<string[]>([]);
+    const [pendingProfile, setPendingProfile] = useState({ login: '', firstName: '', lastName: '', email: '' });
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmNewPassword, setConfirmNewPassword] = useState('');
+    const requiredActionSet = useMemo(() => new Set(requiredActions), [requiredActions]);
+    const brandName = effectivePreferences.brandName;
+    const applicationName = effectivePreferences.applicationName;
 
     if (isAuthenticated) return <Navigate to="/" replace />;
 
-    const handleSubmit = async (e: FormEvent) => {
-        e.preventDefault();
-        setError('');
-        setIsLoading(true);
-        const result = await login(username, password);
-        setIsLoading(false);
-        if (!result.success) {
-            setError(result.error || 'Credenciales incorrectas.');
-            return;
-        }
-
-        // Reanudar consulta médica activa desde el backend, no solo desde localStorage
+    const navigateAfterAuthentication = async () => {
         try {
             const accountResponse = await api.get('/api/account');
             const account = accountResponse.data;
             const authorities = Array.isArray(account?.authorities) ? account.authorities : [];
+            const permissions = Array.isArray(account?.permissions) ? account.permissions : [];
 
             if (authorities.includes('ROLE_MEDICO')) {
                 const activeConsultation = await AppointmentService.getActiveConsultation(String(account.id ?? account.login ?? ''));
@@ -106,31 +107,79 @@ const Login = () => {
                 navigate(`/medico/consulta/${active}`);
                 return;
             }
-        } catch (e) {
-            // ignore
+
+            navigate(resolveAuthorizedHomePath(authorities, permissions));
+        } catch {
+            navigate('/');
+        }
+    };
+
+    const handleSubmit = async (e: FormEvent) => {
+        e.preventDefault();
+        setError('');
+        setRequiredActions([]);
+        setPendingProfile({ login: '', firstName: '', lastName: '', email: '' });
+        setNewPassword('');
+        setConfirmNewPassword('');
+        setIsLoading(true);
+        const result = await login(username, password);
+        setIsLoading(false);
+        if (!result.success) {
+            setError(result.error || 'Credenciales incorrectas.');
+            if (result.requiresActionCompletion) {
+                setRequiredActions(result.requiredActions ?? []);
+                setPendingProfile({
+                    login: result.profile?.login ?? username,
+                    firstName: result.profile?.firstName ?? '',
+                    lastName: result.profile?.lastName ?? '',
+                    email: result.profile?.email ?? '',
+                });
+            }
+            return;
+        }
+        await navigateAfterAuthentication();
+    };
+
+    const handleRequiredActionsSubmit = async (e: FormEvent) => {
+        e.preventDefault();
+        setError('');
+
+        if (requiredActionSet.has('UPDATE_PASSWORD')) {
+            if (!newPassword.trim()) {
+                setError('Debes definir una nueva contraseña para completar el acceso.');
+                return;
+            }
+            if (newPassword !== confirmNewPassword) {
+                setError('La confirmación de la nueva contraseña no coincide.');
+                return;
+            }
         }
 
-        if (hasAnyRole(['ROLE_ADMIN'])) {
-            navigate('/admin/dashboard');
+        setIsLoading(true);
+        const result = await completeRequiredActions({
+            firstName: pendingProfile.firstName,
+            lastName: pendingProfile.lastName,
+            email: pendingProfile.email,
+            currentPassword: password,
+            newPassword: requiredActionSet.has('UPDATE_PASSWORD') ? newPassword : undefined,
+        });
+        setIsLoading(false);
+
+        if (!result.success) {
+            setError(result.error || 'No se pudieron completar las acciones obligatorias.');
+            setRequiredActions(result.requiredActions ?? requiredActions);
+            if (result.profile) {
+                setPendingProfile({
+                    login: result.profile.login,
+                    firstName: result.profile.firstName ?? '',
+                    lastName: result.profile.lastName ?? '',
+                    email: result.profile.email ?? '',
+                });
+            }
             return;
         }
 
-        if (hasAnyRole(['ROLE_MEDICO'])) {
-            navigate('/medico/dashboard');
-            return;
-        }
-
-        if (hasAnyRole(['ROLE_ENFERMERO'])) {
-            navigate('/enfermeria/dashboard');
-            return;
-        }
-
-        if (hasAnyRole(['ROLE_RECEPCION'])) {
-            navigate('/recepcion/dashboard');
-            return;
-        }
-
-        navigate('/');
+        await navigateAfterAuthentication();
     };
 
     return (
@@ -139,10 +188,15 @@ const Login = () => {
             {/* ══════════════════════════════════════════
                 PANEL IZQUIERDO — 35% — Solo en desktop
             ══════════════════════════════════════════ */}
-            <aside className="hidden lg:flex lg:w-[35%] relative flex-col justify-between bg-[#071e2b] overflow-hidden">
+            <aside className="hidden lg:flex lg:w-[35%] relative flex-col justify-between overflow-hidden" style={{ backgroundColor: 'var(--system-sidebar-500)' }}>
 
                 {/* Fondo con gradiente muy sutil */}
-                <div className="absolute inset-0 bg-gradient-to-b from-[#0a2d42] via-[#071e2b] to-[#050f19]" />
+                <div
+                    className="absolute inset-0"
+                    style={{
+                        background: 'linear-gradient(180deg, color-mix(in srgb, var(--system-sidebar-500) 88%, white), var(--system-sidebar-500), var(--system-sidebar-700))',
+                    }}
+                />
 
                 {/* Patrón de cuadrícula fina */}
                 <div
@@ -173,8 +227,8 @@ const Login = () => {
                             <span className="material-symbols-outlined text-sky-400 text-[17px]">local_hospital</span>
                         </div>
                         <div>
-                            <p className="text-white text-sm font-black leading-none tracking-tight">STITCH</p>
-                            <p className="text-sky-500/60 text-[9px] font-bold uppercase tracking-[3px] mt-0.5">Medical Center</p>
+                            <p className="text-white text-sm font-black leading-none tracking-tight">{brandName}</p>
+                            <p className="text-sky-500/60 text-[9px] font-bold uppercase tracking-[3px] mt-0.5">{applicationName}</p>
                         </div>
                     </div>
 
@@ -184,8 +238,7 @@ const Login = () => {
                     {/* Headline */}
                     <div className="mb-10">
                         <h1 className="text-white/90 text-2xl font-black leading-snug tracking-tight">
-                            Expedientes<br />
-                            Clínicos<br />
+                            {applicationName}<br />
                             <span className="text-sky-400">Inteligentes.</span>
                         </h1>
                         <p className="text-white/30 text-xs mt-3 leading-relaxed font-medium max-w-[200px]">
@@ -195,7 +248,7 @@ const Login = () => {
 
                     {/* Copyright */}
                     <p className="text-white/15 text-[10px] font-medium tracking-wide">
-                        © {new Date().getFullYear()} STITCH Medical Center
+                        © {new Date().getFullYear()} {brandName}
                     </p>
                 </div>
 
@@ -215,7 +268,7 @@ const Login = () => {
                         <div className="w-7 h-7 rounded-lg bg-sky-500/15 border border-sky-500/25 flex items-center justify-center">
                             <span className="material-symbols-outlined text-sky-500 text-[15px]">local_hospital</span>
                         </div>
-                        <p className="text-slate-900 dark:text-white text-sm font-black tracking-tight">STITCH</p>
+                        <p className="text-slate-900 dark:text-white text-sm font-black tracking-tight">{brandName}</p>
                     </div>
                     <div className="hidden lg:block" />
 
@@ -224,7 +277,7 @@ const Login = () => {
                         <span className="material-symbols-outlined text-[15px]">language</span>
                         <select
                             value={language}
-                            onChange={(e) => setLanguage(e.target.value)}
+                            onChange={(e) => setLanguage(e.target.value === 'en' ? 'en' : 'es')}
                             className="text-[11px] font-bold bg-transparent border-none outline-none cursor-pointer hover:text-slate-600 dark:hover:text-slate-300 transition-colors appearance-none"
                         >
                             <option value="es">Español</option>
@@ -242,21 +295,30 @@ const Login = () => {
                             <p className="text-[10px] font-black text-sky-500 uppercase tracking-[3px] mb-3">
                                 Portal Institucional
                             </p>
-                            <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-tight">
-                                Iniciar sesión
-                            </h2>
-                            <p className="text-slate-400 dark:text-slate-500 text-sm mt-1.5">
-                                Accede con tus credenciales institucionales.
-                            </p>
-                        </div>
-
-                        {/* Error */}
+                             <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-tight">
+                                 Iniciar sesión
+                             </h2>
+                             <p className="text-slate-400 dark:text-slate-500 text-sm mt-1.5">
+                                 Accede con tus credenciales institucionales y completa cualquier requisito de seguridad sin salir del portal.
+                             </p>
+                          </div>
+ 
+                         {/* Error */}
                         {error && (
                             <div className="mb-6 flex items-start gap-2.5 p-3.5 rounded-lg bg-rose-50 dark:bg-rose-500/8 border border-rose-200 dark:border-rose-500/20">
                                 <span className="material-symbols-outlined text-rose-500 text-[17px] mt-0.5 shrink-0">error</span>
                                 <p className="text-rose-600 dark:text-rose-400 text-sm font-medium">{error}</p>
                             </div>
                         )}
+ 
+                        {requiredActions.length > 0 && (
+                            <div className="mb-6 flex items-start gap-2.5 p-3.5 rounded-lg bg-amber-50 dark:bg-amber-500/8 border border-amber-200 dark:border-amber-500/20">
+                                  <span className="material-symbols-outlined text-amber-500 text-[17px] mt-0.5 shrink-0">security</span>
+                                  <p className="text-amber-700 dark:text-amber-300 text-sm font-medium">
+                                     Esta cuenta debe completar acciones obligatorias antes de entrar. Todo el proceso se resuelve desde este portal.
+                                  </p>
+                              </div>
+                          )}
 
                         <form onSubmit={handleSubmit} className="space-y-5">
 
@@ -329,9 +391,9 @@ const Login = () => {
                                         </span>
                                     </button>
                                 </div>
-                            </div>
-
-                            {/* Botón */}
+                             </div>
+                             
+                             {/* Botón */}
                             <div className="pt-1">
                                 <button
                                     type="submit"
@@ -354,10 +416,121 @@ const Login = () => {
                                             <span className="material-symbols-outlined text-[18px]">login</span>
                                             <span>Entrar al Sistema</span>
                                         </>
+                                     )}
+                                 </button>
+                             </div>
+                         </form>
+
+                        {requiredActions.length > 0 && (
+                            <form onSubmit={handleRequiredActionsSubmit} className="mt-6 space-y-5 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/[0.03] p-5">
+                                <div>
+                                    <p className="text-[10px] font-black text-amber-500 uppercase tracking-[3px] mb-2">
+                                        Acciones obligatorias
+                                    </p>
+                                    <h3 className="text-base font-black text-slate-900 dark:text-white">
+                                        Completa la seguridad de {pendingProfile.login}
+                                    </h3>
+                                    <div className="mt-3 flex flex-wrap gap-2">
+                                        {requiredActions.map(action => (
+                                            <span key={action} className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+                                                {action}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {(requiredActionSet.has('UPDATE_PROFILE') || requiredActionSet.has('VERIFY_EMAIL')) && (
+                                    <div className="grid grid-cols-1 gap-4">
+                                        <div>
+                                            <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">
+                                                Nombres
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={pendingProfile.firstName}
+                                                onChange={e => setPendingProfile(current => ({ ...current, firstName: e.target.value }))}
+                                                className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-white/[0.04] text-slate-900 dark:text-white text-sm font-semibold focus:outline-none focus:border-sky-500"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">
+                                                Apellidos
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={pendingProfile.lastName}
+                                                onChange={e => setPendingProfile(current => ({ ...current, lastName: e.target.value }))}
+                                                className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-white/[0.04] text-slate-900 dark:text-white text-sm font-semibold focus:outline-none focus:border-sky-500"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">
+                                                Correo institucional
+                                            </label>
+                                            <input
+                                                type="email"
+                                                value={pendingProfile.email}
+                                                onChange={e => setPendingProfile(current => ({ ...current, email: e.target.value }))}
+                                                className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-white/[0.04] text-slate-900 dark:text-white text-sm font-semibold focus:outline-none focus:border-sky-500"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+
+                                {requiredActionSet.has('UPDATE_PASSWORD') && (
+                                    <div className="grid grid-cols-1 gap-4">
+                                        <div>
+                                            <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">
+                                                Nueva contraseña
+                                            </label>
+                                            <input
+                                                type="password"
+                                                value={newPassword}
+                                                onChange={e => setNewPassword(e.target.value)}
+                                                className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-white/[0.04] text-slate-900 dark:text-white text-sm font-semibold focus:outline-none focus:border-sky-500"
+                                                autoComplete="new-password"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">
+                                                Confirmar nueva contraseña
+                                            </label>
+                                            <input
+                                                type="password"
+                                                value={confirmNewPassword}
+                                                onChange={e => setConfirmNewPassword(e.target.value)}
+                                                className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-white/[0.04] text-slate-900 dark:text-white text-sm font-semibold focus:outline-none focus:border-sky-500"
+                                                autoComplete="new-password"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+
+                                {requiredActionSet.has('CONFIGURE_TOTP') && (
+                                    <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/8 dark:text-rose-300">
+                                        La configuración de segundo factor todavía no está disponible desde este portal para esta cuenta, por lo que no podrás completar el acceso aquí. Contacta a un administrador para continuar.
+                                    </div>
+                                )}
+
+                                <button
+                                    type="submit"
+                                    disabled={isLoading || requiredActionSet.has('CONFIGURE_TOTP')}
+                                    className="w-full py-3 px-5 rounded-lg border border-sky-200 bg-white text-sky-700 text-sm font-bold tracking-wide hover:border-sky-300 hover:text-sky-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150 ease-out flex items-center justify-center gap-2 dark:border-sky-500/20 dark:bg-white/[0.03] dark:text-sky-300"
+                                >
+                                    {isLoading ? (
+                                        <>
+                                            <div className="w-4 h-4 rounded-full border-2 border-sky-300/30 border-t-sky-500 animate-spin" />
+                                            <span>Aplicando cambios...</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span className="material-symbols-outlined text-[18px]">verified_user</span>
+                                            <span>Completar acciones y entrar</span>
+                                        </>
                                     )}
                                 </button>
-                            </div>
-                        </form>
+                            </form>
+                        )}
 
                         {/* Nota de seguridad */}
                         <p className="mt-8 text-center text-[11px] text-slate-300 dark:text-white/15 font-medium leading-relaxed">
@@ -374,7 +547,7 @@ const Login = () => {
                             <span className="material-symbols-outlined text-sky-500 text-[11px]">local_hospital</span>
                         </div>
                         <span className="text-[11px] font-semibold text-slate-400 dark:text-white/20">
-                            STITCH Medical Center
+                            {brandName}
                         </span>
                     </div>
                     <span className="text-[10px] font-bold text-slate-300 dark:text-white/15 border border-slate-200 dark:border-white/10 px-2 py-0.5 rounded-md">

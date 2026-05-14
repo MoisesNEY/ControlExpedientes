@@ -1,11 +1,6 @@
 package ni.edu.mney.security;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.springframework.security.core.Authentication;
@@ -105,18 +100,76 @@ public final class SecurityUtils {
     }
 
     public static List<GrantedAuthority> extractAuthorityFromClaims(Map<String, Object> claims) {
-        return mapRolesToGrantedAuthorities(getRolesFromClaims(claims));
+        return mapRolesToGrantedAuthorities(extractRoleNamesFromClaims(claims));
     }
 
-    @SuppressWarnings("unchecked")
-    private static Collection<String> getRolesFromClaims(Map<String, Object> claims) {
-        return (Collection<String>) claims.getOrDefault(
-            "groups",
-            claims.getOrDefault("roles", claims.getOrDefault(CLAIMS_NAMESPACE + "roles", new ArrayList<>()))
-        );
+    /**
+     * Extract normalized role names from Keycloak claims.
+     *
+     * @param claims JWT/OIDC claims that may contain roles in groups, roles,
+     *        namespaced roles, or realm_access.roles.
+     * @return distinct role names normalized to ROLE_* values.
+     */
+    public static Set<String> extractRoleNamesFromClaims(Map<String, Object> claims) {
+        Set<String> roles = new LinkedHashSet<>();
+        addRoles(roles, claims.get("groups"));
+        addRoles(roles, claims.get("roles"));
+        addRoles(roles, claims.get(CLAIMS_NAMESPACE + "roles"));
+        addRealmRoles(roles, claims.get("realm_access"));
+        return roles;
     }
 
     private static List<GrantedAuthority> mapRolesToGrantedAuthorities(Collection<String> roles) {
         return roles.stream().filter(role -> role.startsWith("ROLE_")).map(SimpleGrantedAuthority::new).collect(Collectors.toList());
+    }
+
+    private static void addRealmRoles(Set<String> roles, Object realmAccessClaim) {
+        if (!(realmAccessClaim instanceof Map<?, ?> realmAccess)) {
+            return;
+        }
+        addRoles(roles, realmAccess.get("roles"));
+    }
+
+    private static void addRoles(Set<String> roles, Object claimValue) {
+        streamClaimValues(claimValue)
+            .map(SecurityUtils::normalizeRoleName)
+            .filter(Objects::nonNull)
+            .forEach(roles::add);
+    }
+
+    private static Stream<String> streamClaimValues(Object claimValue) {
+        if (claimValue instanceof Collection<?> values) {
+            return values.stream().map(String::valueOf);
+        }
+        if (claimValue instanceof String value) {
+            return Stream.of(value);
+        }
+        return Stream.empty();
+    }
+
+    /**
+     * Normalize Keycloak role/group values to ROLE_* authorities.
+     *
+     * <p>
+     * Group claims may arrive as full paths like /hospital/ROLE_ADMIN. This
+     * method trims the value, keeps only the last path segment when needed, and
+     * returns it only if it is a ROLE_* authority.
+     * </p>
+     *
+     * @param role raw role or group value from the token.
+     * @return normalized ROLE_* authority, or null when the value is not a role.
+     */
+    private static String normalizeRoleName(String role) {
+        if (role == null) {
+            return null;
+        }
+        String normalizedRole = role.trim();
+        if (normalizedRole.isEmpty()) {
+            return null;
+        }
+        if (normalizedRole.contains("/")) {
+            normalizedRole = normalizedRole.substring(normalizedRole.lastIndexOf('/') + 1);
+        }
+        return normalizedRole.startsWith("ROLE_") ? normalizedRole : null;
     }
 }

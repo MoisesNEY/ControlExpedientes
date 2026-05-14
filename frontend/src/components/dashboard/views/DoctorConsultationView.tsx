@@ -1,22 +1,18 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AppointmentService, type Appointment } from '../../../services/appointment.service';
-import { DiagnosticoService } from '../../../services/diagnostico.service';
+import { DiagnosticoService, type Diagnostico as DiagnosticoCatalogo } from '../../../services/diagnostico.service';
 import { MedicamentoService, type MedicamentoDTO } from '../../../services/medicamento.service';
+import { ExpedienteService } from '../../../services/expediente.service';
 import api from '../../../services/api';
+import type { SignosVitalesDTO } from '../../../services/signosVitales.service';
 import { useAuth } from '../../../context/AuthContext';
-import PrintableReceta from './PrintableReceta';
 import { AppButton } from '../../ui/AppButton';
 import { PatientCard } from '../../ui/PatientCard';
 import { InteraccionService, type InteraccionMedicamentosaDTO } from '../../../services/interaccion.service';
+import { ReporteService } from '../../../services/reporte.service';
 import DrugInteractionAlert from '../DrugInteractionAlert';
-
-// El backend serializa el campo como "codigoCIE" (mayúsculas)
-interface Diagnostico {
-    id: number;
-    codigoCIE: string;
-    descripcion: string;
-}
+import { buildFullName } from '../../../utils/personName';
 
 interface Prescription {
     medicamento: MedicamentoDTO;
@@ -28,20 +24,23 @@ interface Prescription {
 const DoctorConsultationView = () => {
     const { citaId } = useParams<{ citaId: string }>();
     const navigate = useNavigate();
-    const { account, hasAnyRole } = useAuth();
-    const doctorName = account ? `Dr. ${account.firstName} ${account.lastName}`.trim() : 'Médico Tratante';
+    const { account, user, hasAnyRole } = useAuth();
+    const doctorName = account || user
+        ? `Dr. ${buildFullName([account?.firstName, account?.lastName], user?.name || user?.preferred_username || 'Médico Tratante')}`
+        : 'Médico Tratante';
     const [appointment, setAppointment] = useState<Appointment | null>(null);
     const [loading, setLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [saveError, setSaveError] = useState<string | null>(null);
 
     // Notas médicas
+    const [motivoConsulta, setMotivoConsulta] = useState('');
     const [notasMedicas, setNotasMedicas] = useState('');
 
     // Diagnóstico Autocomplete
     const [diagQuery, setDiagQuery] = useState('');
-    const [diagResults, setDiagResults] = useState<Diagnostico[]>([]);
-    const [selectedDiagnosis, setSelectedDiagnosis] = useState<Diagnostico | null>(null);
+    const [diagResults, setDiagResults] = useState<DiagnosticoCatalogo[]>([]);
+    const [selectedDiagnosis, setSelectedDiagnosis] = useState<DiagnosticoCatalogo | null>(null);
     const [isDiagSearching, setIsDiagSearching] = useState(false);
     const diagDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -63,7 +62,7 @@ const DoctorConsultationView = () => {
     const [duracionValue, setDuracionValue] = useState('');
     const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
     const [interacciones, setInteracciones] = useState<InteraccionMedicamentosaDTO[]>([]);
-    const [signosVitales, setSignosVitales] = useState<any>(null);
+    const [signosVitales, setSignosVitales] = useState<SignosVitalesDTO | null>(null);
 
     // Cargar datos de la cita y signos vitales
     useEffect(() => {
@@ -72,7 +71,7 @@ const DoctorConsultationView = () => {
         AppointmentService.getById(parseInt(citaId))
             .then(async (citaData) => {
                 setAppointment(citaData);
-                try { localStorage.setItem('activeConsultation', String(citaData.id)); } catch (e) { }
+                try { localStorage.setItem('activeConsultation', String(citaData.id)); } catch { void 0; }
 
                 // Si la cita apenas se abre, cambiar a EN_CONSULTA
                 if (citaData.estado === 'ESPERANDO_MEDICO') {
@@ -89,13 +88,38 @@ const DoctorConsultationView = () => {
                 if (citaData.paciente?.id) {
                     try {
                         const { SignosVitalesService } = await import('../../../services/signosVitales.service');
-                        const vitals = await SignosVitalesService.getTodayByPacienteId(citaData.paciente.id);
+                        const [vitals, expediente] = await Promise.all([
+                            SignosVitalesService.getTodayByPacienteId(citaData.paciente.id),
+                            ExpedienteService.getByPacienteId(citaData.paciente.id),
+                        ]);
                         if (vitals && vitals.length > 0) {
                             setSignosVitales(vitals[0]);
                         }
+                        if (expediente?.id) {
+                            try {
+                                const consultasResponse = await api.get('/api/consulta-medicas', {
+                                    params: {
+                                        'expedienteId.equals': expediente.id,
+                                        'fechaConsulta.equals': new Date(citaData.fechaHora).toISOString().slice(0, 10),
+                                        sort: 'id,desc',
+                                        size: 1,
+                                    },
+                                });
+                                const consultaActual = Array.isArray(consultasResponse.data) ? consultasResponse.data[0] : null;
+                                setMotivoConsulta(consultaActual?.motivoConsulta || citaData.observaciones || 'Consulta médica');
+                            } catch (consultaError) {
+                                console.error('Error cargando motivo de consulta actual:', consultaError);
+                                setMotivoConsulta(citaData.observaciones || 'Consulta médica');
+                            }
+                        } else {
+                            setMotivoConsulta(citaData.observaciones || 'Consulta médica');
+                        }
                     } catch (e) {
                         console.error('Error cargando signos vitales:', e);
+                        setMotivoConsulta(citaData.observaciones || 'Consulta médica');
                     }
+                } else {
+                    setMotivoConsulta(citaData.observaciones || 'Consulta médica');
                 }
             })
             .catch((err) => console.error('Error cargando cita:', err))
@@ -109,7 +133,7 @@ const DoctorConsultationView = () => {
                 setIsDiagSearching(true);
                 try {
                     const results = await DiagnosticoService.search(diagQuery);
-                    setDiagResults(results as unknown as Diagnostico[]);
+                    setDiagResults(results);
                 } catch (e) {
                     console.error('Error buscando diagnóstico:', e);
                 } finally {
@@ -130,19 +154,17 @@ const DoctorConsultationView = () => {
         setCreatingDiag(true);
         setCreateDiagError(null);
         try {
-            const created: any = await DiagnosticoService.create(newDiagCodigo.trim(), newDiagDescripcion.trim());
-            const mapped: Diagnostico = {
-                id: created.id,
-                codigoCIE: created.codigoCie10 || created.codigoCIE || newDiagCodigo.trim(),
-                descripcion: created.descripcion || newDiagDescripcion.trim()
-            };
-            setSelectedDiagnosis(mapped);
+            const created = await DiagnosticoService.create(newDiagCodigo.trim(), newDiagDescripcion.trim());
+            setSelectedDiagnosis(created);
             setShowCreateModal(false);
             setDiagResults([]);
             setDiagQuery('');
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Error creando diagnóstico:', err);
-            setCreateDiagError(err?.response?.data?.message || 'Error creando diagnóstico.');
+            const message = typeof err === 'object' && err !== null && 'response' in err
+                ? ((err as { response?: { data?: { message?: string } } }).response?.data?.message ?? 'Error creando diagnóstico.')
+                : 'Error creando diagnóstico.';
+            setCreateDiagError(message);
         } finally {
             setCreatingDiag(false);
         }
@@ -219,7 +241,7 @@ const DoctorConsultationView = () => {
         setIsSaving(true);
         try {
             await api.post(`/api/cita-medicas/${citaId}/finalizar`, {
-                motivoConsulta: appointment?.observaciones || 'Consulta médica',
+                motivoConsulta: motivoConsulta.trim() || appointment?.observaciones || 'Consulta médica',
                 notasMedicas,
                 diagnosticoPrincipalId: selectedDiagnosis.id,
                 recetas: prescriptions.map((rx) => ({
@@ -230,11 +252,14 @@ const DoctorConsultationView = () => {
                     cantidad: 1,
                 })),
             });
-            try { localStorage.removeItem('activeConsultation'); } catch (e) { }
+            try { localStorage.removeItem('activeConsultation'); } catch { void 0; }
             navigate('/medico');
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Error al finalizar consulta:', err);
-            setSaveError(err?.response?.data?.title || 'Error al guardar. Intente de nuevo.');
+            const message = typeof err === 'object' && err !== null && 'response' in err
+                ? ((err as { response?: { data?: { title?: string } } }).response?.data?.title ?? 'Error al guardar. Intente de nuevo.')
+                : 'Error al guardar. Intente de nuevo.';
+            setSaveError(message);
         } finally {
             setIsSaving(false);
         }
@@ -247,28 +272,33 @@ const DoctorConsultationView = () => {
         setIsDownloadingPdf(true);
         setSaveError(null);
         try {
-            const response = await api.get(`/api/reportes/receta/${citaId}`, {
-                responseType: 'blob',
+            if (!appointment?.paciente || !selectedDiagnosis) {
+                setSaveError('Seleccione un diagnóstico y verifique los datos del paciente antes de descargar la receta.');
+                return;
+            }
+            await ReporteService.descargarRecetaPreviewPdf({
+                citaId: Number(citaId),
+                fechaConsulta: new Date().toISOString().slice(0, 10),
+                nombrePaciente: `${appointment.paciente.nombres ?? ''} ${appointment.paciente.apellidos ?? ''}`.trim(),
+                codigoPaciente: `PAC-${String(appointment.paciente.id).padStart(4, '0')}`,
+                motivoConsulta: motivoConsulta.trim() || appointment.observaciones || 'Consulta médica',
+                codigoDiagnostico: selectedDiagnosis.codigoCIE,
+                descripcionDiagnostico: selectedDiagnosis.descripcion,
+                notasMedicas,
+                doctorName,
+                recetas: prescriptions.map((rx) => ({
+                    medicamento: rx.medicamento.nombre,
+                    dosis: rx.dosis,
+                    frecuencia: rx.frecuencia,
+                    duracion: rx.duracion,
+                })),
             });
-            const blob = new Blob([response.data], { type: 'application/pdf' });
-            const url = window.URL.createObjectURL(blob);
-            window.open(url, '_blank');
-            // Liberar memoria después de un momento
-            setTimeout(() => window.URL.revokeObjectURL(url), 10000);
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Error al descargar PDF:', err);
-            setSaveError('Error al generar PDF. Asegúrese de haber finalizado la consulta primero.');
+            setSaveError('Error al generar el PDF de la receta.');
         } finally {
             setIsDownloadingPdf(false);
         }
-    };
-
-    const handlePrint = () => {
-        if (!selectedDiagnosis) {
-            setSaveError('Seleccione un diagnóstico antes de imprimir la receta.');
-            return;
-        }
-        window.print();
     };
 
     if (loading || !appointment) {
@@ -291,7 +321,7 @@ const DoctorConsultationView = () => {
                     variant="ghost"
                     size="sm"
                     icon="arrow_back"
-                    onClick={() => { try { localStorage.removeItem('activeConsultation'); } catch (e) {} navigate('/medico'); }}
+                    onClick={() => { try { localStorage.removeItem('activeConsultation'); } catch { void 0; } navigate('/medico'); }}
                 >
                     Volver a Sala de Espera
                 </AppButton>
@@ -306,16 +336,6 @@ const DoctorConsultationView = () => {
                         title="Descargar Receta en PDF desde el servidor"
                     >
                         {isDownloadingPdf ? 'Generando...' : 'Descargar PDF'}
-                    </AppButton>
-                    <AppButton
-                        variant="outline"
-                        size="md"
-                        icon="print"
-                        onClick={handlePrint}
-                        disabled={!selectedDiagnosis}
-                        title={!selectedDiagnosis ? 'Seleccione un diagnóstico para imprimir' : 'Imprimir receta'}
-                    >
-                        Imprimir Receta
                     </AppButton>
                     <AppButton
                         variant="primary"
@@ -374,17 +394,23 @@ const DoctorConsultationView = () => {
                 <div className="lg:col-span-2 flex flex-col gap-6">
 
                     {/* Anamnesis / Notas */}
-                    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden">
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col overflow-visible">
                         <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/20 flex items-center gap-2">
                             <span className="material-symbols-outlined text-primary">clinical_notes</span>
                             <h3 className="font-bold text-slate-900 dark:text-white">Anamnesis y Evolución</h3>
                         </div>
                         <div className="p-6 flex flex-col gap-4">
                             <div>
-                                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Motivo de Consulta (Triage)</label>
-                                <div className="p-3 bg-amber-50 dark:bg-amber-500/10 text-amber-900 dark:text-amber-200 rounded-xl text-sm font-medium border border-amber-100 dark:border-amber-500/20">
-                                    {appointment.observaciones || 'Sin motivo registrado en triage.'}
-                                </div>
+                                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Motivo de Consulta</label>
+                                <textarea
+                                    value={motivoConsulta}
+                                    onChange={(e) => setMotivoConsulta(e.target.value)}
+                                    className="w-full rounded-xl border border-amber-200 dark:border-amber-500/20 bg-amber-50 dark:bg-amber-500/10 text-amber-900 dark:text-amber-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 p-4 h-28 resize-none text-sm outline-none"
+                                    placeholder="Motivo principal de la atención"
+                                />
+                                <p className="mt-2 text-xs text-slate-500">
+                                    Se precarga con el motivo registrado en triage o con la observación de la cita.
+                                </p>
                             </div>
                             <div>
                                 <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Notas Médicas *</label>
@@ -399,7 +425,7 @@ const DoctorConsultationView = () => {
                     </div>
 
                     {/* Diagnóstico Principal */}
-                    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden">
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col overflow-visible">
                         <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/20 flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <span className="material-symbols-outlined text-rose-500">search_insights</span>
@@ -482,7 +508,7 @@ const DoctorConsultationView = () => {
 
                 {/* Columna Derecha: Receta Médica */}
                 <div className="flex flex-col gap-6">
-                    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden h-full">
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col overflow-visible h-full">
                         <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/20 flex items-center gap-2">
                             <span className="material-symbols-outlined text-teal-500">prescriptions</span>
                             <h3 className="font-bold text-slate-900 dark:text-white">Receta Médica</h3>
@@ -633,16 +659,6 @@ const DoctorConsultationView = () => {
                 </div>
             )}
 
-            {/* Componente de receta imprimible — oculto en pantalla, visible solo al imprimir */}
-            {appointment && selectedDiagnosis && (
-                <PrintableReceta
-                    appointment={appointment}
-                    diagnosis={selectedDiagnosis}
-                    prescriptions={prescriptions}
-                    notasMedicas={notasMedicas}
-                    doctorName={doctorName}
-                />
-            )}
         </div>
     );
 };

@@ -1,6 +1,7 @@
 package ni.edu.mney.repository;
 
 import java.util.List;
+import java.util.Optional;
 import ni.edu.mney.domain.InteraccionMedicamentosa;
 import org.springframework.data.jpa.repository.*;
 import org.springframework.data.repository.query.Param;
@@ -25,6 +26,17 @@ public interface InteraccionMedicamentosaRepository
     List<InteraccionMedicamentosa> findByMedicamentoIds(@Param("medicamentoIds") List<Long> medicamentoIds);
 
     @Query("SELECT i FROM InteraccionMedicamentosa i WHERE " +
-           "i.medicamentoA.id IN :medicamentoIds AND i.medicamentoB.id IN :medicamentoIds")
+            "i.medicamentoA.id IN :medicamentoIds AND i.medicamentoB.id IN :medicamentoIds")
     List<InteraccionMedicamentosa> findInteractionsBetweenMedicamentos(@Param("medicamentoIds") List<Long> medicamentoIds);
+
+    @Query("""
+        SELECT i
+        FROM InteraccionMedicamentosa i
+        WHERE (i.medicamentoA.id = :medicamentoAId AND i.medicamentoB.id = :medicamentoBId)
+           OR (i.medicamentoA.id = :medicamentoBId AND i.medicamentoB.id = :medicamentoAId)
+        """)
+    Optional<InteraccionMedicamentosa> findExistingPair(
+        @Param("medicamentoAId") Long medicamentoAId,
+        @Param("medicamentoBId") Long medicamentoBId
+    );
 }

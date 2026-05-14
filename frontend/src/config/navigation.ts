@@ -4,6 +4,7 @@ export interface NavItem {
   path: string;
   icon: string;
   requiredRoles: string[];
+  requiredPermissions?: string[];
 }
 
 export interface NavGroup {
@@ -13,18 +14,23 @@ export interface NavGroup {
 
 /**
  * Matriz Universal de Navegación (System Inventory)
- * La visibilidad de cada ruta será gobernada exclusivamente por los `requiredRoles`.
+ * La visibilidad de cada ruta será gobernada por roles y permisos.
  */
 export const navigationConfig: NavGroup[] = [
   {
     groupName: 'Administración',
     items: [
-      { id: 'admin-dashboard', label: 'Dashboard', path: '/admin/dashboard', icon: 'dashboard', requiredRoles: ['ROLE_ADMIN'] },
-      { id: 'admin-pacientes', label: 'Gestión Pacientes', path: '/admin/pacientes', icon: 'groups', requiredRoles: ['ROLE_ADMIN'] },
-      { id: 'admin-meds', label: 'Medicamentos', path: '/admin/medicamentos', icon: 'medication', requiredRoles: ['ROLE_ADMIN'] },
-      { id: 'admin-citas', label: 'Gestión Citas', path: '/admin/citas', icon: 'calendar_month', requiredRoles: ['ROLE_ADMIN'] },
-      { id: 'admin-expedientes', label: 'Expedientes', path: '/admin/expedientes', icon: 'folder_open', requiredRoles: ['ROLE_ADMIN'] },
-      { id: 'admin-audit', label: 'Auditoría', path: '/admin/auditoria', icon: 'security', requiredRoles: ['ROLE_ADMIN'] },
+      { id: 'admin-dashboard', label: 'Dashboard', path: '/admin/dashboard', icon: 'dashboard', requiredRoles: ['ROLE_ADMIN'], requiredPermissions: ['admin.dashboard.view'] },
+      { id: 'admin-pacientes', label: 'Gestión Pacientes', path: '/admin/pacientes', icon: 'groups', requiredRoles: ['ROLE_ADMIN'], requiredPermissions: ['admin.patients.view'] },
+      { id: 'admin-meds', label: 'Medicamentos', path: '/admin/medicamentos', icon: 'medication', requiredRoles: ['ROLE_ADMIN'], requiredPermissions: ['admin.medications.view'] },
+      { id: 'admin-interacciones', label: 'Interacciones', path: '/admin/interacciones', icon: 'warning', requiredRoles: ['ROLE_ADMIN'], requiredPermissions: ['admin.interactions.view'] },
+      { id: 'admin-diagnosticos', label: 'Diagnósticos', path: '/admin/diagnosticos', icon: 'diagnosis', requiredRoles: ['ROLE_ADMIN'], requiredPermissions: ['admin.diagnoses.view'] },
+      { id: 'admin-citas', label: 'Gestión Citas', path: '/admin/citas', icon: 'calendar_month', requiredRoles: ['ROLE_ADMIN'], requiredPermissions: ['admin.appointments.view'] },
+      { id: 'admin-expedientes', label: 'Expedientes', path: '/admin/expedientes', icon: 'folder_open', requiredRoles: ['ROLE_ADMIN'], requiredPermissions: ['admin.records.view'] },
+      { id: 'admin-users', label: 'Usuarios', path: '/admin/usuarios', icon: 'badge', requiredRoles: ['ROLE_ADMIN'], requiredPermissions: ['admin.users.view', 'admin.users.manage', 'admin.users.export'] },
+      { id: 'admin-roles', label: 'Roles', path: '/admin/roles', icon: 'admin_panel_settings', requiredRoles: ['ROLE_ADMIN'], requiredPermissions: ['admin.roles.view', 'admin.roles.manage', 'admin.roles.export'] },
+      { id: 'admin-database', label: 'Base de Datos', path: '/admin/base-datos', icon: 'database', requiredRoles: ['ROLE_ADMIN'], requiredPermissions: ['admin.database.view', 'admin.database.export', 'admin.database.restore'] },
+      { id: 'admin-audit', label: 'Auditoría', path: '/admin/auditoria', icon: 'security', requiredRoles: ['ROLE_ADMIN'], requiredPermissions: ['admin.audit.view'] },
     ]
   },
   {
@@ -33,6 +39,7 @@ export const navigationConfig: NavGroup[] = [
       { id: 'med-dashboard', label: 'Dashboard', path: '/medico/dashboard', icon: 'dashboard', requiredRoles: ['ROLE_MEDICO'] },
       { id: 'med-pacientes', label: 'Mis Pacientes', path: '/medico/pacientes', icon: 'personal_injury', requiredRoles: ['ROLE_MEDICO'] },
       { id: 'med-citas', label: 'Mis Citas', path: '/medico/citas', icon: 'event', requiredRoles: ['ROLE_MEDICO'] },
+      { id: 'med-diagnosticos', label: 'Diagnósticos', path: '/medico/diagnosticos', icon: 'diagnosis', requiredRoles: ['ROLE_MEDICO'] },
       { id: 'med-inventario', label: 'Sala Insumos', path: '/medico/inventario', icon: 'inventory', requiredRoles: ['ROLE_MEDICO'] },
       { id: 'med-registros', label: 'Mis Registros', path: '/medico/registros', icon: 'clinical_notes', requiredRoles: ['ROLE_MEDICO'] },
       { id: 'med-laboratorio', label: 'Laboratorio', path: '/medico/laboratorio', icon: 'science', requiredRoles: ['ROLE_MEDICO'] },
@@ -53,6 +60,12 @@ export const navigationConfig: NavGroup[] = [
       { id: 'rec-pacientes', label: 'Registro Base', path: '/recepcion/pacientes', icon: 'how_to_reg', requiredRoles: ['ROLE_RECEPCION'] },
       { id: 'rec-expedientes', label: 'Expedientes', path: '/recepcion/expedientes', icon: 'folder_shared', requiredRoles: ['ROLE_RECEPCION'] },
       { id: 'rec-citas', label: 'Agenda Citas', path: '/recepcion/citas', icon: 'book_online', requiredRoles: ['ROLE_RECEPCION'] },
+    ]
+  },
+  {
+    groupName: 'Reportes',
+    items: [
+      { id: 'reportes-centro', label: 'Centro de Reportes', path: '/reportes', icon: 'assessment', requiredRoles: ['ROLE_ADMIN', 'ROLE_MEDICO'] },
     ]
   }
 ];

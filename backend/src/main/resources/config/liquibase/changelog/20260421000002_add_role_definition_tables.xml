@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="20260421000002-1" author="copilot">
+        <createTable tableName="app_role_definition">
+            <column name="role_name" type="varchar(50)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="description" type="varchar(255)"/>
+            <column name="system_role" type="boolean">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint
+            baseTableName="app_role_definition"
+            baseColumnNames="role_name"
+            referencedTableName="jhi_authority"
+            referencedColumnNames="name"
+            constraintName="fk_app_role_definition__authority"/>
+    </changeSet>
+
+    <changeSet id="20260421000002-2" author="copilot">
+        <createTable tableName="app_role_definition_permission">
+            <column name="role_name" type="varchar(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="permission_code" type="varchar(100)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addPrimaryKey tableName="app_role_definition_permission" columnNames="role_name,permission_code" constraintName="pk_app_role_definition_permission"/>
+        <addForeignKeyConstraint
+            baseTableName="app_role_definition_permission"
+            baseColumnNames="role_name"
+            referencedTableName="app_role_definition"
+            referencedColumnNames="role_name"
+            constraintName="fk_app_role_definition_permission__definition"/>
+    </changeSet>
+
+    <changeSet id="20260421000002-3" author="copilot">
+        <createTable tableName="app_role_definition_composite">
+            <column name="role_name" type="varchar(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="composite_role_name" type="varchar(50)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addPrimaryKey tableName="app_role_definition_composite" columnNames="role_name,composite_role_name" constraintName="pk_app_role_definition_composite"/>
+        <addForeignKeyConstraint
+            baseTableName="app_role_definition_composite"
+            baseColumnNames="role_name"
+            referencedTableName="app_role_definition"
+            referencedColumnNames="role_name"
+            constraintName="fk_app_role_definition_composite__definition"/>
+        <addForeignKeyConstraint
+            baseTableName="app_role_definition_composite"
+            baseColumnNames="composite_role_name"
+            referencedTableName="jhi_authority"
+            referencedColumnNames="name"
+            constraintName="fk_app_role_definition_composite__authority"/>
+    </changeSet>
+</databaseChangeLog>

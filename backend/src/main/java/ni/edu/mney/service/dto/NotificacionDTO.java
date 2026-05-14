@@ -8,12 +8,17 @@ import java.time.ZonedDateTime;
  */
 public class NotificacionDTO implements Serializable {
 
+    private Long id;
     private String tipo; // "PACIENTE_LISTO", "CONSULTA_FINALIZADA", etc.
     private String mensaje;
     private Long citaId;
     private String pacienteNombre;
     private String medicoLogin;
+    private String rutaAccion;
+    private String archivoDescarga;
+    private String accionLabel;
     private ZonedDateTime timestamp;
+    private boolean leida;
 
     public NotificacionDTO() {
         this.timestamp = ZonedDateTime.now();
@@ -25,6 +30,14 @@ public class NotificacionDTO implements Serializable {
         this.mensaje = mensaje;
         this.citaId = citaId;
         this.pacienteNombre = pacienteNombre;
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
     }
 
     public String getTipo() {
@@ -67,12 +80,44 @@ public class NotificacionDTO implements Serializable {
         this.medicoLogin = medicoLogin;
     }
 
+    public String getRutaAccion() {
+        return rutaAccion;
+    }
+
+    public void setRutaAccion(String rutaAccion) {
+        this.rutaAccion = rutaAccion;
+    }
+
+    public String getArchivoDescarga() {
+        return archivoDescarga;
+    }
+
+    public void setArchivoDescarga(String archivoDescarga) {
+        this.archivoDescarga = archivoDescarga;
+    }
+
+    public String getAccionLabel() {
+        return accionLabel;
+    }
+
+    public void setAccionLabel(String accionLabel) {
+        this.accionLabel = accionLabel;
+    }
+
     public ZonedDateTime getTimestamp() {
         return timestamp;
     }
 
     public void setTimestamp(ZonedDateTime timestamp) {
         this.timestamp = timestamp;
+    }
+
+    public boolean isLeida() {
+        return leida;
+    }
+
+    public void setLeida(boolean leida) {
+        this.leida = leida;
     }
 
     @Override
@@ -82,6 +127,7 @@ public class NotificacionDTO implements Serializable {
                 ", mensaje='" + mensaje + '\'' +
                 ", citaId=" + citaId +
                 ", pacienteNombre='" + pacienteNombre + '\'' +
+                ", rutaAccion='" + rutaAccion + '\'' +
                 '}';
     }
 }

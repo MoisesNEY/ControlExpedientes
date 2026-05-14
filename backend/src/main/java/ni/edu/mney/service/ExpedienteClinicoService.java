@@ -176,6 +176,7 @@ public class ExpedienteClinicoService {
                         .sorted((c1, c2) -> c2.getFechaConsulta().compareTo(c1.getFechaConsulta()))
                         .map(consulta -> {
                             TimelineEntryDTO entry = new TimelineEntryDTO();
+                            entry.setConsultaId(consulta.getId());
                             entry.setFecha(consulta.getFechaConsulta());
                             entry.setMotivo(consulta.getMotivoConsulta());
 

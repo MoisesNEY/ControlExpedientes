@@ -68,6 +68,7 @@ public class InteraccionMedicamentosaResource {
         if (interaccionMedicamentosaDTO.getId() != null) {
             throw new BadRequestAlertException("A new interaccionMedicamentosa cannot already have an ID", ENTITY_NAME, "idexists");
         }
+        validateInteraction(interaccionMedicamentosaDTO, null);
         interaccionMedicamentosaDTO = interaccionMedicamentosaService.save(interaccionMedicamentosaDTO);
         return ResponseEntity.created(new URI("/api/interacciones-medicamentosas/" + interaccionMedicamentosaDTO.getId()))
             .headers(HeaderUtil.createEntityCreationAlert(applicationName, true, ENTITY_NAME,
@@ -103,6 +104,7 @@ public class InteraccionMedicamentosaResource {
             throw new BadRequestAlertException("Entity not found", ENTITY_NAME, "idnotfound");
         }
 
+        validateInteraction(interaccionMedicamentosaDTO, id);
         interaccionMedicamentosaDTO = interaccionMedicamentosaService.update(interaccionMedicamentosaDTO);
         return ResponseEntity.ok()
             .headers(HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME,
@@ -174,5 +176,26 @@ public class InteraccionMedicamentosaResource {
         return ResponseEntity.noContent()
             .headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id.toString()))
             .build();
+    }
+
+    private void validateInteraction(InteraccionMedicamentosaDTO dto, Long currentId) {
+        boolean missingMedicamentoA = dto.getMedicamentoA() == null || dto.getMedicamentoA().getId() == null;
+        boolean missingMedicamentoB = dto.getMedicamentoB() == null || dto.getMedicamentoB().getId() == null;
+        if (missingMedicamentoA || missingMedicamentoB) {
+            throw new BadRequestAlertException("Both medications are required", ENTITY_NAME, "medicamentosrequired");
+        }
+
+        Long medicamentoAId = dto.getMedicamentoA().getId();
+        Long medicamentoBId = dto.getMedicamentoB().getId();
+        if (Objects.equals(medicamentoAId, medicamentoBId)) {
+            throw new BadRequestAlertException("A medication cannot interact with itself", ENTITY_NAME, "sameMedication");
+        }
+
+        interaccionMedicamentosaRepository
+            .findExistingPair(medicamentoAId, medicamentoBId)
+            .filter(existing -> currentId == null || !Objects.equals(existing.getId(), currentId))
+            .ifPresent(existing -> {
+                throw new BadRequestAlertException("Interaction already exists for this medication pair", ENTITY_NAME, "interactionexists");
+            });
     }
 }
